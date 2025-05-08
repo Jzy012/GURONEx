@@ -1,0 +1,21 @@
+<DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEMS</title>
+
+</head>
+
+<body>
+    {%block content%}
+
+    <h1>Welcome to FEMS</h1>
+    <p>FEMS is a web application for managing and analyzing data.</p>
+    <p>Use the navigation bar to explore different sections of the application.</p>
+    <a href="{% url 'login' %}"> Log In</a>
+
+    {% endblock %}
+</body>
+</html>
