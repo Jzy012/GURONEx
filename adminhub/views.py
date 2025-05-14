@@ -1,13 +1,18 @@
 from django.shortcuts import render, redirect 
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth import authenticate, login 
+from base.decorators import admin_required, faculty_required
 
 
 # Create your views here.
 
-@login_required(login_url='login')
+@admin_required
 def home(request):
-    if request.user.role != 'admin':
-        return redirect( 'faculty:home')
+    
 
     return render(request, 'admin_home.html')
+
+
+@admin_required
+def documents(request):
+    
+
+    return render (request, 'admin_documents_storage.html')  

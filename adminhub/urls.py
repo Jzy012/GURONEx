@@ -6,5 +6,5 @@ app_name = 'adminhub'
 
 urlpatterns = [
     path('admin/home/', views.home, name='home'),
-
+    path('admin/documents/', views.documents, name='documents'),
 ]
