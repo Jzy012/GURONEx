@@ -1,4 +1,4 @@
-{% extends 'index.html'%}
+{% extends 'index.html' %}
 
 {% block content %}
     <h1>Login</h1>
@@ -8,6 +8,10 @@
         {{ form.as_p }}
         <button type="submit">Login</button>
     </form>
+
+    <p style="margin-top: 10px;">
+        <a href="{% url 'forgot_password' %}">Forgot your password?</a>
+    </p>
     
     {% if messages %}
         <ul>

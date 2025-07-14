@@ -12,8 +12,11 @@
         
         <h1>Faculty</h1>
         
-        <a href="{% url 'logout' %}">Logout</a>
-
+        <ul>
+            <li><a href="{% url 'faculty:faculty_settings' %}">Faculty Settings</a></li>
+            <li><a href="{% url 'logout' %}">Logout</a></li>
+        </ul>
+        
         {% endblock %}
     </body>
     </html>

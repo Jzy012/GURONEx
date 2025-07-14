@@ -108,12 +108,12 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
     },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    # {
+    #     'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    # },
+    # {
+    #     'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    # },
 ]
 
 
@@ -148,3 +148,15 @@ LOGIN_URL = 'login'
 
 # Redirect URL after logout
 LOGOUT_REDIRECT_URL = 'login'  
+
+
+# Email backend for sending emails
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+# Default: Gmail SMTP settings
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = env("EMAIL_HOST_USER")             # <-- Replace with Gmail address
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")        # <-- Use an App Password for Gmail (not your regular password)
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

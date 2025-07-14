@@ -1,0 +1,8 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<h2>Admin Settings</h2>
+<ul>
+    <li><a href="{% url 'adminhub:admin_change_password' %}">Change Password</a></li>
+</ul>
+{% endblock %}

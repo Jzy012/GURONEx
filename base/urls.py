@@ -1,11 +1,19 @@
 from django.urls import path
 from . import views  
+from .views import forgot_password_view, verify_otp_view, reset_password_view
 
-
+from django.contrib.auth import views as auth_views
 
 urlpatterns =[
     path('', views.index, name='index'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+
+    path('forgot-password/', forgot_password_view, name='forgot_password'),
+    path('verify-otp/', verify_otp_view, name='verify_otp'),
+    path('reset-password/', reset_password_view, name='reset_password'),
+
+
 ]
+
 

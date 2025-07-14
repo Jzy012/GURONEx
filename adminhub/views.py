@@ -8,11 +8,16 @@ from base.decorators import admin_required, faculty_required
 def home(request):
     
 
-    return render(request, 'admin_home.html')
+    return render(request, 'admin/admin_home.html')
 
 
 @admin_required
 def documents(request):
     
 
-    return render (request, 'admin_documents_storage.html')  
+    return render (request, 'admin/admin_documents_storage.html')
+
+
+@admin_required
+def admin_settings(request):
+    return render(request, 'admin/admin_settings.html') 
