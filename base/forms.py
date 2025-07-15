@@ -1,4 +1,5 @@
 from django import forms
+from .models import Account
 
 class LoginForm(forms.Form):
     email = forms.EmailField(label='Email', max_length=255)
@@ -13,6 +14,16 @@ class ForgotPasswordForm(forms.Form):
 class OTPVerificationForm(forms.Form):
     email = forms.EmailField(label="Email", max_length=254)
     otp = forms.CharField(label="OTP", max_length=6)
+
+
+
+class TwoFactorOTPVerificationForm(forms.Form):
+    otp = forms.CharField(
+        label='Enter OTP',
+        max_length=6,
+        widget=forms.TextInput(attrs={'placeholder': '6-digit code'})
+    )
+
 
 
 class PasswordResetForm(forms.Form):
@@ -34,3 +45,13 @@ class PasswordResetForm(forms.Form):
         if password and confirm and password != confirm:
             raise forms.ValidationError("Passwords do not match.")
         return cleaned_data
+    
+
+
+class TwoFactorToggleForm(forms.ModelForm):
+    class Meta:
+        model = Account
+        fields = ['two_factor_authentication']
+        labels = {
+            'two_factor_authentication': 'Enable Two-Factor Authentication (2FA)',
+        }

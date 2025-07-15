@@ -20,4 +20,8 @@ urlpatterns = [
     path('admin/settings/change-password/done/', auth_views.PasswordChangeDoneView.as_view(
         template_name='admin/admin_change_password_done.html'
     ), name='admin_change_password_done'),
+
+
+    path('admin/settings/two-factor/', views.admin_2fa, name='admin_2fa'),
+
 ]

@@ -16,10 +16,10 @@ from base.decorators import faculty_required, admin_required
 
 from django.contrib.auth import get_user_model
 from .forms import ForgotPasswordForm
-from .models import PasswordResetOTP
-from base.utils.email_utils import send_otp_email 
+from .models import UserOTP
+from base.utils.emailotp_utils import send_otp_email 
 
-from .forms import OTPVerificationForm
+from .forms import OTPVerificationForm, TwoFactorOTPVerificationForm
 from django.utils import timezone
 
 from django.contrib.auth.hashers import make_password
@@ -36,7 +36,7 @@ def index(request):
 
 def login_view(request):
     if request.user.is_authenticated:
-        # Redirect based on role
+        # Auto-redirect if already logged in
         if request.user.role == 'admin':
             return redirect('adminhub:home')
         elif request.user.role == 'faculty':
@@ -48,18 +48,28 @@ def login_view(request):
             email = form.cleaned_data['email']
             password = form.cleaned_data['password']
             user = authenticate(request, email=email, password=password)
+
             if user is not None:
-                auth_login(request, user)
-                # Redirect based on role
-                if user.role == 'admin':
-                    return redirect('adminhub:home')
-                elif user.role == 'faculty':
-                    return redirect('faculty:home')
+                if user.two_factor_authentication:
+                    # ✅ Trigger 2FA via email
+                    otp_obj = UserOTP.create_for_user(user, purpose='login_2fa', expiry_minutes=5)
+                    send_otp_email(user.email, otp_obj.otp, purpose='login_2fa')
+                    request.session['pre_2fa_user_id'] = user.id
+                    messages.info(request, 'A login OTP has been sent to your email.')
+                    return redirect('verify_2fa_otp')
+                else:
+                    # Normal login
+                    auth_login(request, user)
+                    if user.role == 'admin':
+                        return redirect('adminhub:home')
+                    elif user.role == 'faculty':
+                        return redirect('faculty:home')
             else:
                 messages.error(request, 'Invalid credentials.')
     else:
         form = LoginForm()
-    return render(request, 'authentication/login.html', {'form': form})
+
+    return render(request, 'authentication/login.html', {'form': form}) 
 
 
 def logout_view(request):
@@ -92,14 +102,14 @@ def forgot_password_view(request):
                 return redirect("forgot_password")
 
             # Check OTP requests per day
-            otp_requests = PasswordResetOTP.otp_requests_today(user)
+            otp_requests = UserOTP.otp_requests_today(user, purpose='password_reset')
             if otp_requests >= MAX_OTP_REQUESTS_PER_DAY:
                 messages.error(request, "Maximum OTP requests reached for today. Please try again tomorrow.")
                 return redirect("forgot_password")
 
             # Create OTP and send email
-            otp_obj = PasswordResetOTP.create_for_user(user, expiry_minutes=10)
-            send_otp_email(email, otp_obj.otp)
+            otp_obj = UserOTP.create_for_user(user, purpose='password_reset', expiry_minutes=10)
+            send_otp_email(email, otp_obj.otp, purpose='password_reset')
             messages.success(request, "If your email is registered, you will receive an OTP.")
             return redirect("verify_otp")
     else:
@@ -123,11 +133,13 @@ def verify_otp_view(request):
                 return redirect("verify_otp")
 
             # Get most recent active OTP
-            otp_obj = PasswordResetOTP.objects.filter(
+            otp_obj = UserOTP.objects.filter(
                 user=user,
+                purpose='password_reset',
                 is_used=False,
                 expires_at__gt=timezone.now()
             ).order_by("-created_at").first()
+
 
             if otp_obj and otp_obj.otp == otp:
                 if otp_obj.has_expired():
@@ -177,4 +189,49 @@ def reset_password_view(request):
 
 
 
+def verify_two_factor_otp_view(request):
+    User = get_user_model()
+    user_id = request.session.get("pre_2fa_user_id")
 
+    if not user_id:
+        messages.error(request, "Session expired or invalid.")
+        return redirect("login")
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        messages.error(request, "User not found.")
+        return redirect("login")
+
+    if request.method == "POST":
+        form = TwoFactorOTPVerificationForm(request.POST)
+        if form.is_valid():
+            otp = form.cleaned_data["otp"]
+
+            otp_obj = UserOTP.objects.filter(
+                user=user,
+                purpose='login_2fa',
+                is_used=False,
+                expires_at__gt=timezone.now()
+            ).order_by("-created_at").first()
+
+            if otp_obj and otp_obj.otp == otp:
+                if otp_obj.has_expired():
+                    messages.error(request, "OTP has expired. Please log in again.")
+                    return redirect("login")
+
+                otp_obj.mark_as_used()
+                del request.session["pre_2fa_user_id"]
+                auth_login(request, user)
+
+                # Redirect based on role
+                if user.role == 'admin':
+                    return redirect("adminhub:home")
+                elif user.role == 'faculty':
+                    return redirect("faculty:home")
+            else:
+                messages.error(request, "Invalid or expired OTP.")
+    else:
+        form = TwoFactorOTPVerificationForm()
+
+    return render(request, "authentication/verify_two_factor_otp.html", {"form": form})

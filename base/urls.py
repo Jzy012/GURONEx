@@ -13,6 +13,7 @@ urlpatterns =[
     path('verify-otp/', verify_otp_view, name='verify_otp'),
     path('reset-password/', reset_password_view, name='reset_password'),
 
+    path("verify-2fa-otp/", views.verify_two_factor_otp_view, name="verify_2fa_otp"),
 
 ]
 

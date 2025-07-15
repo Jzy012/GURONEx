@@ -20,4 +20,7 @@ urlpatterns = [
     path('faculty/settings/change-password/done/', auth_views.PasswordChangeDoneView.as_view(
         template_name='faculty/faculty_change_password_done.html'
     ), name='faculty_change_password_done'),
+
+
+    path('faculty/settings/two-factor/', views.faculty_2fa, name='faculty_2fa'),
 ]
