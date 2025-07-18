@@ -9,6 +9,8 @@
     <button type="submit">Save</button>
 </form>
 
+<a href="{% url 'faculty:faculty_settings' %}">Back to Settings</a>
+
 {% for message in messages %}
   <p>{{ message }}</p>
 {% endfor %}

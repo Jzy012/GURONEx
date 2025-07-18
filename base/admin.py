@@ -14,10 +14,12 @@ class AccountCreationForm(forms.ModelForm):
     """Form for creating new users (in admin add user page)"""
     password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
     password2 = forms.CharField(label='Password confirmation', widget=forms.PasswordInput)
+    two_factor_authentication = forms.BooleanField(required=False, initial=False)
+
 
     class Meta:
         model = Account
-        fields = ('email', 'role')
+        fields = ('email', 'role', 'two_factor_authentication')
 
     def clean_password2(self):
         # Check if passwords match
@@ -31,6 +33,8 @@ class AccountCreationForm(forms.ModelForm):
         # Save hashed password
         user = super().save(commit=False)
         user.set_password(self.cleaned_data["password1"])
+        user.two_factor_authentication = self.cleaned_data.get("two_factor_authentication", False)
+
 
         # Automatically set is_staff/is_superuser if role == system_admin
         if user.role == 'system_admin':
@@ -50,11 +54,11 @@ class AccountChangeForm(forms.ModelForm):
 
     class Meta:
         model = Account
-        fields = ('email', 'role', 'password', 'is_active', 'is_staff', 'is_superuser')
+        fields = ('email', 'role', 'password', 'is_active', 'is_staff', 'is_superuser', 'two_factor_authentication')
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        if self.cleaned_data['password']:
+        if self.cleaned_data.get('password'):
             user.set_password(self.cleaned_data['password'])
         if commit:
             user.save()
@@ -66,17 +70,17 @@ class AccountAdmin(UserAdmin):
     form = AccountChangeForm
     model = Account
 
-    list_display = ('email', 'role', 'is_staff', 'is_superuser')
-    list_filter = ('role', 'is_staff', 'is_superuser')
+    list_display = ('email', 'role', 'is_staff', 'is_superuser', 'two_factor_authentication')
+    list_filter = ('role', 'is_staff', 'is_superuser', 'two_factor_authentication')
 
     fieldsets = (
-        (None, {'fields': ('email', 'password', 'role')}),
+        (None, {'fields': ('email', 'password', 'role', 'two_factor_authentication')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
     )
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'role', 'password1', 'password2'),
+            'fields': ('email', 'role', 'password1', 'password2', 'two_factor_authentication'),
         }),
     )
     search_fields = ('email',)

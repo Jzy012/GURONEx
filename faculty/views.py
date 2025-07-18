@@ -2,12 +2,13 @@ from django.shortcuts import render, redirect
 from base.decorators import faculty_required, admin_required
 from base.forms import TwoFactorToggleForm
 from django.contrib import messages
+from base.utils.faculty_data import get_faculty_data
 # Create your views here.
 
 @faculty_required
 def home(request):
-    
-    return render(request, 'faculty/faculty_home.html')
+    data = get_faculty_data(request)
+    return render(request, 'faculty/faculty_home.html', data)
 
 
 @faculty_required

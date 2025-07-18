@@ -11,10 +11,12 @@
     {% block content %}
     
     <h1>Admin</h1>
-    
+
+    <h2> Welcome, {{ name }}</h2>
 
     <ul>
-        <li><a href="{% url 'adminhub:admin_settings' %}">Admin Settings</a></li>
+        <li><a href="{% url 'adminhub:documents' %}">Documents</a></li>
+        <li><a href="{% url 'adminhub:admin_settings' %}">Settings</a></li>
         <li><a href="{% url 'logout' %}">Logout</a></li>
     </ul>
     {% endblock %}
