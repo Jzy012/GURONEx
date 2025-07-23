@@ -1,0 +1,13 @@
+{% extends 'admin/admin_home.html'%}
+{% load static %}
+
+{% block content %}
+<h2>Create Faculty</h2>
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit" class="btn btn-primary">Create Faculty</button>
+</form>
+
+{% endblock %}

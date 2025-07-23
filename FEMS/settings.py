@@ -160,3 +160,16 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = env("EMAIL_HOST_USER")             # <-- Replace with Gmail address
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")        # <-- Use an App Password for Gmail (not your regular password)
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+# Google Service Account Credentials
+GOOGLE_SERVICE_ACCOUNT_FILE = env("GOOGLE_SERVICE_ACCOUNT_FILE")  
+
+# Google OAuth2 Client Secret
+GOOGLE_CLIENT_SECRET_FILE = env("GOOGLE_CLIENT_SECRET_FILE")
+
+# Google OAuth2 Redirect URI
+GOOGLE_OAUTH2_REDIRECT_URI = env("GOOGLE_OAUTH2_REDIRECT_URI")
+
+# Fernet Key for encryption
+FERNET_KEY = env("FERNET_KEY")

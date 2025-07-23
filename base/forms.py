@@ -55,3 +55,70 @@ class TwoFactorToggleForm(forms.ModelForm):
         labels = {
             'two_factor_authentication': 'Enable Two-Factor Authentication (2FA)',
         }
+
+
+
+
+
+# faculty/forms.py
+from django import forms
+from base.models import Account
+from faculty.models import FacultyProfile, EmploymentStatus
+import secrets
+
+class FacultyCreationForm(forms.Form):
+    name = forms.CharField(max_length=255)
+    email = forms.EmailField()
+    department = forms.CharField(max_length=100)
+    birth_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+    contact_number = forms.CharField(max_length=20, required=False)
+    status = forms.ModelChoiceField(queryset=EmploymentStatus.objects.filter(is_active=True), required=False)
+
+    # Password options
+    password = forms.CharField(max_length=128, required=False, widget=forms.PasswordInput, help_text="Leave blank to auto-generate.")
+    
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if Account.objects.filter(email=email).exists():
+            raise forms.ValidationError("An account with this email already exists.")
+        return email
+
+    def generate_random_password(self):
+        return ''.join(secrets.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for _ in range(8))
+
+
+
+
+
+
+
+
+from django import forms
+from faculty.models import DocumentCategory
+import os
+
+class FacultyDocumentUploadForm(forms.Form):
+    document_category = forms.ModelChoiceField(queryset=DocumentCategory.objects.all(), required=True)
+    document_name = forms.CharField(max_length=255, required=True)
+    file = forms.FileField(required=True)
+    expiry_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+
+    def __init__(self, *args, **kwargs):
+        self.faculty = kwargs.pop('faculty', None)
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        category = cleaned_data.get("document_category")
+        file = cleaned_data.get("file")
+        expiry = cleaned_data.get("expiry_date")
+
+        if file and category:
+            ext = os.path.splitext(file.name)[1].lower().lstrip('.')
+            allowed = category.allowed_file_types.values_list("extension", flat=True)
+            if ext not in allowed:
+                raise forms.ValidationError(f"File type '.{ext}' is not allowed for {category.name}.")
+
+        if category and category.requires_expiry_date and not expiry:
+            raise forms.ValidationError("Expiry date is required for this document category.")
+

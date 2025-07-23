@@ -117,3 +117,81 @@ class UserOTP(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - OTP: {self.otp} ({self.purpose})"
+
+
+
+
+#Google Drive Token Handler
+
+from django.db import models
+from django.contrib.auth import get_user_model
+from cryptography.fernet import Fernet
+from django.conf import settings
+
+def get_fernet():
+    # Assumes settings.FERNET_KEY is set via django-environ in settings.py
+    key = settings.FERNET_KEY
+    return Fernet(key)
+
+class GoogleDriveToken(models.Model):
+    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE)
+    _access_token = models.TextField()
+    _refresh_token = models.TextField()
+    token_expiry = models.DateTimeField()
+
+    def set_access_token(self, token):
+        f = get_fernet()
+        self._access_token = f.encrypt(token.encode()).decode()
+
+    def get_access_token(self):
+        f = get_fernet()
+        return f.decrypt(self._access_token.encode()).decode()
+
+    def set_refresh_token(self, token):
+        f = get_fernet()
+        self._refresh_token = f.encrypt(token.encode()).decode()
+
+    def get_refresh_token(self):
+        f = get_fernet()
+        return f.decrypt(self._refresh_token.encode()).decode()
+
+    access_token = property(get_access_token, set_access_token)
+    refresh_token = property(get_refresh_token, set_refresh_token)
+
+    def __str__(self):
+        return f"Google OAuth token for {self.user}"
+
+
+
+
+# Google Storage Account Model
+class GoogleStorageAccount(models.Model):
+    label = models.CharField(max_length=100, default="Primary")
+    email = models.EmailField(unique=True)
+    _access_token = models.TextField()
+    _refresh_token = models.TextField()
+    token_expiry = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def set_access_token(self, token):
+        f = get_fernet()
+        self._access_token = f.encrypt(token.encode()).decode()
+
+    def get_access_token(self):
+        f = get_fernet()
+        return f.decrypt(self._access_token.encode()).decode()
+
+    def set_refresh_token(self, token):
+        f = get_fernet()
+        self._refresh_token = f.encrypt(token.encode()).decode()
+
+    def get_refresh_token(self):
+        f = get_fernet()
+        return f.decrypt(self._refresh_token.encode()).decode()
+
+    access_token = property(get_access_token, set_access_token)
+    refresh_token = property(get_refresh_token, set_refresh_token)
+
+    def __str__(self):
+        return f"{self.label} - {self.email}"

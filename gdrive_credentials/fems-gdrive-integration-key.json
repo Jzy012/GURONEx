@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "fems-gdrive-integration",
+  "private_key_id": "51d68022dbf4fbcf9bb6605749c59fcd09be996c",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCnDSOT6DMuTaJV\nBcP1A6HrkgzEJqCfdvVgeWZqdQ9JJcxBZOvzhFxBoWLUI3+Ej+VFMBKbBkFjoyDX\nAei/pGy6s9gBtrdYca0DLnA+YZKE2oUk+1WjJ1r5t0QF/SBnFBZI1Y+dmyUuAXfR\n3swATovA4yz5kqDVN6LICDeoj77pc7ZMjXd5wKlL5cKwE6JlOjiBPnYgga+ZWgKw\nBe652mxph6s8JVU07vdCTx1whX3m94t4prJl1QAlZGeNNebFY+MXZCeEv8brmoHR\nBmcmBNq7lmFFKFZA6AE3x7+G8MchRBnEAjSl0Rr+jWWVpxV8ULJzPv2IOnYSyyEf\nkqDMnAObAgMBAAECggEAN8gPZUhYLtIFrtZqBNrdqsfuM2GiqR0T+s8O/+Vu4UIZ\n3oxQrdQ46kF1utjPr/hM2rmevN1t4FOMl78vdS72j7GWI5xbxNDQsQtEt8/lGS/O\n3fZ/NifiHRixQj6wHzt55YBKoJo55A7hb9cxz7hqulIhpoTr58bYOGtmCodVfKZ4\noR5kAoQpd6tt9QnVvJqBe82zfDSx0dLcZvf3ktU12y9kmLXrUeanQRqn43catzvR\n1UpSEkBZ1Nl9nj96uwyZzXGaiy2F1iPqJ9HhQh3CbavXsaLpZVoebbk27Gbqw0QM\nNUMxUf7oUPy7wmGOQC+U7H3YGrJdU9/wK+qD7P/RQQKBgQDZ4v0k/nkISEJq7K55\naBcR7v8l8QRWbx9Nlafg1UElspOJyA3rMKIKNEZqVIvlVIrAXpCf6oeGwnQrEDzU\nu4c457R80MLGz4f/enX+RXj/sXm1qhBE6Rh+3m58RA48mPR8tVi/sqkWwgjEKkTy\n46OFikZ6rwcj4AT/Cl2PqYx9GQKBgQDERbt/iCVIoDG2Xx84Wtv0kfnhx8vLitji\nwDHOUQHNSMpNEAU2LFTd/ZZr6d9R72sMsQk2OWQS5cb7xxQyz20mKWBOs1UZJbzg\nQM4pqTPhRP8s4BT9o/J3KuNiu8Y93IEIPim7E9CI8LPVyk8tSpsNytna86ftScfp\nI3KNwA0o0wKBgAyG+HcACoVnYiozoXRpf6oQS6sqyE0P5oTXbeeHW0+HjOQHFIXJ\nLgfYKZRDeCefTLrytO381f3xgCxZqqWwgn3LFJ14gzpbBD60E8Siyeopkg3X0Uek\n/zuMHl4Wq5rgUG47HvcmloIwdcCRjZVJcUVkRdkX5xkw8BiZx/dSkDlBAoGBALa2\nN6qsQhEO19hvSq/6nUJa1iUiCoyr7+V+h58J+ERzW6hLnp5kvIh/dpV0/SjYWW5S\nLEInQQr6jrd6B0qZoIFjCT2aYkDryZ11lrZfxmUSBv5uh/vqsF/RNCaIqS6TZCcZ\nP13hP0ML2E3QbM674gX/7biPFKeoBIr7LbvZqiZzAoGBAJmxpnArTvTW+p1i8HF2\nmwHcc67DiX88lUuzomxKTtFnz9JnLV+U9tGdkc2tvgQrChaJ+/LMAl+XmniYlDvQ\n1Y3FF+aGV56GA6KG+Pabtz64JnS30JKDTrlod6MWxy9ma3rZTjoLdmNjm/spZBtV\n/r6t7Ur78mhw4dMUIZuWPKuT\n-----END PRIVATE KEY-----\n",
+  "client_email": "fems-drive-service@fems-gdrive-integration.iam.gserviceaccount.com",
+  "client_id": "104935347555768848248",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/fems-drive-service%40fems-gdrive-integration.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

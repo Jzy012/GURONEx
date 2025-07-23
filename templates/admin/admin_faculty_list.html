@@ -1,0 +1,36 @@
+{% extends 'admin/admin_home.html' %}
+
+{% block content %}
+    <h1>Faculty List</h1>
+
+    <a href="{% url 'adminhub:create_faculty' %}" class="btn btn-primary">Create Faculty</a>
+
+    <table border="1" cellspacing="0" cellpadding="8">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for faculty in faculty_list %}
+                <tr>
+                    <td><a href="{% url 'adminhub:faculty_detail' faculty.uuid %}">{{ faculty.name }}</a></td>
+                    <td>{{ faculty.email }}</td>
+                    <td>{{ faculty.status }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="3">No faculty members found.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    
+
+    <br>
+
+    <a href="{% url 'adminhub:home' %}">Back to Home</a>
+{% endblock %}

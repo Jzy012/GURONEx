@@ -1,0 +1,60 @@
+{% extends 'admin/admin_home.html'%}
+
+{% block content %}
+    <h1>{{ faculty.name }}'s Profile</h1>
+    <ul>
+        <li><strong>Name:</strong> {{ faculty.name }}</li>
+        <li><strong>Email:</strong> {{ faculty.account.email }}</li>
+        <li><strong>Status:</strong> {{ faculty.status.name }}</li>
+        <li><strong>Department:</strong> {{ faculty.department }}</li>
+        <li><strong>Contact Number:</strong> {{ faculty.contact_number }}</li>
+        <li><strong>Birth Date:</strong> {{ faculty.birth_date }}</li>
+        <li><strong>Google Drive Folder ID:</strong> {{ faculty.gdrive_folder_id }}</li>
+    </ul>
+
+    <hr>
+
+    <h2>Recent Attendance Logs</h2>
+    <ul>
+        {% for log in attendance_logs %}
+            <li>{{ log.date }} - {{ log.time_in }} to {{ log.time_out }}</li>
+        {% empty %}
+            <li>No logs found.</li>
+        {% endfor %}
+    </ul>
+
+    <hr>
+
+    <h2>Documents</h2>
+    <ul>
+        {% for doc in documents %}
+            <li>
+                {{ doc.document_name }} - {{ doc.status }}
+                |
+                <a href="{{ doc.file_path }}" target="_blank">View</a>
+                
+            </li>
+        {% empty %}
+            <li>No documents uploaded.</li>
+        {% endfor %}
+    </ul>
+    <hr>
+
+    <h2>DTR Records</h2>
+    <ul>
+        {% for dtr in dtr_records %}
+            <li>{{ dtr.month }}/{{ dtr.year }} - {{ dtr.total_hours }} hrs</li>
+        {% empty %}
+            <li>No DTR records found.</li>
+        {% endfor %}
+    </ul>
+
+    <br>
+    <a href="{% url 'adminhub:faculty_list' %}">Back to Faculty List</a>
+{% endblock %}
+
+
+
+
+   
+

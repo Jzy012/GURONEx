@@ -1,0 +1,13 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<h2>Faculty Documents</h2>
+
+<ul>
+    <li><a href="{% url 'faculty:upload_documents' %}">Upload Documents</a></li>
+
+</ul>
+
+    <a href="{% url 'faculty:home' %}"> Back to Home</a>
+
+{% endblock %}

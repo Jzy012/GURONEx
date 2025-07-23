@@ -87,3 +87,14 @@ class AccountAdmin(UserAdmin):
     ordering = ('email',)
 
 admin.site.register(Account, AccountAdmin)
+
+
+
+
+from .models import GoogleStorageAccount
+
+@admin.register(GoogleStorageAccount)
+class GoogleStorageAccountAdmin(admin.ModelAdmin):
+    list_display = ("label", "email", "is_active", "token_expiry", "created_at")
+    readonly_fields = ("created_at",)
+    list_filter = ("is_active",)

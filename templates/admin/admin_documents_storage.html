@@ -1,8 +1,68 @@
 {% extends 'admin/admin_home.html'%}
 
 {% block content %}
-    <h1>Documents</h1>
-    
+<h2>All Uploaded Documents</h2>
 
-    <a href="{% url 'adminhub:home' %}">Back to Home</a>
+<form method="get" class="filter-form">
+    <input type="text" name="q" placeholder="Search..." value="{{ search_query }}" />
+
+    <select name="category">
+        <option value="">All Categories</option>
+        {% for category in categories %}
+            <option value="{{ category.id }}" {% if category.id|stringformat:"s" == selected_category %}selected{% endif %}>{{ category.name }}</option>
+        {% endfor %}
+    </select>
+
+    <select name="status">
+        <option value="">All Statuses</option>
+        <option value="Pending" {% if selected_status == "Pending" %}selected{% endif %}>Pending</option>
+        <option value="Approved" {% if selected_status == "Approved" %}selected{% endif %}>Approved</option>
+        <option value="Rejected" {% if selected_status == "Rejected" %}selected{% endif %}>Rejected</option>
+    </select>
+
+    <button type="submit">Filter</button>
+</form>
+
+<table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Faculty</th>
+            <th>Document Name</th>
+            <th>Category</th>
+            <th>Upload Date</th>
+            <th>Status</th>
+            <th>Expiry</th>
+            <th>Download</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for doc in documents %}
+        <tr>
+            <td>{{ doc.faculty.name }}</td>
+            <td>{{ doc.document_name }}</td>
+            <td>{{ doc.document_category.name }}</td>
+            <td>{{ doc.uploaded_at|date:"M d, Y" }}</td>
+            <td>{{ doc.status }}</td>
+            <td>
+                {% if doc.expiry_date %}
+                    {{ doc.expiry_date }}
+                    {% if not doc.is_valid %}<span style="color:red;">(Expired)</span>{% endif %}
+                {% else %}
+                    N/A
+                {% endif %}
+            </td>
+            <td>
+                <a href="{{ doc.file_path }}" target="_blank">View</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="7">No documents found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+<a href="{% url 'adminhub:home' %}">Back to Home</a>
 {% endblock %}

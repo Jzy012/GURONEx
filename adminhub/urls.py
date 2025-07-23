@@ -9,6 +9,9 @@ app_name = 'adminhub'
 urlpatterns = [
     path('admin/home/', views.home, name='home'),
     path('admin/documents/', views.documents, name='documents'),
+    path('admin/faculty-list/', views.faculty_list_view, name='faculty_list'),
+    path('admin/faculty/<uuid:faculty_uuid>/', views.faculty_detail_view, name='faculty_detail'),
+    path('admin/faculty/create/', views.create_faculty_view, name='create_faculty'),
     path('admin/settings/', views.admin_settings, name='admin_settings'),
 
 

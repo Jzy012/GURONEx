@@ -27,6 +27,19 @@ from django.contrib.auth import get_user_model, login
 from .forms import PasswordResetForm
 
 
+
+# Google Drive OAuth imports
+
+from django.http import HttpResponse
+from services.google_oauth_service import GoogleOAuthService  # adjust path as needed
+from base.decorators import admin_required  # adjust import path if needed
+
+from base.models import GoogleStorageAccount
+from services.google_oauth_service import GoogleOAuthService
+
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
 # Create your views here.
 
 def index(request):
@@ -188,6 +201,7 @@ def reset_password_view(request):
 
 
 
+# Two-Factor Authentication Views
 
 def verify_two_factor_otp_view(request):
     User = get_user_model()
@@ -235,3 +249,44 @@ def verify_two_factor_otp_view(request):
         form = TwoFactorOTPVerificationForm()
 
     return render(request, "authentication/verify_two_factor_otp.html", {"form": form})
+
+
+
+
+# Google Drive OAuth Views
+
+
+@admin_required
+def authorize_google(request):
+    oauth_service = GoogleOAuthService(request.user)
+    auth_url = oauth_service.get_auth_url()
+    return redirect(auth_url)
+
+@admin_required
+def oauth2callback(request):
+    code = request.GET.get("code")
+    if not code:
+        return HttpResponse("No code provided", status=400)
+
+    oauth_service = GoogleOAuthService(request.user)
+    creds = oauth_service.exchange_code_for_token(code)
+
+    # Decode the ID token to get email
+    token_info = id_token.verify_oauth2_token(
+        creds.id_token, google_requests.Request(), audience=creds.client_id
+    )
+
+    email = token_info.get("email")
+
+    # Save to GoogleStorageAccount
+    GoogleStorageAccount.objects.update_or_create(
+        email=email,
+        defaults={
+            "access_token": creds.token,
+            "refresh_token": creds.refresh_token,
+            "token_expiry": creds.expiry,
+            "is_active": True,
+        }
+    )
+
+    return HttpResponse("✅ Storage account connected successfully!")

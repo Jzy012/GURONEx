@@ -1,0 +1,84 @@
+{% extends 'index.html' %}
+{% block content %}
+<h2>Upload Documents</h2>
+
+{% if messages %}
+  <ul class="messages">
+    {% for message in messages %}
+      <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
+        {{ message }}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if formset.non_form_errors %}
+  <div class="form-errors">
+    <ul>
+      {% for error in formset.non_form_errors %}
+        <li>{{ error }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ formset.management_form }} {# ✅ REQUIRED #}
+
+    <table>
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>Name</th>
+                <th>File</th>
+                <th>Expiry Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for form in formset %}
+            <tr>
+                <td>
+                    {{ form.document_category }}
+                    {% if form.document_category.errors %}
+                        <div class="error">{{ form.document_category.errors.0 }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    {{ form.document_name }}
+                    {% if form.document_name.errors %}
+                        <div class="error">{{ form.document_name.errors.0 }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    {{ form.file }}
+                    {% if form.file.errors %}
+                        <div class="error">{{ form.file.errors.0 }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    {{ form.expiry_date }}
+                    {% if form.expiry_date.errors %}
+                        <div class="error">{{ form.expiry_date.errors.0 }}</div>
+                    {% endif %}
+                </td>
+            </tr>
+
+            {% if form.non_field_errors %}
+            <tr>
+                <td colspan="4">
+                    <div class="error">
+                        {% for err in form.non_field_errors %}
+                            <p>{{ err }}</p>
+                        {% endfor %}
+                    </div>
+                </td>
+            </tr>
+            {% endif %}
+
+            {% endfor %}
+        </tbody>
+    </table>
+    <button type="submit">Upload Documents</button>
+</form>
+{% endblock %}

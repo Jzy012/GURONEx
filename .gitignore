@@ -4,3 +4,10 @@
 
 # Ignore virtual environment
 venv/
+
+
+# Ignore all files inside the folder
+gdrive_credentials/*
+
+# But don't ignore the folder itself
+!gdrive_credentials/
