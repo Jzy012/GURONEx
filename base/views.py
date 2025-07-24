@@ -27,6 +27,9 @@ from django.contrib.auth import get_user_model, login
 from .forms import PasswordResetForm
 
 
+from django.views.decorators.cache import never_cache
+
+
 
 # Google Drive OAuth imports
 
@@ -46,7 +49,7 @@ def index(request):
     return render(request, 'index.html')
 
 
-
+@never_cache
 def login_view(request):
     if request.user.is_authenticated:
         # Auto-redirect if already logged in
@@ -203,6 +206,7 @@ def reset_password_view(request):
 
 # Two-Factor Authentication Views
 
+@never_cache
 def verify_two_factor_otp_view(request):
     User = get_user_model()
     user_id = request.session.get("pre_2fa_user_id")
