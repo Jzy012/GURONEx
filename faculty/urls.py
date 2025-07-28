@@ -10,9 +10,11 @@ urlpatterns = [
     path('faculty/home/', views.home, name='home'),
 
     path('faculty/documents/upload/', views.faculty_document_upload, name='upload_documents'),
-
     path('faculty/documents/', views.faculty_documents_view, name='faculty_documents'),
-    
+
+    path('faculty/announcements/', views.faculty_announcements_view, name='faculty_announcements'),
+    path('faculty/announcements/view/<uuid:uuid>/', views.view_announcement_ajax, name='view_announcement_ajax'),
+
     path('faculty/settings/', views.faculty_settings_view, name='faculty_settings'),
 
     path('faculty/settings/change-password/', auth_views.PasswordChangeView.as_view(

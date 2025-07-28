@@ -166,3 +166,98 @@ def create_faculty_view(request):
         form = FacultyCreationForm()
 
     return render(request, 'admin/admin_faculty_creation.html', {'form': form})
+
+
+
+
+#Announcements View
+
+
+
+from datetime import date
+from django.shortcuts import render
+from django.contrib import messages
+
+@admin_required
+def announcements_view(request):
+    today = date.today()
+    announcements = Announcement.objects.order_by('-created_at')
+
+    return render(request, 'admin/admin_announcements.html', {
+        'announcements': announcements,
+        'today': today
+    })
+
+
+
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from base.forms import AnnouncementForm
+from .models import Announcement
+from base.models import Account  # adjust as needed
+
+@admin_required
+def create_announcement_view(request):
+    if request.user.role != 'admin':
+        messages.error(request, "You are not authorized to create announcements.")
+        return redirect('admin_home')  # or any fallback route
+
+    if request.method == 'POST':
+        form = AnnouncementForm(request.POST)
+        if form.is_valid():
+            announcement = form.save(commit=False)
+            announcement.creator = request.user
+            announcement.visible_to_roles = form.cleaned_data['visible_to_roles']
+            announcement.save()
+            messages.success(request, "Announcement posted successfully.")
+
+            # (Optional) Handle email sending later
+
+            return redirect('adminhub:announcements')  # you’ll create this soon
+        else:
+            messages.error(request, "There was an error in your submission.")
+    else:
+        form = AnnouncementForm()
+
+    return render(request, 'admin/admin_create_announcement.html', {'form': form})
+
+
+
+
+from django.shortcuts import get_object_or_404
+
+@admin_required
+def edit_announcement_view(request, uuid):
+    announcement = get_object_or_404(Announcement, uuid=uuid)
+
+    if request.method == 'POST':
+        form = AnnouncementForm(request.POST, instance=announcement)
+        if form.is_valid():
+            updated = form.save(commit=False)
+            updated.visible_to_roles = form.cleaned_data['visible_to_roles']
+            updated.save()
+            messages.success(request, "Announcement updated successfully.")
+            return redirect('adminhub:announcements')
+    else:
+        form = AnnouncementForm(instance=announcement)
+        # Convert JSON list back to choices
+        form.fields['visible_to_roles'].initial = announcement.visible_to_roles
+
+    return render(request, 'admin/admin_edit_announcement.html', {'form': form, 'announcement': announcement})
+
+
+
+
+
+from django.shortcuts import get_object_or_404, redirect
+
+@admin_required
+def delete_announcement_view(request, uuid):
+    announcement = get_object_or_404(Announcement, uuid=uuid)
+    announcement.delete()
+    messages.success(request, f"'{announcement.title}' has been permanently deleted.")
+    return redirect('adminhub:announcements')
+
+

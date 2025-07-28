@@ -12,6 +12,10 @@ urlpatterns = [
     path('admin/faculty-list/', views.faculty_list_view, name='faculty_list'),
     path('admin/faculty/<uuid:faculty_uuid>/', views.faculty_detail_view, name='faculty_detail'),
     path('admin/faculty/create/', views.create_faculty_view, name='create_faculty'),
+    path('admin/announcements/', views.announcements_view, name='announcements'),
+    path('admin/announcements/create/', views.create_announcement_view, name='create_announcement'),
+    path('admin/announcements/edit/<uuid:uuid>/', views.edit_announcement_view, name='edit_announcement'),
+    path('admin/announcements/delete/<uuid:uuid>/', views.delete_announcement_view, name='delete_announcement'),
     path('admin/settings/', views.admin_settings, name='admin_settings'),
 
 

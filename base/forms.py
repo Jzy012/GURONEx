@@ -122,3 +122,36 @@ class FacultyDocumentUploadForm(forms.Form):
         if category and category.requires_expiry_date and not expiry:
             raise forms.ValidationError("Expiry date is required for this document category.")
 
+
+
+
+
+# adminhub/forms.py
+
+from django import forms
+from adminhub.models import Announcement
+
+ROLE_CHOICES = [
+    ('admin', 'Admin'),
+    ('faculty', 'Faculty'),
+    ('applicant', 'Applicant'),
+]
+
+class AnnouncementForm(forms.ModelForm):
+    visible_to_roles = forms.MultipleChoiceField(
+        choices=ROLE_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        required=True,
+        label="Visible To"
+    )
+
+    class Meta:
+        model = Announcement
+        fields = [
+            'title', 'content', 'visible_to_roles', 'is_important',
+            'send_email', 'attachment_link', 'start_date', 'end_date',
+        ]
+        widgets = {
+            'start_date': forms.DateInput(attrs={'type': 'date'}),
+            'end_date': forms.DateInput(attrs={'type': 'date'}),
+        }

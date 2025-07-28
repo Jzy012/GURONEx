@@ -35,8 +35,9 @@ def faculty_2fa(request):
 
 @faculty_required
 def faculty_documents_view(request):
-    
-    return render(request, "faculty/faculty_documents.html")
+    data = get_faculty_data(request)
+
+    return render(request, "faculty/faculty_documents.html", data)
 
 
 
@@ -51,6 +52,8 @@ import io
 from googleapiclient.http import MediaIoBaseUpload
 
 def faculty_document_upload(request):
+    data = get_faculty_data(request)
+
     account = request.user
     faculty = getattr(account, "faculty_profile", None)
     if not faculty:
@@ -115,5 +118,72 @@ def faculty_document_upload(request):
     else:
         formset = DocumentFormSet(form_kwargs={'faculty': faculty})
 
-    return render(request, "faculty/faculty_document_upload.html", {"formset": formset})
+    return render(request, "faculty/faculty_document_upload.html", data, {"formset": formset})
+
+
+
+
+
+
+from django.shortcuts import render
+from django.utils import timezone
+from adminhub.models import Announcement, AnnouncementViewLog
+from base.models import Account  # if not already imported
+from django.db.models import Q
+
+
+
+@faculty_required
+def faculty_announcements_view(request):
+    data = get_faculty_data(request)
+
+    user = request.user
+    today = timezone.now().date()
+
+    # Get all announcements where user role is included in visible_to_roles
+    announcements = Announcement.objects.filter(
+        visible_to_roles__contains=[user.role]
+    ).filter(
+        start_date__lte=today
+    ).filter(
+        Q(end_date__gte=today) | Q(end_date__isnull=True)
+    ).order_by('-created_at')
+
+    # Get UUIDs of announcements the user has already seen
+    seen_ids = AnnouncementViewLog.objects.filter(user=user).values_list('announcement__uuid', flat=True)
+
+    return render(request,  'faculty/faculty_announcements.html',  {
+        **data,
+        'announcements': announcements,
+        'seen_ids': list(seen_ids),
+    })
+
+
+
+
+
+from django.http import JsonResponse, Http404
+
+@faculty_required
+def view_announcement_ajax(request, uuid):
+    user = request.user
+    try:
+        announcement = Announcement.objects.get(uuid=uuid)
+    except Announcement.DoesNotExist:
+        raise Http404("Announcement not found")
+
+    # Check if user is allowed to see this announcement
+    if user.role not in announcement.visible_to_roles:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    # Mark as seen if not already logged
+    AnnouncementViewLog.objects.get_or_create(user=user, announcement=announcement)
+
+    data = {
+        'title': announcement.title,
+        'content': announcement.content,
+        'attachment_link': announcement.attachment_link,
+    }
+
+    return JsonResponse(data)
 
