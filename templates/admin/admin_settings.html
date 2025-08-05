@@ -3,9 +3,17 @@
 {% block content %}
 <h2>Admin Settings</h2>
 
+
+<h3>Security Settings</h3>
 <ul>
     <li><a href="{% url 'adminhub:admin_change_password' %}">Change Password</a></li>
     <li><a href="{% url 'adminhub:admin_2fa' %}">Two-Factor Authentication (2FA)</a></li>
+
+</ul>
+
+<h3>Academic Year Management</h3>
+<ul>
+    <li><a href="{% url 'adminhub:academic_years' %}">Manage Academic Year and Semesters</a></li>
 
 </ul>
 

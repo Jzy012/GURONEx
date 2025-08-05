@@ -1,0 +1,10 @@
+{% extends 'admin/admin_home.html' %}
+{% block content %}
+<h2>Create Deliverable Template</h2>
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Save Template</button>
+</form>
+{% endblock %}

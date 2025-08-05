@@ -261,3 +261,128 @@ def delete_announcement_view(request, uuid):
     return redirect('adminhub:announcements')
 
 
+
+
+
+
+# views.py
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from base.forms import AssignDeliverablesForm
+from faculty.models import Deliverable, DeliverableTemplate
+
+
+@admin_required
+def deliverables_view(request):
+    # deliverables = Deliverable.objects.all().order_by('-created_at')
+    return render(request, 'admin/admin_deliverables.html', #{'deliverables': deliverables}
+                  )
+
+
+
+
+@admin_required
+def assign_deliverables_view(request):
+    if request.method == 'POST':
+        form = AssignDeliverablesForm(request.POST)
+        if form.is_valid():
+            semester = form.cleaned_data['semester']
+            template = form.cleaned_data['template']
+            deadline = form.cleaned_data['deadline']
+
+            count = 0
+            for doc_category in template.document_categories.all():
+                if not Deliverable.objects.filter(
+                    semester=semester,
+                    document_category=doc_category
+                ).exists():
+                    Deliverable.objects.create(
+                        semester=semester,
+                        document_category=doc_category,
+                        deadline=deadline
+                    )
+                    count += 1
+
+            messages.success(request, f"{count} deliverables assigned to {semester}.")
+            return redirect('adminhub:deliverables')  # Adjust to your dashboard/redirect
+    else:
+        form = AssignDeliverablesForm()
+
+    return render(request, 'admin/admin_assign_deliverables.html', {'form': form})
+
+
+
+
+from django.contrib import messages
+from django.shortcuts import render, redirect
+from base.forms import DeliverableTemplateForm
+
+
+@admin_required
+def deliverable_templates_view(request):
+    templates = DeliverableTemplate.objects.all()
+    return render(request, 'admin/admin_deliverable_templates.html', {'templates': templates})
+
+
+@admin_required
+def create_deliverable_template_view(request):
+    if request.method == 'POST':
+        form = DeliverableTemplateForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Deliverable template created.")
+            return redirect('adminhub:deliverable_templates')
+    else:
+        form = DeliverableTemplateForm()
+
+    return render(request, 'admin/admin_create_deliverable_template.html', {'form': form})
+
+
+
+
+# views.py
+from django.forms import modelformset_factory
+from base.forms import AcademicYearForm, SemesterForm
+from faculty.models import AcademicYear, Semester
+
+@admin_required
+def academic_years_view(request):
+    academic_years = AcademicYear.objects.all()
+    return render(request, 'admin/admin_academic_years.html', {'academic_years': academic_years})
+
+
+
+
+@admin_required
+def create_academic_year_view(request):
+    SemesterFormSet = modelformset_factory(Semester, form=SemesterForm, extra=3, can_delete=False)
+
+    if request.method == 'POST':
+        year_form = AcademicYearForm(request.POST)
+        formset = SemesterFormSet(request.POST)
+
+        if year_form.is_valid() and formset.is_valid():
+            academic_year = year_form.save()
+
+            # Save all semester forms with this academic_year
+            for form in formset:
+                semester = form.save(commit=False)
+                semester.academic_year = academic_year
+                semester.save()
+
+            messages.success(request, "Academic year and semesters created.")
+            return redirect('adminhub:create_academic_year')
+
+    else:
+        year_form = AcademicYearForm()
+        formset = SemesterFormSet(queryset=Semester.objects.none(), initial=[
+            {'semester_type': '1st'},
+            {'semester_type': '2nd'},
+            {'semester_type': 'summer'},
+        ])
+
+    return render(request, 'admin/admin_create_academic_year.html', {
+        'year_form': year_form,
+        'formset': formset,
+    })
+

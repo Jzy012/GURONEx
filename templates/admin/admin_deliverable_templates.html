@@ -1,0 +1,16 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<h2>Deliverable Templates</h2>
+
+
+
+
+<ul>
+    <li><a href="{% url 'adminhub:create_deliverable_template' %}">Create Deliverable Template</a></li>
+</ul>
+
+<a href="{% url 'adminhub:home' %}">Back to Home</a>
+
+
+{% endblock %}

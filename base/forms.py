@@ -155,3 +155,174 @@ class AnnouncementForm(forms.ModelForm):
             'start_date': forms.DateInput(attrs={'type': 'date'}),
             'end_date': forms.DateInput(attrs={'type': 'date'}),
         }
+
+
+
+
+
+# forms.py
+from django import forms
+from faculty.models import DeliverableTemplate, Semester
+
+class AssignDeliverablesForm(forms.Form):
+    semester = forms.ModelChoiceField(queryset=Semester.objects.all())
+    template = forms.ModelChoiceField(queryset=DeliverableTemplate.objects.all())
+    deadline = forms.DateField(widget=forms.SelectDateWidget)
+
+
+
+
+
+
+from django import forms
+from faculty.models import AcademicYear, Semester
+import datetime 
+
+
+
+CURRENT_YEAR = datetime.datetime.now().year
+YEAR_CHOICES = [(y, f"{y}–{y + 1}") for y in range(CURRENT_YEAR, CURRENT_YEAR + 6)]
+
+class AcademicYearForm(forms.ModelForm):
+    academic_year = forms.ChoiceField(
+        choices=YEAR_CHOICES,
+        label="Academic Year",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+    class Meta:
+        model = AcademicYear
+        fields = ['is_active']  # Only include what's still relevant from the model
+        labels = {
+            'is_active': 'Active'  # ✅ Rename label here
+        }
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        selected_year = int(self.cleaned_data['academic_year'])
+        instance.year_start = selected_year
+        instance.year_end = selected_year + 1
+
+        if commit:
+            instance.save()
+        return instance
+
+    def clean(self):
+        cleaned_data = super().clean()
+        year_start = int(cleaned_data.get('academic_year'))
+
+        if AcademicYear.objects.filter(year_start=year_start, year_end=year_start + 1).exists():
+            raise forms.ValidationError("This academic year already exists.")
+
+class SemesterForm(forms.ModelForm):
+    start_date = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        required=True
+    )
+    end_date = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        required=True
+    )
+
+    class Meta:
+        model = Semester
+        fields = ['semester_type', 'start_date', 'end_date']
+
+
+
+# class AcademicYearForm(forms.ModelForm):
+#     class Meta:
+#         model = AcademicYear
+#         fields = ['year_start', 'year_end', 'is_active']
+
+#     def save(self, commit=True):
+#         academic_year = super().save(commit=commit)
+
+#         if commit:
+#             if not academic_year.semesters.exists():
+#                 # Create 1st Semester
+#                 Semester.objects.create(
+#                     academic_year=academic_year,
+#                     semester_type='1st',
+#                     start_date=date(academic_year.year_start, 8, 1),
+#                     end_date=date(academic_year.year_start, 12, 31),
+#                 )
+#                 # Create 2nd Semester
+#                 Semester.objects.create(
+#                     academic_year=academic_year,
+#                     semester_type='2nd',
+#                     start_date=date(academic_year.year_end, 1, 1),
+#                     end_date=date(academic_year.year_end, 5, 31),
+#                 )
+#                 # Create Summer Term
+#                 Semester.objects.create(
+#                     academic_year=academic_year,
+#                     semester_type='summer',
+#                     start_date=date(academic_year.year_end, 6, 1),
+#                     end_date=date(academic_year.year_end, 7, 31),
+#                 )
+#                 # (Optional) Create Full Year
+#                 # Semester.objects.create(
+#                 #     academic_year=academic_year,
+#                 #     semester_type='full',
+#                 #     start_date=date(academic_year.year_start, 8, 1),
+#                 #     end_date=date(academic_year.year_end, 7, 31),
+#                 # )
+
+#         return academic_year
+
+
+
+
+from django import forms
+from faculty.models import DeliverableTemplate, DocumentCategory
+
+class DeliverableTemplateForm(forms.ModelForm):
+    document_categories = forms.ModelMultipleChoiceField(
+        queryset=DocumentCategory.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        label="Required Documents"
+    )
+
+    class Meta:
+        model = DeliverableTemplate
+        fields = ['name', 'document_categories']
+
+
+
+
+
+from django import forms
+from faculty.models import FacultyDocument, Deliverable, Semester
+from django.utils import timezone
+
+class FacultyDeliverableUploadForm(forms.Form):
+    deliverable = forms.ModelChoiceField(
+        queryset=Deliverable.objects.none(),  # will be set per request
+        label="Deliverable",
+        empty_label="Select Deliverable"
+    )
+    file = forms.FileField(label="File")
+
+    def __init__(self, *args, **kwargs):
+        faculty = kwargs.pop("faculty", None)
+        super().__init__(*args, **kwargs)
+
+        if faculty:
+            # ✅ NEW: Get active semester only
+            active_semester = Semester.objects.filter(is_active=True).first()
+            if active_semester:
+                self.fields["deliverable"].queryset = Deliverable.objects.filter(
+                    semester=active_semester
+                ).order_by("document_category__name")
+
+    def clean(self):
+        cleaned = super().clean()
+        deliverable = cleaned.get("deliverable")
+
+        # Prevent duplicate upload for same deliverable
+        if deliverable and FacultyDocument.objects.filter(deliverable=deliverable).exists():
+            raise forms.ValidationError("This deliverable has already been uploaded.")
+        
+        return cleaned

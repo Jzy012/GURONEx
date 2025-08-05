@@ -1,0 +1,29 @@
+{% extends 'admin/admin_home.html' %}
+{% block content %}
+<h2>Create Academic Year and Semesters</h2>
+
+<h3>Academic Year</h3>
+<form method="post">
+  {% csrf_token %}
+  <div>
+    {{ year_form.academic_year.label_tag }}<br>
+    {{ year_form.academic_year }}
+  </div>
+
+  <div>
+    {{ year_form.is_active.label_tag }}<br>
+    {{ year_form.is_active }}
+  </div>
+
+
+  <h3>Semesters</h3>
+  {{ formset.management_form }}
+  {% for form in formset %}
+    <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px;">
+      {{ form.as_p }}
+    </div>
+  {% endfor %}
+
+  <button type="submit">Save</button>
+</form>
+{% endblock %}

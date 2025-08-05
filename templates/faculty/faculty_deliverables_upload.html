@@ -1,0 +1,23 @@
+{% extends "faculty/faculty_base.html" %}
+{% block content %}
+
+<h2>Upload Deliverables</h2>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {{ formset.management_form }}
+  <table>
+    {% for form in formset %}
+      <tr>
+        <td>{{ form.deliverable }}</td>
+        <td>{{ form.file }}</td>
+      </tr>
+      {% if form.errors %}
+        <tr><td colspan="2">{{ form.errors }}</td></tr>
+      {% endif %}
+    {% endfor %}
+  </table>
+  <button type="submit">Upload</button>
+</form>
+
+{% endblock %}

@@ -65,6 +65,76 @@ class DocumentCategory(models.Model):
 
 
 
+class AcademicYear(models.Model):
+    year_start = models.IntegerField()  # e.g. 2025
+    year_end = models.IntegerField()    # e.g. 2026
+    is_active = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('year_start', 'year_end')
+
+    def __str__(self):
+        return f"{self.year_start}–{self.year_end}"
+
+
+
+class Semester(models.Model):
+    SEMESTER_CHOICES = [
+        ('1st', '1st Semester'),
+        ('2nd', '2nd Semester'),
+        ('summer', 'Summer Term'),
+        ('full', 'Full Academic Year'),
+    ]
+
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name="semesters")
+    semester_type = models.CharField(max_length=10, choices=SEMESTER_CHOICES)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_active = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('academic_year', 'semester_type')
+
+    def __str__(self):
+        return f"{self.get_semester_type_display()} {self.academic_year}"
+
+
+
+
+class DeliverableTemplate(models.Model):
+    name = models.CharField(max_length=100, unique=True)  # e.g., "Standard Semester Deliverables"
+    document_categories = models.ManyToManyField(
+        DocumentCategory,
+        related_name='included_in_templates'
+    )
+
+    def __str__(self):
+        return self.name
+
+
+
+
+class Deliverable(models.Model):
+    semester = models.ForeignKey(
+        Semester,
+        on_delete=models.CASCADE,
+        related_name='deliverables'
+    )
+    document_category = models.ForeignKey(
+        DocumentCategory,
+        on_delete=models.CASCADE,
+        related_name='deliverables'
+    )
+    deadline = models.DateField()
+
+    class Meta:
+        unique_together = ('semester', 'document_category')
+
+    def __str__(self):
+        return f"{self.document_category.name} - {self.semester}"
+
+
+
 
 class FacultyDocument(models.Model):
     faculty = models.ForeignKey(FacultyProfile, on_delete=models.CASCADE, related_name='documents')
@@ -89,8 +159,28 @@ class FacultyDocument(models.Model):
 
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
+    semester = models.ForeignKey(
+        Semester,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="faculty_documents"
+    )
+
+    deliverable = models.ForeignKey(
+        'Deliverable',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_documents',
+        help_text="If this document fulfills a specific deliverable, link it here."
+    )
+
+    
     def __str__(self):
-        return f"{self.document_name} (Faculty: {self.faculty.account.email})"
+        sem = f" - {self.semester}" if self.semester else ""
+        return f"{self.document_name} (Faculty: {self.faculty.account.email}){sem}"
+
 
     @property
     def is_valid(self):
@@ -100,3 +190,4 @@ class FacultyDocument(models.Model):
         if self.expiry_date:
             return self.expiry_date >= timezone.now().date()
         return True
+    

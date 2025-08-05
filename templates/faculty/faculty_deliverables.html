@@ -1,0 +1,58 @@
+{% extends "faculty/faculty_base.html" %}
+{% block content %}
+<h2 class="text-xl font-bold mb-4">Deliverables - {{ semester }}</h2>
+
+<a href="{% url 'faculty:faculty_deliverables_upload' %}" class="inline-block mb-4 text-blue-600 underline">
+    Upload Deliverables
+</a>
+
+<table class="w-full table-auto border mb-4">
+    <thead class="bg-gray-100">
+        <tr>
+            <th class="px-4 py-2 text-left">Document</th>
+            <th class="px-4 py-2 text-left">Deadline</th>
+            <th class="px-4 py-2 text-left">Status</th>
+            <th class="px-4 py-2 text-left">Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in deliverables_status %}
+        <tr class="border-t">
+            <td class="px-4 py-2">{{ item.deliverable.document_category.name }}</td>
+            <td class="px-4 py-2">{{ item.deliverable.deadline }}</td>
+            <td class="px-4 py-2">
+                {% if item.status == "Approved" %}
+                    ✅ Approved
+                {% elif item.status == "Pending" %}
+                    ⏳ Pending
+                {% elif item.status == "Rejected" %}
+                    ❌ Rejected
+                {% else %}
+                    ⚠️ Not Uploaded
+                {% endif %}
+            </td>
+            <td class="px-4 py-2">
+                {% if item.document %}
+                    <a href="{{ item.document.file_path }}" target="_blank" class="text-blue-600 underline">View</a>
+                {% else %}
+                    <a href="{% url 'faculty:faculty_deliverables_upload' %}" class="text-blue-600 underline">Upload</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if can_request_clearance %}
+    <form method="post" action="#">
+        {% csrf_token %}
+        <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+            Request Clearance
+        </button>
+    </form>
+{% else %}
+    <p class="text-sm text-gray-600 italic">You can request clearance once all deliverables are uploaded and approved.</p>
+{% endif %}
+
+<a href="{% url 'faculty:home' %}" class="block mt-6 text-blue-600 underline">← Back to Home</a>
+{% endblock %}

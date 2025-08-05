@@ -1,0 +1,15 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<h2>Manage Academic Years and Semesters</h2>
+
+
+<ul>
+    <li><a href="{% url 'adminhub:create_academic_year' %}">Create Academic Year and Semesters</a></li>
+
+</ul>
+
+<a href="{% url 'adminhub:home' %}">Back to Home</a>
+
+
+{% endblock %}

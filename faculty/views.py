@@ -187,3 +187,153 @@ def view_announcement_ajax(request, uuid):
 
     return JsonResponse(data)
 
+
+
+
+from django.utils import timezone
+from faculty.models import Deliverable, FacultyDocument, Semester
+from base.utils.faculty_data import get_faculty_data
+from django.shortcuts import render
+from base.decorators import faculty_required
+
+@faculty_required
+def faculty_deliverables_view(request):
+    data = get_faculty_data(request)
+    faculty = request.user.faculty_profile
+    today = timezone.now().date()
+
+    semester = Semester.objects.filter(
+        is_active=True,
+        start_date__lte=today,
+        end_date__gte=today
+    ).first()
+
+    if semester is None:
+        data['semester'] = None
+        data['deliverables_status'] = []
+        data['can_request_clearance'] = False
+        return render(request, 'faculty/faculty_deliverables.html', data)
+
+    deliverables = Deliverable.objects.filter(
+        semester=semester
+    ).select_related('document_category')
+
+    uploaded_docs = FacultyDocument.objects.filter(
+        faculty=faculty,
+        semester=semester,
+    )
+
+    deliverables_status = []
+    all_approved = True
+
+    for d in deliverables:
+        doc = uploaded_docs.filter(deliverable=d).first()
+
+        # Fallback if deliverable isn't linked in old uploads
+        if not doc:
+            doc = uploaded_docs.filter(document_category=d.document_category).first()
+
+        # Checklist tracking
+        if not doc or doc.status != "Approved":
+            all_approved = False
+
+        deliverables_status.append({
+            'deliverable': d,
+            'document': doc,
+            'status': doc.status if doc else "Not Uploaded"
+        })
+
+    data.update({
+        "semester": semester,
+        "deliverables_status": deliverables_status,
+        "can_request_clearance": all_approved and deliverables.exists()
+    })
+
+    return render(request, 'faculty/faculty_deliverables.html', data)
+
+
+
+
+
+
+
+
+from django.forms import formset_factory
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from base.forms import FacultyDeliverableUploadForm
+from .models import FacultyDocument, Deliverable
+from services.google_drive_service import CentralGoogleDriveService
+from base.utils.faculty_data import get_faculty_data
+import io
+from googleapiclient.http import MediaIoBaseUpload
+
+@faculty_required
+def faculty_deliverable_upload(request):
+    data = get_faculty_data(request)
+    account = request.user
+    faculty = getattr(account, "faculty_profile", None)
+
+    DocumentFormSet = formset_factory(FacultyDeliverableUploadForm, extra=1)
+
+    if request.method == "POST":
+        formset = DocumentFormSet(request.POST, request.FILES, form_kwargs={'faculty': faculty})
+        if formset.is_valid():
+            service = CentralGoogleDriveService()
+            success_count = 0
+
+            for form in formset:
+                if not form.cleaned_data:
+                    continue
+
+                deliverable = form.cleaned_data["deliverable"]
+                file = form.cleaned_data["file"]
+
+                try:
+                    category = deliverable.document_category
+                    media = MediaIoBaseUpload(
+                        io.BytesIO(file.read()),
+                        mimetype=file.content_type,
+                        resumable=False
+                    )
+                    upload = service.service.files().create(
+                        body={
+                            "name": file.name,
+                            "parents": [faculty.gdrive_folder_id],
+                        },
+                        media_body=media,
+                        fields="id,webViewLink"
+                    ).execute()
+
+                    FacultyDocument.objects.create(
+                        faculty=faculty,
+                        uploaded_by=account,
+                        document_name=category.name,
+                        document_category=category,
+                        file_path=upload["webViewLink"],
+                        google_drive_id=upload["id"],
+                        file_size=file.size,
+                        expiry_date=None,  # or handle expiry if needed
+                        status="Pending",
+                        semester=deliverable.semester,
+                        deliverable=deliverable
+                    )
+                    success_count += 1
+
+                except Exception as e:
+                    print("Upload error:", e)
+                    messages.error(request, f"Failed to upload file for {deliverable}.")
+            
+            if success_count:
+                messages.success(request, f"{success_count} deliverable(s) uploaded successfully.")
+            return redirect("faculty:faculty_deliverables")
+
+        else:
+            messages.error(request, "Please fix errors before uploading.")
+
+    else:
+        formset = DocumentFormSet(form_kwargs={'faculty': faculty})
+
+    data["formset"] = formset
+    return render(request, "faculty/faculty_deliverables_upload.html", data)
+

@@ -1,0 +1,17 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<h2>Deliverables</h2>
+
+
+
+
+<ul>
+    <li><a href="{% url 'adminhub:assign_deliverables' %}">Assign Deliverables</a></li>
+    <li><a href="{% url 'adminhub:deliverable_template' %}">Deliverable Templates</a></li>
+</ul>
+
+<a href="{% url 'adminhub:home' %}">Back to Home</a>
+
+
+{% endblock %}
