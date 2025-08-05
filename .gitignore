@@ -11,3 +11,11 @@ gdrive_credentials/*
 
 # But don't ignore the folder itself
 !gdrive_credentials/
+
+
+
+# Ignore all files inside the folder
+node_modules/
+
+
+static/css/output.css
