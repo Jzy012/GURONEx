@@ -1,29 +1,76 @@
 {% load static %}
-
-
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FEMS</title>
-    <link href="{% static 'css/output.css' %}" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
+  <title>LINANG</title>
 
+  <!-- Tailwind CLI-compiled CSS -->
+  <link href="{% static 'css/output.css' %}" rel="stylesheet" />
+
+  <style>
+    body {
+      font-family: 'karla', sans-serif;
+    }
+
+    .fade-in {
+      animation: fade-in 0.8s ease-out both;
+    }
+
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .divider {
+      width: 60px;
+      height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #a80707 0%, #800505 100%);
+      margin: 0.5rem 0 1.5rem 0;
+    }
+  </style>
 </head>
 
-<body>
-    {%block content%}
-
-    <h1 class="font-bold text-xl leading-tight">Welcome to FEMS</h1>
-    <p>FEMS is a web application for managing and analyzing data.</p>
-    <p>Use the navigation bar to explore different sections of the application.</p>
-    <a href="{% url 'login' %}"> Log In</a>
+<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen flex items-center justify-center px-4">
 
 
 
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl p-8 md:p-16 flex flex-col items-start justify-center space-y-6 fade-in text-gray-800">
+    
+    <!-- Logo -->
+    <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo"
+      class="w-20 h-20 mb-2 rounded-full  bg-white object-contain" />
 
+    <!-- Heading -->
+    <h1 class="text-4xl md:text-5xl font-bold leading-snug">
+      Welcome to LINANG
+    </h1>
 
-    {% endblock %}
+    <div class="divider"></div>
+
+    <!-- Subtitle -->
+    <p class="text-lg md:text-2xl font-light max-w-3xl text-left w-full">
+      Linking Information Networks for Administration and Narrative Gathering
+    </p>
+
+    <!-- Description -->
+    <p class="text-base md:text-lg text-gray-700 max-w-3xl text-left w-full">
+      LINANG streamlines PUP-SPC Faculty Management with a modern, secure, and user-friendly platform designed for efficiency and clarity.
+    </p>
+
+    <a href="{% url 'login' %}" class="inline-block bg-[#800505] hover:bg-[#a80707] text-white font-semibold py-3 px-8 rounded-lg transition duration-200 text-base shadow-md mt-2">
+      Get Started
+    </a>
+  </div>
+
 </body>
 </html>

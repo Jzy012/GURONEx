@@ -1,29 +1,100 @@
-{% extends 'index.html' %}
 {% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
+  <title>LINANG - Login</title>
+  <link rel="stylesheet" href="{% static 'css/output.css' %}" />
+  <style>
+    body {
+      font-family: 'Karla', sans-serif;
+    }
+  </style>
+</head>
+
+<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen flex items-center justify-center px-4">
+  <!-- White card wrapper -->
+  <div class="bg-white shadow-2xl rounded-xl w-full max-w-md p-8 md:p-10 space-y-6 text-center">
+
+    <!-- Logo + Text -->
+    <div class="text-gray-800">
+      <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo" class="w-20 h-20 mx-auto mb-2" />
+
+      <h1 class="text-3xl md:text-4xl font-bold leading-snug mb-1">
+        Welcome to LINANG
+      </h1>
+
+      <p class="text-sm font-light mb-2">
+        Linking Information Networks for Administration and Narrative Gathering
+      </p>
+    </div>
+
+    <!-- Login Form -->
+    <div class="space-y-6 text-left">
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="relative flex items-center justify-between p-4 rounded-lg text-sm
+            {% if message.tags == 'error' %}
+              bg-red-100 text-red-800
+            {% elif message.tags == 'success' %}
+              bg-green-100 text-green-800
+            {% elif message.tags == 'warning' %}
+              bg-yellow-100 text-yellow-800
+            {% else %}
+              bg-blue-100 text-blue-800
+            {% endif %}
+          ">
+            <span>{{ message }}</span>
+            <button type="button" onclick="this.parentElement.style.display='none'" class="text-xl font-bold leading-none focus:outline-none">&times;</button>
+          </div>
+        {% endfor %}
+      {% endif %}
 
 
-{% block content %}
-    <h1>Login</h1>
-    
-    <h1 class="text-3xl font-bold text-blue-600">Tailwind is working!</h1>
 
 
-    <form method="post">
+      <form method="POST" class="space-y-4">
         {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Login</button>
-    </form>
 
-    <p style="margin-top: 10px;">
-        <a href="{% url 'forgot_password' %}">Forgot your password?</a>
-    </p>
-    
-    {% if messages %}
-        <ul>
-            {% for message in messages %}
-                <li>{{ message }}</li>
-            {% endfor %}
-        </ul>
-    {% endif %}
-    
-{% endblock %}
+        <!-- Email Field -->
+        <div>
+          {{ form.email }}
+          {% if form.email.errors %}
+            <p class="text-sm text-red-500 mt-1">{{ form.email.errors.0 }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Password Field -->
+        <div>
+          {{ form.password }}
+          {% if form.password.errors %}
+            <p class="text-sm text-red-500 mt-1">{{ form.password.errors.0 }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Forgot password link -->
+        <div class="flex items-center justify-start text-sm text-gray-600">
+          <a href="{% url 'forgot_password' %}" class="text-[#800505] hover:text-[#a80707] font-medium">Forgot password?</a>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit"
+          class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold w-full py-3 rounded-lg transition duration-200 text-base">
+          Log In
+        </button>
+      </form>
+
+     
+      <!-- Terms -->
+      <p class="text-center text-[11px] text-gray-500 pt-2">
+        By logging in, you agree to our
+        <a href="#" class="text-[#800505] hover:text-[#a80707] font-medium">Terms and Conditions</a>.
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>

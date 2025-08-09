@@ -1,27 +1,8 @@
-<DOCTYPE html>
-<html lang="en">
+{% extends 'admin/admin_base.html' %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
-</head>
+{% block title %}Admin Home{% endblock %}
 
-<body>
-    {% block content %}
-    
-    <h1>Admin</h1>
-
-    <h2> Welcome, {{ name }}</h2>
-
-    <ul>
-        <li><a href="{% url 'adminhub:documents' %}">Documents</a></li>
-        <li><a href="{% url 'adminhub:faculty_list' %}">Faculty List</a></li>
-        <li><a href="{% url 'adminhub:announcements' %}">Announcements</a></li>
-        <li><a href="{% url 'adminhub:deliverables' %}">Deliverables</a></li>
-        <li><a href="{% url 'adminhub:admin_settings' %}">Settings</a></li>
-        <li><a href="{% url 'logout' %}">Logout</a></li>
-    </ul>
-    {% endblock %}
-</body>
-</html>
+{% block content %}
+    <h1>Dashboard</h1>
+    <p>Welcome to the Admin Panel, {{ name }}.</p>
+{% endblock %}

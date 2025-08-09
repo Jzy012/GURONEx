@@ -4,7 +4,7 @@
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login as auth_login
-from .forms import LoginForm
+from .forms import CustomSetPasswordForm, LoginForm
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
@@ -102,7 +102,7 @@ def logout_view(request):
 
 # Forgot Password Views
 
-MAX_OTP_REQUESTS_PER_DAY = 10
+MAX_OTP_REQUESTS_PER_DAY = 20
 
 def forgot_password_view(request):
     if request.method == "POST":
@@ -126,6 +126,10 @@ def forgot_password_view(request):
             # Create OTP and send email
             otp_obj = UserOTP.create_for_user(user, purpose='password_reset', expiry_minutes=10)
             send_otp_email(email, otp_obj.otp, purpose='password_reset')
+
+            request.session["otp_email"] = email
+
+
             messages.success(request, "If your email is registered, you will receive an OTP.")
             return redirect("verify_otp")
     else:
@@ -134,21 +138,25 @@ def forgot_password_view(request):
 
 
 
-
+@never_cache
 def verify_otp_view(request):
+    email = request.session.get("otp_email")  # Email from forgot_password step
+
+    if not email:
+        messages.error(request, "Session expired. Please start again.")
+        return redirect("forgot_password")
+
     if request.method == "POST":
         form = OTPVerificationForm(request.POST)
         if form.is_valid():
-            email = form.cleaned_data["email"]
             otp = form.cleaned_data["otp"]
             User = get_user_model()
             try:
                 user = User.objects.get(email=email)
             except User.DoesNotExist:
-                messages.error(request, "Invalid OTP or email.")
+                messages.error(request, "Invalid OTP.")
                 return redirect("verify_otp")
 
-            # Get most recent active OTP
             otp_obj = UserOTP.objects.filter(
                 user=user,
                 purpose='password_reset',
@@ -156,25 +164,59 @@ def verify_otp_view(request):
                 expires_at__gt=timezone.now()
             ).order_by("-created_at").first()
 
-
             if otp_obj and otp_obj.otp == otp:
                 if otp_obj.has_expired():
                     messages.error(request, "OTP has expired. Please request a new one.")
                     return redirect("forgot_password")
                 otp_obj.mark_as_used()
-                # Save user id in session for next step
                 request.session["reset_user_id"] = user.id
                 messages.success(request, "OTP verified. Please reset your password.")
                 return redirect("reset_password")
             else:
-                messages.error(request, "Invalid OTP or email.")
+                messages.error(request, "Invalid OTP.")
     else:
         form = OTPVerificationForm()
+
     return render(request, "authentication/verify_otp.html", {"form": form})
 
 
-from django.contrib.auth.forms import SetPasswordForm
 
+
+from django.http import JsonResponse
+
+def resend_otp_view(request):
+    email = request.session.get("otp_email")
+    if not email:
+        return JsonResponse({"success": False, "message": "Session expired. Try again."}, status=400)
+
+    User = get_user_model()
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return JsonResponse({"success": False, "message": "Account not found."}, status=404)
+
+    # ✅ Check daily OTP request limit
+    otp_requests = UserOTP.otp_requests_today(user, purpose='password_reset')
+    if otp_requests >= MAX_OTP_REQUESTS_PER_DAY:
+        return JsonResponse({
+            "success": False,
+            "message": "You’ve reached the maximum number of OTP requests today. Please try again tomorrow."
+        }, status=429)
+
+    # Mark old OTPs as used
+    UserOTP.objects.filter(user=user, purpose="password_reset", is_used=False).update(is_used=True)
+
+    # Generate new OTP and send email
+    otp_obj = UserOTP.create_for_user(user, purpose='password_reset', expiry_minutes=10)
+    send_otp_email(email, otp_obj.otp, purpose='password_reset')
+
+    return JsonResponse({"success": True, "message": "A new OTP has been sent."})
+
+
+
+
+from django.contrib.auth.forms import SetPasswordForm
+from .forms import CustomSetPasswordForm
 
 def reset_password_view(request):
     user_id = request.session.get("reset_user_id")
@@ -190,14 +232,14 @@ def reset_password_view(request):
         return redirect("forgot_password")
 
     if request.method == "POST":
-        form = SetPasswordForm(user, request.POST)  # ✅ Pass user as first argument
+        form = CustomSetPasswordForm(user, request.POST or None)
         if form.is_valid():
             form.save()  # ✅ Handles password hashing + validation
             del request.session["reset_user_id"]
             messages.success(request, "Password reset successful.")
             return redirect("login")
     else:
-        form = SetPasswordForm(user)
+        form = CustomSetPasswordForm(user)
 
     return render(request, "authentication/reset_password.html", {"form": form})
 

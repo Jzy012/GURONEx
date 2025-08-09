@@ -1,17 +1,251 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Verify OTP</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
+  <title>LINANG - Verify OTP</title>
+  <link rel="stylesheet" href="{% static 'css/output.css' %}" />
+  <style>
+    body {
+      font-family: 'Karla', sans-serif;
+    }
+
+    .otp-box {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-width: 48px;
+      min-width: 40px;
+      border: 1px solid #ccc;
+    }
+
+    @media (min-width: 640px) {
+      .otp-box {
+        width: 48px;
+        height: 48px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .otp-box {
+        width: 40px;
+        height: 40px;
+      }
+    }
+  </style>
 </head>
-<body>
-    <h2>Enter OTP</h2>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Verify OTP</button>
+
+<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen flex items-center justify-center px-4">
+  <div class="bg-white shadow-2xl rounded-xl w-full max-w-md p-8 md:p-10 space-y-6 text-center">
+
+    <!-- Logo and Branding -->
+    <div class="text-gray-800">
+      <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo" class="w-20 h-20 mx-auto mb-2" />
+      <h1 class="text-3xl md:text-4xl font-bold leading-snug mb-1">Verify OTP</h1>
+      <p class="text-sm font-light mb-2">Check your email for a 6-digit code</p>
+    </div>
+
+    <!-- Django Alerts -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="relative flex items-center justify-between p-4 rounded-lg text-sm
+          {% if message.tags == 'error' %}bg-red-100 text-red-800
+          {% elif message.tags == 'success' %}bg-green-100 text-green-800
+          {% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800
+          {% else %}bg-blue-100 text-blue-800{% endif %}">
+          <span>{{ message }}</span>
+          <button type="button" onclick="this.parentElement.style.display='none'" class="text-xl font-bold leading-none focus:outline-none">&times;</button>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- JS Alerts -->
+    <div id="js-alert-container" class="space-y-2"></div>
+
+    <!-- OTP Form -->
+    <form method="POST" class="w-full max-w-sm mx-auto space-y-6 text-left" onsubmit="return prepareOTP()">
+      {% csrf_token %}
+
+      <!-- OTP Input Boxes -->
+      <div class="w-full flex justify-center">
+        <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4" id="otp-container">
+          {% for i in "123456" %}
+            <input
+              type="text"
+              inputmode="numeric"
+              maxlength="1"
+              class="otp-box text-center text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+            />
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Hidden OTP -->
+      <input type="hidden" name="otp" id="otp-input" />
+
+      <!-- Resend + Timer -->
+      <div class="flex justify-between items-center text-sm mt-2">
+        <span id="timer" class="text-gray-600">Resend available in <span id="countdown">2:00</span></span>
+        <button
+          type="button"
+          id="resendBtn"
+          class="text-[#800505] font-medium hover:text-[#a80707] disabled:text-gray-400"
+          onclick="resendOTP()"
+          disabled
+        >
+          Resend OTP
+        </button>
+      </div>
+
+      <!-- Submit Button -->
+      <button
+        type="submit"
+        class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold w-full py-3 rounded-lg transition duration-200 text-base"
+      >
+        Verify
+      </button>
     </form>
-    {% for message in messages %}
-        <p>{{ message }}</p>
-    {% endfor %}
+
+    <!-- Footer -->
+    <p class="text-center text-xs text-gray-500 pt-2">
+      This code expires in 10 minutes.
+    </p>
+  </div>
+
+  <!-- JS Scripts -->
+  <script>
+    const inputs = document.querySelectorAll('#otp-container input');
+    let countdownInterval;
+    let countdownTime = 120;
+    const resendBtn = document.getElementById("resendBtn");
+
+    function moveToNext(input, index) {
+      const value = input.value;
+
+      if (!/^\d$/.test(value)) {
+        input.value = '';
+        return;
+      }
+
+      if (value.length === 1 && index < inputs.length - 1) {
+        inputs[index + 1].focus();
+      }
+    }
+
+    function prepareOTP() {
+      const otp = Array.from(inputs).map(i => i.value.trim()).join('');
+      document.getElementById('otp-input').value = otp;
+      if (otp.length !== 6) {
+        showAlert('Please enter all 6 digits.', 'error');
+        return false;
+      }
+      return true;
+    }
+
+    inputs.forEach((input, index) => {
+      input.addEventListener('input', () => moveToNext(input, index));
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && input.value === '' && index > 0) {
+          inputs[index - 1].focus();
+        }
+      });
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData).getData('text');
+        const digits = pasted.replace(/\D/g, '').split('').slice(0, inputs.length);
+        digits.forEach((digit, i) => inputs[i].value = digit);
+        if (digits.length > 0 && digits.length <= inputs.length) {
+          inputs[digits.length - 1].focus();
+        }
+      });
+    });
+
+    function startCountdown() {
+      clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        const countdownEl = document.getElementById("countdown");
+        if (!countdownEl) return;
+
+        const minutes = Math.floor(countdownTime / 60);
+        const seconds = countdownTime % 60;
+        countdownEl.textContent = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+        countdownTime--;
+
+        if (countdownTime < 0) {
+          clearInterval(countdownInterval);
+          resendBtn.disabled = false;
+          const timerText = document.getElementById("timer");
+          if (timerText) timerText.textContent = "Didn't get the code?";
+        }
+      }, 1000);
+    }
+
+    function resendOTP() {
+      resendBtn.disabled = true;
+      resendBtn.textContent = "Resending...";
+
+      fetch("{% url 'resend_otp' %}")
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            showAlert("OTP has been resent!", 'success');
+            countdownTime = 120;
+            resendBtn.textContent = "Resend OTP";
+            resendBtn.disabled = true;
+
+            const timerText = document.getElementById("timer");
+            if (timerText) {
+              timerText.innerHTML = 'Resend available in <span id="countdown">2:00</span>';
+            }
+
+            startCountdown();
+          } else {
+            showAlert(data.message || "Error resending OTP.", 'error');
+            resendBtn.textContent = "Resend OTP";
+            resendBtn.disabled = false;
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          showAlert("Network error. Try again.", 'error');
+          resendBtn.textContent = "Resend OTP";
+          resendBtn.disabled = false;
+        });
+    }
+
+    function showAlert(message, type = "info") {
+      const colors = {
+        success: "bg-green-100 text-green-800",
+        error: "bg-red-100 text-red-800",
+        warning: "bg-yellow-100 text-yellow-800",
+        info: "bg-blue-100 text-blue-800",
+      };
+
+      const alertBox = document.createElement("div");
+      alertBox.className = `relative flex items-center justify-between p-4 rounded-lg text-sm ${colors[type] || colors.info}`;
+      alertBox.innerHTML = `
+        <span>${message}</span>
+        <button type="button" onclick="this.parentElement.style.display='none'" class="text-xl font-bold leading-none focus:outline-none">&times;</button>
+      `;
+
+      let container = document.getElementById("js-alert-container");
+      if (!container) {
+        container = document.createElement("div");
+        container.id = "js-alert-container";
+        container.className = "space-y-2 mb-4";
+        const form = document.querySelector("form");
+        if (form) form.parentNode.insertBefore(container, form);
+      }
+
+      container.appendChild(alertBox);
+
+      setTimeout(() => {
+        alertBox.remove();
+      }, 5000);
+    }
+
+    startCountdown();
+  </script>
 </body>
 </html>

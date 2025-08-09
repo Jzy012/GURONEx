@@ -5,15 +5,51 @@ class LoginForm(forms.Form):
     email = forms.EmailField(label='Email', max_length=255)
     password = forms.CharField(widget=forms.PasswordInput)
 
+    def __init__(self, *args, **kwargs):
+        super(LoginForm, self).__init__(*args, **kwargs)
+        self.fields['email'].widget.attrs.update({
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'placeholder': 'Email',
+        })
+        self.fields['password'].widget.attrs.update({
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'placeholder': 'Password',
+        })
+
 
 
 class ForgotPasswordForm(forms.Form):
     email = forms.EmailField(label="Enter your email", max_length=254)
 
+    def __init__(self, *args, **kwargs):
+        super(ForgotPasswordForm, self).__init__(*args, **kwargs)
+        self.fields['email'].widget.attrs.update({
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'placeholder': 'Email',
+        })
+
+
 
 class OTPVerificationForm(forms.Form):
-    email = forms.EmailField(label="Email", max_length=254)
-    otp = forms.CharField(label="OTP", max_length=6)
+    otp = forms.CharField(
+        label="OTP",
+        max_length=6,
+        widget=forms.HiddenInput()
+    )
+
+    def __init__(self, *args, **kwargs):
+        super(OTPVerificationForm, self).__init__(*args, **kwargs)
+        self.fields['otp'].widget.attrs.update({
+            'class': 'hidden',  # Still required so it's included in the form POST
+        })
+
+    def clean_otp(self):
+        otp = self.cleaned_data.get("otp")
+        if not otp.isdigit() or len(otp) != 6:
+            raise forms.ValidationError("OTP must be a 6-digit number.")
+        return otp
+       
+
 
 
 
@@ -25,17 +61,36 @@ class TwoFactorOTPVerificationForm(forms.Form):
     )
 
 
+from django.contrib.auth.forms import SetPasswordForm
+
+class CustomSetPasswordForm(SetPasswordForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update({
+                'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+                'placeholder': field.label
+            })
+
+
+
 
 class PasswordResetForm(forms.Form):
     new_password = forms.CharField(
         label="New password", 
-        widget=forms.PasswordInput,
-        min_length=8
+        min_length=8,
+        widget=forms.PasswordInput(attrs={
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'placeholder': 'New password'
+        })
     )
     confirm_password = forms.CharField(
         label="Confirm new password", 
-        widget=forms.PasswordInput,
-        min_length=8
+        min_length=8,
+        widget=forms.PasswordInput(attrs={
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'placeholder': 'Confirm new password'
+        })
     )
 
     def clean(self):
