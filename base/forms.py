@@ -126,12 +126,26 @@ class FacultyCreationForm(forms.Form):
     email = forms.EmailField()
     department = forms.CharField(max_length=100)
     birth_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
-    contact_number = forms.CharField(max_length=20, required=False)
+    contact_number = forms.CharField(max_length=11, required=False)
     status = forms.ModelChoiceField(queryset=EmploymentStatus.objects.filter(is_active=True), required=False)
-
-    # Password options
-    password = forms.CharField(max_length=128, required=False, widget=forms.PasswordInput, help_text="Leave blank to auto-generate.")
+    password = forms.CharField(
+        max_length=128,
+        required=False,
+        widget=forms.PasswordInput,
+        help_text="Leave blank to auto-generate."
+    )
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for fname, field in self.fields.items():
+            field.widget.attrs["class"] = field_class
+            field.widget.attrs["placeholder"] = field.label
+        # If you want to customize select or date widgets further, you can do so here
+
     def clean_email(self):
         email = self.cleaned_data['email']
         if Account.objects.filter(email=email).exists():
@@ -140,6 +154,65 @@ class FacultyCreationForm(forms.Form):
 
     def generate_random_password(self):
         return ''.join(secrets.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for _ in range(8))
+
+
+
+from django import forms
+from base.models import Account
+from faculty.models import FacultyProfile, EmploymentStatus
+
+
+class FacultyEditForm(forms.ModelForm):
+    email = forms.EmailField(
+        label='Email',
+        max_length=255,
+        widget=forms.EmailInput()
+    )
+
+    class Meta:
+        model = FacultyProfile
+        fields = ['name', 'department', 'birth_date', 'contact_number', 'status']
+        widgets = {
+            'birth_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        account_instance = kwargs.pop('account_instance', None)
+        super().__init__(*args, **kwargs)
+        self.fields['status'].queryset = EmploymentStatus.objects.filter(is_active=True)
+        if account_instance:
+            self.fields['email'].initial = account_instance.email
+
+        # Style each field
+        self.fields['email'].widget.attrs.update({
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'placeholder': 'Email',
+        })
+        self.fields['name'].widget.attrs.update({
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'placeholder': 'Full Name',
+        })
+        self.fields['department'].widget.attrs.update({
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'placeholder': 'Department',
+        })
+        self.fields['birth_date'].widget.attrs.update({
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'placeholder': 'Birth Date',
+        })
+        self.fields['contact_number'].widget.attrs.update({
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'placeholder': 'Contact Number',
+        })
+        self.fields['status'].widget.attrs.update({
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+        })
+
+    def save(self, commit=True):
+        faculty_profile = super().save(commit=False)
+        if commit:
+            faculty_profile.save()
+        return faculty_profile
 
 
 
@@ -210,6 +283,23 @@ class AnnouncementForm(forms.ModelForm):
             'start_date': forms.DateInput(attrs={'type': 'date'}),
             'end_date': forms.DateInput(attrs={'type': 'date'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for fname, field in self.fields.items():
+            # Don't style CheckboxSelectMultiple as input
+            if not isinstance(field.widget, forms.CheckboxSelectMultiple):
+                field.widget.attrs["class"] = field_class
+                field.widget.attrs["placeholder"] = field.label
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs["class"] = "rounded text-[#800505] focus:ring-[#800505]"
+        # Add custom class to checklist for template targeting
+        if "visible_to_roles" in self.fields:
+            self.fields["visible_to_roles"].widget.attrs["class"] = "custom-checklist"
 
 
 

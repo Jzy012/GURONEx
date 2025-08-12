@@ -1,53 +1,128 @@
 {% extends 'admin/admin_base.html' %}
 {% block content %}
-<h2>Announcements</h2>
+<div class="space-y-8">
 
-<div style="margin: 1em 0;">
-    <a href="{% url 'adminhub:create_announcement' %}">+ Create Announcement</a>
+  <!-- Page Header and Create Button -->
+ <!-- Page Header and Actions -->
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
+  <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
+    📢 Announcements
+  </h2>
+  <div class="flex gap-3">
+    <a href="{% url 'adminhub:create_announcement' %}" 
+       class="inline-flex items-center gap-1.5 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 text-sm font-semibold">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+      </svg>
+      <span>New Announcement</span>
+    </a>
+    <a href="{% url 'adminhub:home' %}" 
+       class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
+      </svg>
+      <span>Back to Home</span>
+    </a>
+  </div>
 </div>
 
-{% if announcements %}
-    <table border="1" cellpadding="8" cellspacing="0" style="width:100%; border-collapse: collapse;">
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Visible To</th>
-                <th>Important</th>
-                <th>Start</th>
-                <th>End</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for a in announcements %}
-            <tr>
-                <td>{{ a.title }}</td>
-                <td>{{ a.visible_to_roles|join:", " }}</td>
-                <td>{% if a.is_important %}<strong>Yes</strong>{% else %}No{% endif %}</td>
-                <td>{{ a.start_date }}</td>
-                <td>{{ a.end_date|default:"—" }}</td>
-                <td>
-                    {% if a.is_visible %}
-                        <span style="color: green;">Active</span>
-                    {% else %}
-                        <span style="color: gray;">Inactive</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <a href="{% url 'adminhub:edit_announcement' a.uuid %}">Edit</a> |
-                    <a href="{% url 'adminhub:delete_announcement' a.uuid %}"
-                       onclick="return confirm('Are you sure you want to delete this announcement?');">Delete</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% else %}
-    <p>No announcements found.</p>
-{% endif %}
+  {% if announcements %}
+    <div class="bg-white rounded-xl shadow border w-full px-4 py-6">
+      <!-- Cards container header -->
+      <div class="flex items-center gap-2 mb-6 bg-gray-100 border-t border-gray-200">
+        
+      </div>
+      <div class="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        {% with total=announcements|length %}
+        {% for a in announcements %}
+          {# Calculate if this is the last card and should span columns #}
+          {% if forloop.last %}
+            {# For sm (2-cols): odd number of cards, last card should span 2 #}
+            {% if total|divisibleby:2 == False %}
+              <div class="bg-white rounded-xl shadow-md border  p-6 flex flex-col justify-between hover:shadow-lg transition-shadow duration-200 sm:col-span-2 lg:col-span-1">
+            {% elif total|divisibleby:3 and total|divisibleby:2 == False %}
+              <div class="bg-white rounded-xl shadow-md border  p-6 flex flex-col justify-between hover:shadow-lg transition-shadow duration-200 lg:col-span-3">
+            {% else %}
+              <div class="bg-white rounded-xl shadow-md border  p-6 flex flex-col justify-between hover:shadow-lg transition-shadow duration-200">
+            {% endif %}
+          {% else %}
+            <div class="bg-white rounded-xl shadow-md border  p-6 flex flex-col justify-between hover:shadow-lg transition-shadow duration-200">
+          {% endif %}
+            <!-- Header -->
+            <div class="flex items-center justify-between gap-2 mb-2 min-w-0">
+              <h3 class="text-xl font-bold text-[#800505] leading-snug break-words min-w-0">{{ a.title }}</h3>
+              {% if a.is_important %}
+                <div class="relative group min-w-0">
+                  <!-- Larger red icon -->
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                      fill="none" viewBox="0 0 24 24"
+                      stroke-width="1.5" stroke="currentColor"
+                      class="w-7 h-7 text-red-700 bg-red-100 rounded-full p-0.5 border border-red-300 cursor-pointer">
+                      <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                  </svg>
+                  <span class="sr-only">Important</span>
+                  <!-- Pill tooltip styled as requested -->
+                  <span class="absolute left-1/2 top-full mt-2 -translate-x-1/2 z-20
+                              inline-block px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-100 rounded-full
+                              opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition
+                              whitespace-nowrap">
+                      Important
+                  </span>
+                </div>
+              {% endif %}
+            </div>
+            <!-- Content -->
+            <div class="text-gray-800 text-sm mb-4 whitespace-pre-line break-words">
+              {{ a.content|linebreaksbr }}  
+            </div>
+            {% if a.attachment_link %}
+              <div class="mb-4">
+                <a href="{{ a.attachment_link }}" target="_blank" rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1 text-xs text-[#800505] hover:underline font-semibold break-all">
+                  <span>{{ a.attachment_link }}</span>
+                </a>
+              </div>
+            {% endif %}
+            <!-- Metadata -->
+            <div class="flex flex-wrap gap-x-4 gap-y-1 items-center text-xs text-gray-600 mb-4">
+              <div>
+                <span class="font-semibold text-gray-900">Creator:</span>
+                {{ a.creator.get_full_name|default:a.creator.email|default:"[Deleted]" }}
+              </div>
+              <div>
+                <span class="font-semibold text-gray-900">Created:</span>
+                {{ a.created_at|date:"M d, Y H:i" }}
+              </div>
+            </div>
+            <!-- Status & Actions -->
+            <div class="flex items-center justify-between mt-auto">
+              <div>
+                {% if a.is_visible %}
+                  <span class="inline-block px-2 py-0.5 text-xs font-semibold text-green-800 bg-green-100 rounded-full">Active</span>
+                {% else %}
+                  <span class="inline-block px-2 py-0.5 text-xs font-semibold text-gray-600 bg-gray-100 rounded-full">Inactive</span>
+                {% endif %}
+              </div>
+              <div class="flex gap-2">
+                <a href="{% url 'adminhub:edit_announcement' a.uuid %}" 
+                   class="text-blue-600 hover:underline font-semibold text-xs">Edit</a>
+                <a href="{% url 'adminhub:delete_announcement' a.uuid %}" 
+                   class="text-red-600 hover:underline font-semibold text-xs"
+                   onclick="return confirm('Are you sure you want to delete this announcement?');">Delete</a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+        {% endwith %}
+      </div>
+    </div>
+  {% else %}
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 text-center py-10 text-gray-500 font-semibold">
+      No announcements found.
+    </div>
+  {% endif %}
 
-<div style="margin-top: 1em;">
-    <a href="{% url 'adminhub:home' %}">← Back to Home</a>
+  
 </div>
 {% endblock %}

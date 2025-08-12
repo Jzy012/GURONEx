@@ -1,60 +1,206 @@
 {% extends 'admin/admin_base.html' %}
 
 {% block content %}
-    <h1>{{ faculty.name }}'s Profile</h1>
-    <ul>
-        <li><strong>Name:</strong> {{ faculty.name }}</li>
-        <li><strong>Email:</strong> {{ faculty.account.email }}</li>
-        <li><strong>Status:</strong> {{ faculty.status.name }}</li>
-        <li><strong>Department:</strong> {{ faculty.department }}</li>
-        <li><strong>Contact Number:</strong> {{ faculty.contact_number }}</li>
-        <li><strong>Birth Date:</strong> {{ faculty.birth_date }}</li>
-        <li><strong>Google Drive Folder ID:</strong> {{ faculty.gdrive_folder_id }}</li>
+<div class="space-y-6 py-6 px-4 sm:px-6 max-w-4xl mx-auto bg-gradient-to-br from-gray-50 via-white to-gray-100 rounded-xl shadow-lg">
+
+  <!-- Header with Back Button -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+    <h2 class="text-2xl font-bold text-[#800505] tracking-wide">
+      👨‍🏫 {{ faculty.name }}'s Profile
+    </h2>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'adminhub:faculty_list' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#800505] hover:bg-[#a80707] text-white rounded-md shadow transition duration-200 select-none text-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="2" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+        <span>Back</span>
+      </a>
+
+      <!-- Edit Button -->
+      <button 
+          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm shadow transition"
+          onclick="document.getElementById('editModal').classList.remove('hidden')">
+          Edit Profile
+      </button>
+    </div>
+  </div>
+
+  <!-- Profile Card -->
+  <section
+    class="bg-white rounded-2xl shadow-md border border-gray-200 p-5 hover:shadow-lg transition-shadow duration-200"
+  >
+    <h3 class="flex items-center gap-2 text-lg font-semibold text-[#800505] mb-4">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A7.966 7.966 0 0 1 12 15a7.966 7.966 0 0 1 6.879 2.804M15 11a3 3 0 1 0-6 0 3 3 0 0 0 6 0Z"/>
+      </svg>
+      Profile Details
+    </h3>
+    <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-gray-700 text-sm font-medium">
+      <li><span class="font-semibold text-gray-900">Name:</span> {{ faculty.name }}</li>
+      <li><span class="font-semibold text-gray-900">Email:</span> {{ faculty.account.email }}</li>
+      <li><span class="font-semibold text-gray-900">Status:</span> {{ faculty.status.name }}</li>
+      <li><span class="font-semibold text-gray-900">Department:</span> {{ faculty.department }}</li>
+      <li><span class="font-semibold text-gray-900">Contact Number:</span> {{ faculty.contact_number }}</li>
+      <li><span class="font-semibold text-gray-900">Birth Date:</span> {{ faculty.birth_date|date:"M d, Y" }}</li>
+      <li class="sm:col-span-2"><span class="font-semibold text-gray-900">Google Drive Folder ID:</span>
+        <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs select-all">{{ faculty.gdrive_folder_id }}</code>
+      </li>
     </ul>
+  </section>
 
-    <hr>
 
-    <h2>Recent Attendance Logs</h2>
-    <ul>
-        {% for log in attendance_logs %}
-            <li>{{ log.date }} - {{ log.time_in }} to {{ log.time_out }}</li>
-        {% empty %}
-            <li>No logs found.</li>
+
+  <!-- Attendance Logs -->
+  <section
+    class="bg-white rounded-2xl shadow-md border border-gray-200 p-5 hover:shadow-lg transition-shadow duration-200"
+  >
+    <h3 class="flex items-center gap-2 text-lg font-semibold text-[#800505] mb-4">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 17l4-4 4 4m0-8l-4 4-4-4"/>
+      </svg>
+      Recent Attendance Logs
+    </h3>
+    <ul class="divide-y divide-gray-200 text-gray-700 font-semibold text-sm max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-[#800505]/50 scrollbar-track-gray-100">
+      {% for log in attendance_logs %}
+        <li class="flex justify-between py-2 hover:bg-[#800505]/10 rounded px-2 transition-colors">
+          <span>{{ log.date|date:"M d, Y" }}</span>
+          <span>{{ log.time_in }} - {{ log.time_out }}</span>
+        </li>
+      {% empty %}
+        <li class="py-3 text-center text-gray-400 italic">No logs found.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <!-- Documents Section -->
+  <section
+    class="bg-white rounded-2xl shadow-md border border-gray-200 p-5 hover:shadow-lg transition-shadow duration-200"
+  >
+    <h3 class="flex items-center gap-2 text-lg font-semibold text-[#800505] mb-4">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m-4 4h10M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/>
+      </svg>
+      Documents
+    </h3>
+    <ul class="divide-y divide-gray-200 text-gray-700 font-medium text-sm">
+      {% for doc in documents %}
+        <li
+          class="flex justify-between items-center py-2 px-2 hover:bg-[#800505]/10 rounded transition-colors"
+          title="Click to view document"
+        >
+          <div>
+            <span class="font-semibold">{{ doc.document_name }}</span>
+            <span
+              class="ml-2 inline-block px-2 py-0.5 text-[10px] rounded-full font-semibold
+              {% if doc.status == 'Pending' %}
+                bg-yellow-100 text-yellow-800
+              {% elif doc.status == 'Approved' %}
+                bg-green-100 text-green-800
+              {% elif doc.status == 'Rejected' %}
+                bg-red-100 text-red-800
+              {% else %}
+                bg-gray-200 text-gray-700
+              {% endif %}">
+              {{ doc.status }}
+            </span>
+          </div>
+          <a href="{{ doc.file_path }}" target="_blank"
+             class="text-[#800505] hover:text-[#a80707] font-semibold underline underline-offset-2 transition duration-200 text-sm">
+            View
+          </a>
+        </li>
+      {% empty %}
+        <li class="py-3 text-center text-gray-400 italic">No documents uploaded.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <!-- DTR Records -->
+  <section
+    class="bg-white rounded-2xl shadow-md border border-gray-200 p-5 hover:shadow-lg transition-shadow duration-200"
+  >
+    <h3 class="flex items-center gap-2 text-lg font-semibold text-[#800505] mb-4">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 8h18M3 16h18M3 12h18M12 20v-8m0 0l3 3m-3-3-3 3"/>
+      </svg>
+      DTR Records
+    </h3>
+    <ul class="divide-y divide-gray-200 text-gray-700 font-semibold text-sm">
+      {% for dtr in dtr_records %}
+        <li class="flex justify-between py-2 px-2 hover:bg-[#800505]/10 rounded transition-colors">
+          <span>{{ dtr.month }}/{{ dtr.year }}</span>
+          <span>{{ dtr.total_hours }} hrs</span>
+        </li>
+      {% empty %}
+        <li class="py-3 text-center text-gray-400 italic">No DTR records found.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+</div>
+
+
+<!-- Edit Faculty Modal -->
+<div id="editModal" class="hidden fixed inset-0 z-50 bg-gray-900/70 flex items-center justify-center">
+  <div class="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-[#800505]/10 p-0 overflow-hidden animate-fadein">
+
+    <!-- Modal header with maroon card-banner style -->
+    <div class="flex items-center gap-2 px-6 py-4 bg-[#800505] border-b border-[#a80707]">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white opacity-85" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A7.966 7.966 0 0 1 12 15a7.966 7.966 0 0 1 6.879 2.804M15 11a3 3 0 1 0-6 0 3 3 0 0 0 6 0Z"/>
+      </svg>
+      <h2 class="text-lg sm:text-xl font-bold text-white flex-1 tracking-wide">Edit Faculty Details</h2>
+      <button type="button" aria-label="Close"
+        onclick="document.getElementById('editModal').classList.add('hidden')"
+        class="p-2 rounded-md hover:bg-white/20 transition"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <form method="POST" action="{% url 'adminhub:edit_faculty' faculty.uuid %}" class="p-6 space-y-5">
+      {% csrf_token %}
+
+      <!-- Email field always first -->
+      <div>
+        <label class="block text-sm font-semibold text-[#800505] mb-1">Email</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+          <p class="text-red-500 text-xs mt-1">{{ form.email.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <hr class="my-2 border-gray-200">
+
+      <!-- Other Faculty Fields -->
+      <div class="grid grid-cols-1 gap-4">
+        {% for field in form %}
+          {% if field.name != 'email' %}
+            <div>
+              <label class="block text-sm font-semibold text-[#800505] mb-1">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}
+                <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
+              {% endif %}
+            </div>
+          {% endif %}
         {% endfor %}
-    </ul>
+      </div>
 
-    <hr>
-
-    <h2>Documents</h2>
-    <ul>
-        {% for doc in documents %}
-            <li>
-                {{ doc.document_name }} - {{ doc.status }}
-                |
-                <a href="{{ doc.file_path }}" target="_blank">View</a>
-                
-            </li>
-        {% empty %}
-            <li>No documents uploaded.</li>
-        {% endfor %}
-    </ul>
-    <hr>
-
-    <h2>DTR Records</h2>
-    <ul>
-        {% for dtr in dtr_records %}
-            <li>{{ dtr.month }}/{{ dtr.year }} - {{ dtr.total_hours }} hrs</li>
-        {% empty %}
-            <li>No DTR records found.</li>
-        {% endfor %}
-    </ul>
-
-    <br>
-    <a href="{% url 'adminhub:faculty_list' %}">Back to Faculty List</a>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button"
+          class="bg-gray-200 hover:bg-gray-300 text-[#800505] font-semibold px-4 py-2 rounded-lg border border-gray-300 shadow-sm transition"
+          onclick="document.getElementById('editModal').classList.add('hidden')"
+        >Cancel</button>
+        <button type="submit"
+          class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold px-4 py-2 rounded-lg shadow transition"
+        >Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
-
-
-
-
-   
-

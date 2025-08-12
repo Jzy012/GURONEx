@@ -1,17 +1,169 @@
 {% extends 'admin/admin_base.html' %}
 
 {% block content %}
-<h2>Deliverables</h2>
+<div class="space-y-8">
+
+  <!-- Page Title and Back Button -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <h2 class="text-3xl font-bold text-gray-900">📂 Deliverables</h2>
+    <a href="{% url 'adminhub:home' %}"
+       class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.5" stroke="currentColor" class="w-5 h-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+      </svg>
+      <span>Back to Home</span>
+    </a>
+  </div>
+
+<!-- Academic Year and Semester Section -->
+{% if academic_year_str and semester_str %}
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h3 class="text-lg font-semibold text-gray-700">Current Academic Year:</h3>
+      <div class="mt-1 text-xl text-[#800505] font-bold">{{ academic_year_str }}</div>
+    </div>
+    <div>
+      <h3 class="text-lg font-semibold text-gray-700">Semester:</h3>
+      <div class="mt-1 text-xl text-[#800505] font-bold">{{ semester_str }}</div>
+    </div>
+  </div>
+{% endif %}
 
 
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2 lg:grid-cols-3">
+    <!-- Total Faculty -->
+    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+      <div>
+        <h2 class="text-sm text-gray-500">Total Faculty</h2>
+        <p class="text-2xl font-semibold">{{ total_faculty }}</p>
+      </div>
+      <div class="p-3 bg-blue-100 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-blue-500">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+        </svg>
+      </div>
+    </div>
+    <!-- Completed Submissions -->
+    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+      <div>
+        <h2 class="text-sm text-gray-500">Completed Submissions</h2>
+        <p class="text-2xl font-semibold">{{ completed_submissions }}</p>
+      </div>
+      <div class="p-3 bg-green-100 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-green-500">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+        </svg>
+      </div>
+    </div>
+    <!-- Pending Submissions -->
+    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+      <div>
+        <h2 class="text-sm text-gray-500">Pending Submissions</h2>
+        <p class="text-2xl font-semibold">{{ pending_submissions }}</p>
+      </div>
+      <div class="p-3 bg-yellow-100 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-yellow-500">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2.25m0 3h.01M21 12A9 9 0 1 1 3 12a9 9 0 0 1 18 0Z" />
+        </svg>
+      </div>
+    </div>
+  </div>
 
 
-<ul>
-    <li><a href="{% url 'adminhub:assign_deliverables' %}">Assign Deliverables</a></li>
-    <li><a href="{% url 'adminhub:deliverable_template' %}">Deliverable Templates</a></li>
-</ul>
+<!-- List of Active Deliverables -->
+{% if deliverables_list %}
+  <div class="mt-4 bg-white shadow rounded-lg p-6">
+    <h3 class="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-[#800505]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6 1A9 9 0 1 1 3 12a9 9 0 0 1 18 0Z"/>
+      </svg>
+      Active Deliverables for this Semester
+    </h3>
+    <ul class="divide-y divide-gray-200">
+      {% for d in deliverables_list %}
+      <li class="py-3 flex justify-between items-center">
+        <span class="font-medium text-gray-900">{{ d.name }}</span>
+        <span class="text-sm text-gray-600">Deadline: <span class="font-semibold text-[#800505]">{{ d.deadline|date:"M d, Y" }}</span></span>
+      </li>
+      {% empty %}
+      <li class="py-3">No active deliverables.</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
 
-<a href="{% url 'adminhub:home' %}">Back to Home</a>
+  <!-- Command/Quick Links Card -->
+  <div class="flex flex-col sm:flex-row gap-4">
+    <div class="flex-1 flex flex-col gap-3 bg-white shadow rounded-lg border p-6">
+      <h3 class="font-semibold mb-2 text-lg text-[#800505] flex items-center gap-2">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
+        </svg>
+        Deliverable Management
+      </h3>
+      <div class="flex flex-wrap gap-3">
+        <a href="{% url 'adminhub:assign_deliverables' %}"
+           class="flex items-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow transition duration-200 text-sm font-semibold">
+          Assign Deliverables
+        </a>
+        <a href="{% url 'adminhub:deliverable_template' %}"
+           class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-[#800505] border border-[#800505]/40 rounded-lg shadow transition duration-200 text-sm font-semibold">
+          Deliverable Templates
+        </a>
+      </div>
+    </div>
+  </div>
 
+  <!-- Per-Faculty Submission Status Table -->
+  <div class="bg-white rounded-lg shadow-md overflow-x-auto mt-8">
+  <table class="min-w-full border-collapse text-sm">
+    <thead class="bg-gray-100 border-t border-gray-200">
+      <tr class="text-left font-semibold text-gray-700">
+        <th class="px-5 py-4 border-b">Name</th>
+        <th class="px-5 py-4 border-b">Email</th>
+        <th class="px-5 py-4 border-b text-center">Submission Progress</th>
+        <th class="px-5 py-4 border-b">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="text-gray-900">
+      {% for faculty in faculty_statuses %}
+      <tr class="hover:bg-gray-50 transition">
+        <td class="px-5 py-4 border-b">{{ faculty.name }}</td>
+        <td class="px-5 py-4 border-b">{{ faculty.email }}</td>
+        <td class="px-5 py-4 border-b text-center">
+          {% if faculty.total_required > 0 %}
+            <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-900 rounded">
+              {{ faculty.approved_count }} / {{ faculty.total_required }}
+            </span>
+            {% if faculty.approved_count == faculty.total_required %}
+              <span class="inline-block ml-2 px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded">Completed</span>
+            {% else %}
+              <span class="inline-block ml-2 px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded">Pending</span>
+            {% endif %}
+          {% else %}
+            <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-500 rounded">No Deliverables</span>
+          {% endif %}
+        </td>
+        <td class="px-5 py-4 border-b">
+          <a href="{% url 'adminhub:faculty_detail' faculty.faculty_uuid %}"
+             class="text-[#800505] hover:underline font-medium">View</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" class="px-5 py-10 text-center text-gray-500 font-semibold">
+          No faculty found.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 
+</div>
 {% endblock %}

@@ -21,7 +21,7 @@ class FacultyProfile(models.Model):
     name = models.CharField(max_length=255)
     department = models.CharField(max_length=100)
     birth_date = models.DateField(null=True, blank=True)
-    contact_number = models.CharField(max_length=20, null=True, blank=True)
+    contact_number = models.CharField(max_length=11, null=True, blank=True)
     status = models.ForeignKey(EmploymentStatus, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     gdrive_folder_id = models.CharField(max_length=100, null=True, blank=True)

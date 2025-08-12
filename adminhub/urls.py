@@ -14,6 +14,8 @@ urlpatterns = [
     path('admin/faculty-list/', views.faculty_list_view, name='faculty_list'),
     path('admin/faculty/<uuid:faculty_uuid>/', views.faculty_detail_view, name='faculty_detail'),
     path('admin/faculty/create/', views.create_faculty_view, name='create_faculty'),
+    path('admin/faculty/<uuid:faculty_uuid>/edit/', views.edit_faculty_view, name='edit_faculty'),
+
 
     path('admin/announcements/', views.announcements_view, name='announcements'),
     path('admin/announcements/create/', views.create_announcement_view, name='create_announcement'),
