@@ -16,8 +16,11 @@ urlpatterns =[
 
     path("verify-2fa-otp/", views.verify_two_factor_otp_view, name="verify_2fa_otp"),
 
-    path('authorize/', views.authorize_google, name='authorize_google'),
+    path('authorize-google/', views.authorize_google, name='authorize_google'),
     path('oauth2callback/', views.oauth2callback, name='oauth2callback'),
+
+    path("admin/storage-status/", views.storage_status_view, name="storage_status"),
+
 ]
 
 

@@ -72,33 +72,33 @@ class GoogleOAuthService:
         return creds
     
 
-    def get_credentials(self):
-        try:
-            token_obj = GoogleDriveToken.objects.get(user=self.user)
-        except GoogleDriveToken.DoesNotExist:
-            return None
-        # If token expired, refresh it
-        if token_obj.token_expiry <= now():
-            creds = Credentials(
-                token=token_obj.access_token,
-                refresh_token=token_obj.refresh_token,
-                token_uri="https://oauth2.googleapis.com/token",
-                client_id=self.client_secrets['client_id'],
-                client_secret=self.client_secrets['client_secret'],
-                scopes=SCOPES
-            )
-            creds.refresh(GoogleRequest())
+from google.auth.exceptions import RefreshError
 
+def get_credentials(self):
+    try:
+        token_obj = GoogleDriveToken.objects.get(user=self.user)
+    except GoogleDriveToken.DoesNotExist:
+        return None
+
+    creds = Credentials(
+        token=token_obj.access_token,
+        refresh_token=token_obj.refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=self.client_secrets['client_id'],
+        client_secret=self.client_secrets['client_secret'],
+        scopes=SCOPES
+    )
+
+    try:
+        if not creds.valid or creds.expired:
+            creds.refresh(GoogleRequest())
             token_obj.access_token = creds.token
             token_obj.token_expiry = creds.expiry
             token_obj.save()
+    except RefreshError as e:
+        if "invalid_grant" in str(e):
+            # Refresh token revoked → must re-auth
+            return None
+        raise
 
-        # Return up-to-date credentials
-        return Credentials(
-            token=token_obj.access_token,
-            refresh_token=token_obj.refresh_token,
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=self.client_secrets['client_id'],
-            client_secret=self.client_secrets['client_secret'],
-            scopes=SCOPES
-        )
+    return creds

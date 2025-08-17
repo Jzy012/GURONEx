@@ -1,0 +1,25 @@
+<!-- templates/admin/storage_status.html -->
+{% extends "admin/admin_base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto">
+  <div class="rounded-2xl shadow p-6 bg-white">
+    <h2 class="text-xl font-semibold mb-4">Google Drive Status</h2>
+
+    <!-- Status Badge -->
+    <span class="px-3 py-1 rounded-full text-sm font-medium {{ status.color }}">
+      {{ status.label }}
+    </span>
+
+    <!-- Message -->
+    <p class="mt-3 text-gray-700">{{ status.message }}</p>
+
+    <!-- Action -->
+    {% if status.label != "Connected" %}
+      <a href="{% url 'authorize_google' %}"
+         class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white text-sm rounded-lg shadow hover:bg-blue-700">
+        Reauthenticate
+      </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

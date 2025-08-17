@@ -1,0 +1,33 @@
+{% extends "faculty/faculty_base.html" %}
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md">
+    <h2 class="text-2xl font-bold mb-4">
+        {% if form.instance.pk %}Edit Request{% else %}New Request{% endif %}
+    </h2>
+
+    <form method="POST" class="space-y-4">
+        {% csrf_token %}
+        
+       <div>
+        <label for="{{ form.request_type.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            Request Type
+        </label>
+        {{ form.request_type }}
+    </div>
+
+        <div>
+            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                Description
+            </label>
+            {{ form.description }}
+        </div>
+
+        <div class="flex justify-end space-x-2">
+            <a href="{% url 'faculty:faculty_request_list' %}" class="px-4 py-2 bg-gray-200 rounded-md">Cancel</a>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md">
+                Save
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

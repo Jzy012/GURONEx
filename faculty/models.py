@@ -191,3 +191,37 @@ class FacultyDocument(models.Model):
             return self.expiry_date >= timezone.now().date()
         return True
     
+
+from django.db import models
+from faculty.models import FacultyProfile
+import uuid
+
+
+class RequestType(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class FacultyRequest(models.Model):
+    STATUS_CHOICES = [
+        ("Pending", "Pending"),
+        ("Approved", "Approved"),
+        ("Rejected", "Rejected"),
+    ]
+
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    faculty = models.ForeignKey(FacultyProfile,on_delete=models.CASCADE,related_name="requests")
+    request_type = models.ForeignKey(RequestType,on_delete=models.SET_NULL,null=True)
+    description = models.TextField()
+    status = models.CharField(max_length=20,choices=STATUS_CHOICES,default="Pending")
+    remarks = models.TextField(blank=True, null=True)
+    created_by_admin = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.request_type} - {self.faculty}"

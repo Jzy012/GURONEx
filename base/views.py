@@ -336,3 +336,55 @@ def oauth2callback(request):
     )
 
     return HttpResponse("✅ Storage account connected successfully!")
+
+
+from django.shortcuts import render
+from django.urls import reverse
+
+def google_drive_status(request):
+    oauth_service = GoogleOAuthService(request.user)
+    creds = oauth_service.get_credentials()
+
+    if creds is None:
+        status = "❌ Disconnected. Re-authentication required."
+        reauth_url = reverse("authorize_google")
+    else:
+        status = f"✅ Connected. Expires at {creds.expiry}"
+        reauth_url = None
+
+    return render(request, "admin/admin_home.html", {
+        "status": status,
+        "reauth_url": reauth_url,
+    })
+
+
+# views.py
+from django.shortcuts import render
+from django.utils import timezone
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from .models import GoogleStorageAccount
+
+def storage_status_view(request):
+    account = GoogleStorageAccount.objects.filter(is_active=True).first()
+    status = {
+        "label": "Disconnected",
+        "color": "bg-red-100 text-red-800",
+        "message": "No active Google Drive account.",
+    }
+
+    if account:
+        if account.token_expiry and account.token_expiry > timezone.now():
+            status = {
+                "label": "Connected",
+                "color": "bg-green-100 text-green-800",
+                "message": f"Active account: {account.email}",
+            }
+        else:
+            status = {
+                "label": "Expired",
+                "color": "bg-yellow-100 text-yellow-800",
+                "message": "Token expired — reauthentication required.",
+            }
+
+    return render(request, "admin/admin_storage_status.html", {"status": status})

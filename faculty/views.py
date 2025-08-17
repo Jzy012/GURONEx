@@ -33,16 +33,39 @@ def faculty_2fa(request):
 
 
 
+from django.db.models import Sum, Q
+from django.utils import timezone
+
 @faculty_required
 def faculty_documents_view(request):
-    data = get_faculty_data(request)
+    faculty_profile = request.user.faculty_profile
+    documents = faculty_profile.documents.order_by("-uploaded_at")  # or paginate as needed
 
-    return render(request, "faculty/faculty_documents.html", data)
+    total_documents = documents.count()
+    pending_documents = documents.filter(status="Pending").count()
+    total_storage_bytes = documents.aggregate(total=Sum("file_size"))["total"] or 0
+
+    def filesizeformat(num):
+        # You can use Django's default 'filesizeformat' on the template for this.
+        # This is just for reference if you want to format in Python.
+        for unit in ['bytes','KB','MB','GB','TB']:
+            if num < 1024.0:
+                return "%3.1f %s" % (num, unit)
+            num /= 1024.0
+        return "%3.1f %s" % (num, 'PB')
+
+    context = {
+        "faculty_profile": faculty_profile,
+        "documents": documents,
+        "total_documents": total_documents,
+        "pending_documents": pending_documents,
+        "total_storage": filesizeformat(total_storage_bytes),
+    }
+    return render(request, "faculty/faculty_documents.html", context)
 
 
 
-
-from django.forms import formset_factory
+from django.forms import formset_factory, BaseFormSet
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from base.forms import FacultyDocumentUploadForm
@@ -60,10 +83,21 @@ def faculty_document_upload(request):
         messages.error(request, "Only faculty can upload documents.")
         return redirect('faculty:home')
 
-    DocumentFormSet = formset_factory(FacultyDocumentUploadForm, extra=3)
+    # --- CHANGED: custom formset to pass index to form
+    class IndexedFormSet(BaseFormSet):
+        def add_fields(self, form, index):
+            super().add_fields(form, index)
+            form.index = index  # store index for template/debug if needed
+
+        def _construct_form(self, i, **kwargs):
+            kwargs['index'] = i  # <-- inject index for form
+            kwargs['faculty'] = faculty
+            return super()._construct_form(i, **kwargs)
+
+    DocumentFormSet = formset_factory(FacultyDocumentUploadForm, formset=IndexedFormSet, extra=1, max_num=10, validate_max=True)
 
     if request.method == 'POST':
-        formset = DocumentFormSet(request.POST, request.FILES, form_kwargs={'faculty': faculty})
+        formset = DocumentFormSet(request.POST, request.FILES)
         if formset.is_valid():
             service = CentralGoogleDriveService()
             success_count = 0
@@ -92,7 +126,6 @@ def faculty_document_upload(request):
                         fields="id,webViewLink"
                     ).execute()
 
-
                     FacultyDocument.objects.create(
                         faculty=faculty,
                         uploaded_by=account,
@@ -116,9 +149,11 @@ def faculty_document_upload(request):
         else:
             messages.error(request, "One or more documents are invalid.")
     else:
-        formset = DocumentFormSet(form_kwargs={'faculty': faculty})
+        formset = DocumentFormSet()
 
-    return render(request, "faculty/faculty_document_upload.html", data, {"formset": formset})
+    context = {**data, "formset": formset}
+    return render(request, "faculty/faculty_document_upload.html", context)
+
 
 
 
@@ -267,6 +302,9 @@ from services.google_drive_service import CentralGoogleDriveService
 from base.utils.faculty_data import get_faculty_data
 import io
 from googleapiclient.http import MediaIoBaseUpload
+from base.forms import FacultyDeliverableUploadForm, IndexedFormSet
+
+
 
 @faculty_required
 def faculty_deliverable_upload(request):
@@ -274,7 +312,13 @@ def faculty_deliverable_upload(request):
     account = request.user
     faculty = getattr(account, "faculty_profile", None)
 
-    DocumentFormSet = formset_factory(FacultyDeliverableUploadForm, extra=1)
+    DocumentFormSet = formset_factory(
+        FacultyDeliverableUploadForm,
+        formset=IndexedFormSet,
+        extra=1,
+        max_num=10,
+        validate_max=True
+    )
 
     if request.method == "POST":
         formset = DocumentFormSet(request.POST, request.FILES, form_kwargs={'faculty': faculty})
@@ -313,7 +357,7 @@ def faculty_deliverable_upload(request):
                         file_path=upload["webViewLink"],
                         google_drive_id=upload["id"],
                         file_size=file.size,
-                        expiry_date=None,  # or handle expiry if needed
+                        expiry_date=None,
                         status="Pending",
                         semester=deliverable.semester,
                         deliverable=deliverable
@@ -336,4 +380,35 @@ def faculty_deliverable_upload(request):
 
     data["formset"] = formset
     return render(request, "faculty/faculty_deliverables_upload.html", data)
+
+
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from faculty.models import FacultyRequest, RequestType
+from base.forms import RequestTypeForm, FacultyRequestForm, AdminFacultyRequestForm
+
+
+
+@faculty_required
+def faculty_request_list_view(request):
+    requests = FacultyRequest.objects.filter(faculty=request.user.faculty_profile).order_by("-created_at")
+    return render(request, "faculty/faculty_request_list.html", {"requests": requests})
+
+
+@faculty_required
+def faculty_request_create_view(request):
+    if request.method == "POST":
+        form = FacultyRequestForm(request.POST)
+        if form.is_valid():
+            faculty_request = form.save(commit=False)
+            faculty_request.faculty = request.user.faculty_profile
+            faculty_request.save()
+            messages.success(request, "Your request has been submitted.")
+            return redirect("faculty:faculty_request_list")
+    else:
+        form = FacultyRequestForm()
+
+    return render(request, "faculty/faculty_request_form.html", {"form": form})
 

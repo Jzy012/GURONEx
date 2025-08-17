@@ -232,8 +232,31 @@ class FacultyDocumentUploadForm(forms.Form):
     expiry_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
 
     def __init__(self, *args, **kwargs):
+        index = kwargs.pop("index", None)  # <-- NEW: get index for unique file input id
         self.faculty = kwargs.pop('faculty', None)
         super().__init__(*args, **kwargs)
+
+        input_class = 'w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]'
+
+        self.fields['document_category'].widget.attrs.update({
+            'class': input_class,
+            'placeholder': 'Category',
+        })
+        self.fields['document_name'].widget.attrs.update({
+            'class': input_class,
+            'placeholder': 'Document Name',
+        })
+        # --- CHANGED: dynamic id for each file input, for formset support
+        file_id = f'file_input_{index}' if index is not None else 'file_input__empty'
+        self.fields['file'].widget.attrs.update({
+            'class': 'hidden',
+            'id': file_id,
+            'placeholder': 'Select File',
+        })
+        self.fields['expiry_date'].widget.attrs.update({
+            'class': input_class,
+            'placeholder': 'Expiry Date',
+        })
 
     def clean(self):
         cleaned_data = super().clean()
@@ -435,7 +458,16 @@ class DeliverableTemplateForm(forms.ModelForm):
         fields = ['name', 'document_categories']
 
 
+from django.forms import BaseFormSet
 
+class IndexedFormSet(BaseFormSet):
+    def add_fields(self, form, index):
+        super().add_fields(form, index)
+        form.index = index  # Optional, for debugging or template use
+
+    def _construct_form(self, i, **kwargs):
+        kwargs['index'] = i
+        return super()._construct_form(i, **kwargs)
 
 
 from django import forms
@@ -444,7 +476,7 @@ from django.utils import timezone
 
 class FacultyDeliverableUploadForm(forms.Form):
     deliverable = forms.ModelChoiceField(
-        queryset=Deliverable.objects.none(),  # will be set per request
+        queryset=Deliverable.objects.none(),
         label="Deliverable",
         empty_label="Select Deliverable"
     )
@@ -452,22 +484,93 @@ class FacultyDeliverableUploadForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         faculty = kwargs.pop("faculty", None)
+        index = kwargs.pop('index', None)  # <- get index if available
         super().__init__(*args, **kwargs)
 
+        # Add Tailwind classes for reference-style inputs
+        self.fields['deliverable'].widget.attrs.update({
+            'class': 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]',
+        })
+        file_id = f'file_input_{index}' if index is not None else 'file_input__empty'
+        self.fields['file'].widget.attrs.update({
+            'class': 'hidden',
+            'id': file_id,
+        })
+
+        # Only show deliverables not yet uploaded or previously rejected
         if faculty:
-            # ✅ NEW: Get active semester only
             active_semester = Semester.objects.filter(is_active=True).first()
             if active_semester:
+                already_uploaded = FacultyDocument.objects.filter(
+                    faculty=faculty,
+                    semester=active_semester
+                ).exclude(status='Rejected').values_list('deliverable_id', flat=True)
+
                 self.fields["deliverable"].queryset = Deliverable.objects.filter(
                     semester=active_semester
-                ).order_by("document_category__name")
+                ).exclude(id__in=already_uploaded).order_by("document_category__name")
 
     def clean(self):
         cleaned = super().clean()
         deliverable = cleaned.get("deliverable")
-
-        # Prevent duplicate upload for same deliverable
-        if deliverable and FacultyDocument.objects.filter(deliverable=deliverable).exists():
-            raise forms.ValidationError("This deliverable has already been uploaded.")
-        
+        # Only block if not rejected
+        if deliverable and FacultyDocument.objects.filter(deliverable=deliverable).exclude(status='Rejected').exists():
+            raise forms.ValidationError("This deliverable has already been uploaded and is not rejected.")
         return cleaned
+
+
+
+from django import forms
+from faculty.models import RequestType, FacultyRequest, FacultyProfile
+
+class RequestTypeForm(forms.ModelForm):
+    class Meta:
+        model = RequestType
+        fields = ["name", "description"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for fname, field in self.fields.items():
+            field.widget.attrs["class"] = field_class
+            field.widget.attrs["placeholder"] = field.label
+
+
+class FacultyRequestForm(forms.ModelForm):
+    class Meta:
+        model = FacultyRequest
+        fields = ["request_type", "description"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for fname, field in self.fields.items():
+            field.widget.attrs["class"] = field_class
+            field.widget.attrs["placeholder"] = field.label
+
+
+class AdminFacultyRequestForm(forms.ModelForm):
+    faculty = forms.ModelChoiceField(
+        queryset=FacultyProfile.objects.all(),
+        required=True
+    )
+
+    class Meta:
+        model = FacultyRequest
+        fields = ["faculty", "request_type", "description", "status", "remarks"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for fname, field in self.fields.items():
+            field.widget.attrs["class"] = field_class
+            field.widget.attrs["placeholder"] = field.label

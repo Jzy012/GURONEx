@@ -1,13 +1,188 @@
 {% extends "faculty/faculty_base.html" %}
 
 {% block content %}
-<h2>Faculty Documents</h2>
+<div class="space-y-8">
 
-<ul>
-    <li><a href="{% url 'faculty:upload_documents' %}">Upload Documents</a></li>
+  <!-- Page Title and Upload/Back Buttons -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <h2 class="text-3xl font-bold text-gray-900">📄 My Uploaded Documents</h2>
+    <div class="flex gap-2">
+      <a href="{% url 'faculty:upload_documents' %}"
+         class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        <span>Upload Document</span>
+      </a>
+      <a href="{% url 'faculty:home' %}"
+        class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+        <span>Back to Home</span>
+      </a>
+    </div>
+  </div>
 
-</ul>
+  <!-- Stats Section -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+      <div>
+        <h2 class="text-sm text-gray-500">Total Documents</h2>
+        <p class="text-2xl font-semibold">{{ total_documents }}</p>
+      </div>
+      <div class="p-3 bg-blue-100 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-blue-500">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+        </svg>
+      </div>
+    </div>
+    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+      <div>
+        <h2 class="text-sm text-gray-500">Storage Used</h2>
+        <p class="text-2xl font-semibold">{{ total_storage }}</p>
+      </div>
+      <div class="p-3 bg-green-100 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-green-500">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+        </svg>
+      </div>
+    </div>
+    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+      <div>
+        <h2 class="text-sm text-gray-500">Pending Documents</h2>
+        <p class="text-2xl font-semibold">{{ pending_documents }}</p>
+      </div>
+      <div class="p-3 bg-yellow-100 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-yellow-500">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3" />
+        </svg>
+      </div>
+    </div>
+  </div>
 
-    <a href="{% url 'faculty:home' %}"> Back to Home</a>
+  <!-- Desktop Table (sm and up) -->
+  <div class="hidden sm:block bg-white rounded-lg shadow-md overflow-x-auto">
+    <table class="min-w-full border-collapse text-sm">
+      <thead class="bg-gray-100 border-t border-gray-200">
+        <tr class="text-left font-semibold text-gray-700">
+          <th class="px-5 py-4 border-b">Document Name</th>
+          <th class="px-5 py-4 border-b">Category</th>
+          <th class="px-5 py-4 border-b">Upload Date</th>
+          <th class="px-5 py-4 border-b">Status</th>
+          <th class="px-5 py-4 border-b">Expiry</th>
+          <th class="px-5 py-4 border-b">Size</th>
+          <th class="px-5 py-4 border-b">Download</th>
+        </tr>
+      </thead>
+      <tbody class="text-gray-900">
+        {% for doc in documents %}
+        <tr class="hover:bg-gray-50 transition">
+          <td class="px-5 py-4 border-b">{{ doc.document_name }}</td>
+          <td class="px-5 py-4 border-b">{{ doc.document_category.name }}</td>
+          <td class="px-5 py-4 border-b">{{ doc.uploaded_at|date:"M d, Y" }}</td>
+          <td class="px-5 py-4 border-b">
+            {% if doc.status == "Approved" %}
+              <span class="px-2 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full">{{ doc.status }}</span>
+            {% elif doc.status == "Rejected" %}
+              <span class="px-2 py-1 text-xs font-semibold text-red-800 bg-red-100 rounded-full">{{ doc.status }}</span>
+            {% else %}
+              <span class="px-2 py-1 text-xs font-semibold text-yellow-800 bg-yellow-100 rounded-full">{{ doc.status }}</span>
+            {% endif %}
+          </td>
+          <td class="px-5 py-4 border-b">
+            {% if doc.expiry_date %}
+              {{ doc.expiry_date }}
+              {% if not doc.is_valid %}
+                <span class="ml-2 text-xs font-semibold text-red-600">(Expired)</span>
+              {% endif %}
+            {% else %}
+              <span class="text-gray-500">N/A</span>
+            {% endif %}
+          </td>
+          <td class="px-5 py-4 border-b">
+            {% if doc.file_size %}
+              {{ doc.file_size|filesizeformat }}
+            {% else %}
+              <span class="text-gray-500">N/A</span>
+            {% endif %}
+          </td>
+          <td class="px-5 py-4 border-b">
+            <a href="{{ doc.file_path }}" target="_blank"
+               class="text-[#800505] hover:underline font-medium">View</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="px-5 py-10 text-center text-gray-500 font-semibold">
+            No documents uploaded yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
+  <!-- Mobile Cards (below sm) -->
+  <div class="sm:hidden space-y-5">
+    {% for doc in documents %}
+    <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200">
+      <div class="flex justify-between items-center mb-3 border-b border-gray-300 pb-2">
+        <h3 class="text-lg font-semibold text-gray-900 truncate">{{ doc.document_name }}</h3>
+        <a href="{{ doc.file_path }}" target="_blank"
+           class="text-[#800505] hover:underline text-sm font-semibold whitespace-nowrap">
+          View
+        </a>
+      </div>
+      <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-gray-700 text-sm">
+        <div>
+          <p class="font-semibold">Category</p>
+          <p>{{ doc.document_category.name }}</p>
+        </div>
+        <div>
+          <p class="font-semibold">Uploaded</p>
+          <p>{{ doc.uploaded_at|date:"M d, Y" }}</p>
+        </div>
+        <div>
+          <p class="font-semibold">Status</p>
+          <p>
+            {% if doc.status == "Approved" %}
+              <span class="inline-block px-2 py-0.5 text-xs font-semibold text-green-800 bg-green-100 rounded-full">{{ doc.status }}</span>
+            {% elif doc.status == "Rejected" %}
+              <span class="inline-block px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-100 rounded-full">{{ doc.status }}</span>
+            {% else %}
+              <span class="inline-block px-2 py-0.5 text-xs font-semibold text-yellow-800 bg-yellow-100 rounded-full">{{ doc.status }}</span>
+            {% endif %}
+          </p>
+        </div>
+        <div>
+          <p class="font-semibold">Expiry</p>
+          <p>
+            {% if doc.expiry_date %}
+              {{ doc.expiry_date }}
+              {% if not doc.is_valid %}
+                <span class="ml-1 text-xs font-semibold text-red-600">(Expired)</span>
+              {% endif %}
+            {% else %}
+              <span class="text-gray-500">N/A</span>
+            {% endif %}
+          </p>
+        </div>
+        <div>
+          <p class="font-semibold">Size</p>
+          <p>{% if doc.file_size %}{{ doc.file_size|filesizeformat }}{% else %}N/A{% endif %}</p>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <p class="text-center text-gray-500 font-semibold">No documents uploaded yet.</p>
+    {% endfor %}
+  </div>
+</div>
 {% endblock %}

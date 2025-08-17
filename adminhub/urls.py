@@ -29,6 +29,34 @@ urlpatterns = [
 
     path('admin/deliverables/assign/', views.assign_deliverables_view, name='assign_deliverables'),
 
+    path("admin/requests/", views.admin_request_list_view, name="request_list"),
+    path("admin/requests/create/",views.admin_request_create_view,name="request_create"),
+    path("admin/requests/<uuid:uuid>/action/", views.admin_request_action_view, name="request_action"),
+
+
+    path(
+        "admin/request-types/",
+        views.request_type_list_view,
+        name="request_type_list"
+    ),
+    path(
+        "admin/request-types/create/",
+        views.request_type_create_view,
+        name="request_type_create"
+    ),
+    path(
+        "admin/request-types/<int:pk>/edit/",
+        views.request_type_edit_view,
+        name="request_type_edit"
+    ),
+    path(
+        "admin/request-types/<int:pk>/delete/",
+        views.request_type_delete_view,
+        name="request_type_delete"
+    ),
+
+
+
     path('admin/settings/', views.admin_settings, name='admin_settings'),
 
     path('admin/settings/academic-years/', views.academic_years_view, name='academic_years'),

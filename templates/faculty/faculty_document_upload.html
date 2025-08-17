@@ -1,84 +1,229 @@
-{% extends 'index.html' %}
+{% extends "faculty/faculty_base.html" %}
+
 {% block content %}
-<h2>Upload Documents</h2>
+<div class="max-w-2xl mx-auto space-y-8">
+  <!-- Page Title and Back Button -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <h2 class="text-3xl font-bold text-gray-900">Upload Documents</h2>
+    <a href="{% url 'faculty:faculty_documents' %}"
+        class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+      </svg>
+      <span>Back to My Documents</span>
+    </a>
+  </div>
 
-{% if messages %}
-  <ul class="messages">
-    {% for message in messages %}
-      <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
-        {{ message }}
-      </li>
-    {% endfor %}
-  </ul>
-{% endif %}
-
-{% if formset.non_form_errors %}
-  <div class="form-errors">
-    <ul>
-      {% for error in formset.non_form_errors %}
-        <li>{{ error }}</li>
+  <!-- Messages -->
+  {% if messages %}
+    <ul class="space-y-2">
+      {% for message in messages %}
+        <li class="px-4 py-2 rounded 
+          {% if message.tags == 'error' %}bg-red-100 text-red-700 border border-red-300
+          {% elif message.tags == 'success' %}bg-green-100 text-green-700 border border-green-300
+          {% else %}bg-gray-100 text-gray-800 border border-gray-300
+          {% endif %}">
+          {{ message }}
+        </li>
       {% endfor %}
     </ul>
-  </div>
-{% endif %}
+  {% endif %}
 
-<form method="post" enctype="multipart/form-data">
+  <!-- Non-form errors -->
+  {% if formset.non_form_errors %}
+    <div class="bg-red-50 border border-red-200 rounded p-3 mb-4">
+      <ul class="list-disc pl-5 text-red-700">
+        {% for error in formset.non_form_errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" id="uploadForm" class="space-y-5">
     {% csrf_token %}
-    {{ formset.management_form }} {# ✅ REQUIRED #}
+    {{ formset.management_form }}
 
-    <table>
-        <thead>
-            <tr>
-                <th>Category</th>
-                <th>Name</th>
-                <th>File</th>
-                <th>Expiry Date</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for form in formset %}
-            <tr>
-                <td>
-                    {{ form.document_category }}
-                    {% if form.document_category.errors %}
-                        <div class="error">{{ form.document_category.errors.0 }}</div>
-                    {% endif %}
-                </td>
-                <td>
-                    {{ form.document_name }}
-                    {% if form.document_name.errors %}
-                        <div class="error">{{ form.document_name.errors.0 }}</div>
-                    {% endif %}
-                </td>
-                <td>
-                    {{ form.file }}
-                    {% if form.file.errors %}
-                        <div class="error">{{ form.file.errors.0 }}</div>
-                    {% endif %}
-                </td>
-                <td>
-                    {{ form.expiry_date }}
-                    {% if form.expiry_date.errors %}
-                        <div class="error">{{ form.expiry_date.errors.0 }}</div>
-                    {% endif %}
-                </td>
-            </tr>
-
-            {% if form.non_field_errors %}
-            <tr>
-                <td colspan="4">
-                    <div class="error">
-                        {% for err in form.non_field_errors %}
-                            <p>{{ err }}</p>
-                        {% endfor %}
-                    </div>
-                </td>
-            </tr>
+    <div id="formset-cards" class="space-y-6">
+      {% for form in formset %}
+      <div class="relative bg-white rounded-xl shadow-lg px-6 py-7 border-2 border-gray-300 card-row">
+        {% if not forloop.first %}
+        <button type="button" class="remove-row absolute top-3 right-3 text-red-500 hover:text-red-700 bg-transparent rounded-full p-1" title="Remove this document">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+        {% endif %}
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+            {{ form.document_category }}
+            {% if form.document_category.errors %}
+                <div class="text-xs text-red-600 mt-1">{{ form.document_category.errors.0 }}</div>
             {% endif %}
-
+            </div>
+            <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Document Name</label>
+            {{ form.document_name }}
+            {% if form.document_name.errors %}
+                <div class="text-xs text-red-600 mt-1">{{ form.document_name.errors.0 }}</div>
+            {% endif %}
+            </div>
+            <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Expiry Date</label>
+            {{ form.expiry_date }}
+            {% if form.expiry_date.errors %}
+                <div class="text-xs text-red-600 mt-1">{{ form.expiry_date.errors.0 }}</div>
+            {% endif %}
+            </div>
+        </div>
+        <div class="mt-0.5">
+            <label for="file_input_{{ forloop.counter0 }}" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Upload file</label>
+            <div class="flex w-full">
+            <label for="file_input_{{ forloop.counter0 }}"
+                    class="inline-flex items-center cursor-pointer px-5 py-2 h-10 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg rounded-r-none shadow font-semibold transition duration-200">
+                Choose File
+            </label>
+            <span id="file-chosen-{{ forloop.counter0 }}"
+                    class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-5 py-2 h-10 text-gray-700 text-sm bg-gray-50 flex-1 min-w-0 truncate">
+                {% if form.file.value %}{{ form.file.value.name|default:"" }}{% else %}No file chosen{% endif %}
+            </span>
+            {{ form.file }}
+            </div>
+            {% if form.file.errors %}
+            <div class="text-xs text-red-600 mt-1">{{ form.file.errors.0 }}</div>
+            {% endif %}
+        </div>
+        {% if form.non_field_errors %}
+        <div class="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
+            {% for err in form.non_field_errors %}
+            <p>{{ err }}</p>
             {% endfor %}
-        </tbody>
-    </table>
-    <button type="submit">Upload Documents</button>
-</form>
+        </div>
+        {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Hidden card template for JS cloning -->
+    <div id="empty-form-card" class="hidden">
+      <div class="relative bg-white rounded-xl shadow-lg px-6 py-7 border-2 border-gray-300 card-row">
+        <button type="button" class="remove-row absolute top-3 right-3 text-red-500 hover:text-red-700 bg-transparent rounded-full p-1" title="Remove this document">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Category</label>
+            {{ formset.empty_form.document_category }}
+            </div>
+            <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Document Name</label>
+            {{ formset.empty_form.document_name }}
+            </div>
+            <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Expiry Date</label>
+            {{ formset.empty_form.expiry_date }}
+            </div>
+        </div>
+        <div class="mt-0.5">
+            <label for="file_input__empty" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Upload file</label>
+            <div class="flex w-full">
+            <label for="file_input__empty"
+                    class="inline-flex items-center cursor-pointer px-5 py-2 h-10 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg rounded-r-none shadow font-semibold transition duration-200">
+                Choose File
+            </label>
+            <span id="file-chosen-empty"
+                    class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-5 py-2 h-10 text-gray-700 text-sm bg-gray-50 flex-1 min-w-0 truncate">
+                No file chosen
+            </span>
+            {{ formset.empty_form.file }}
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <div class="flex items-center justify-between">
+      <button type="button" id="add-form-btn"
+        class="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg shadow text-sm font-semibold">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        Add Another Document
+      </button>
+      <button type="submit"
+        class="flex items-center gap-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow font-semibold transition duration-200">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        Upload Documents
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const addBtn = document.getElementById('add-form-btn');
+  const cardsContainer = document.getElementById('formset-cards');
+  const totalForms = document.getElementById('id_form-TOTAL_FORMS');
+  const emptyCard = document.getElementById('empty-form-card').firstElementChild;
+
+  function updateFormIndices() {
+    const cards = cardsContainer.querySelectorAll('.card-row');
+    cards.forEach((card, idx) => {
+      card.querySelectorAll('input, select, textarea, label, span').forEach(el => {
+        if (el.name) el.name = el.name.replace(/form-(\d+)-/, `form-${idx}-`);
+        if (el.id) {
+          if (el.id.startsWith('file_input_')) el.id = 'file_input_' + idx;
+          else if (el.id.startsWith('file-chosen-')) el.id = 'file-chosen-' + idx;
+          else el.id = el.id.replace(/form-(\d+)-/, `form-${idx}-`);
+        }
+        if (el.htmlFor && el.htmlFor.startsWith('file_input_')) el.htmlFor = 'file_input_' + idx;
+        else if (el.htmlFor) el.htmlFor = el.htmlFor.replace(/form-(\d+)-/, `form-${idx}-`);
+      });
+    });
+    totalForms.value = cards.length;
+    bindFileInputEvents();
+  }
+
+  function bindFileInputEvents() {
+    cardsContainer.querySelectorAll('input[type="file"]').forEach(function(input) {
+      const idx = input.id.replace('file_input_', '');
+      const span = document.getElementById('file-chosen-' + idx);
+      if (span) {
+        input.addEventListener('change', function(){
+          span.textContent = input.files.length ? input.files[0].name : "No file chosen";
+        });
+      }
+    });
+  }
+
+  bindFileInputEvents();
+
+  addBtn.addEventListener('click', function() {
+    const newCard = emptyCard.cloneNode(true);
+    newCard.querySelectorAll('input, select, textarea, span').forEach(el => {
+      if (el.type === "checkbox" || el.type === "radio") {
+        el.checked = false;
+      } else if (el.tagName === "SPAN" && el.id && el.id.startsWith("file-chosen")) {
+        el.textContent = "No file chosen";
+      } else if (el.type !== "hidden") {
+        el.value = '';
+      }
+    });
+    cardsContainer.appendChild(newCard);
+    updateFormIndices();
+  });
+
+  cardsContainer.addEventListener('click', function(e) {
+    if (e.target.closest('.remove-row')) {
+      const row = e.target.closest('.card-row');
+      row.remove();
+      updateFormIndices();
+    }
+  });
+});
+</script>
 {% endblock %}

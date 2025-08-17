@@ -134,7 +134,7 @@ def faculty_list_view(request):
     search = request.GET.get('search', '')
     status_id = request.GET.get('status', '')
 
-    faculty_qs = FacultyProfile.objects.all().select_related('status')
+    faculty_qs = FacultyProfile.objects.all().select_related('status').order_by('name')
     if search:
         faculty_qs = faculty_qs.filter(name__icontains=search)
     if status_id:
@@ -411,6 +411,11 @@ from faculty.models import FacultyProfile, FacultyDocument, Deliverable, Semeste
 from django.utils import timezone
 from faculty.models import FacultyProfile, FacultyDocument, Deliverable, Semester
 
+from django.utils import timezone
+from django.db.models import Q
+from django.core.paginator import Paginator
+from faculty.models import FacultyProfile, FacultyDocument, Deliverable, Semester
+
 def deliverables_view(request):
     today = timezone.now().date()
     semester = Semester.objects.filter(is_active=True, start_date__lte=today, end_date__gte=today).select_related('academic_year').first()
@@ -418,18 +423,23 @@ def deliverables_view(request):
 
     completed_submissions = 0
     pending_submissions = 0
-    faculty_statuses = []
     deliverables_list = []
     academic_year_str = ""
     semester_str = ""
 
+    # --- Search, filter, and pagination params ---
+    search = request.GET.get("search", "").strip()
+    status_filter = request.GET.get("status", "")
+    page_number = request.GET.get("page")
+    page_size = 10  # You can adjust this
+
+    faculty_statuses_raw = []
+
     if semester:
-        # Academic year and semester strings
         academic_year = semester.academic_year
         academic_year_str = str(academic_year)
         semester_str = semester.get_semester_type_display()
 
-        # List of active deliverables
         deliverables = Deliverable.objects.filter(semester=semester).select_related('document_category')
         deliverable_ids = list(deliverables.values_list('id', flat=True))
         deliverable_count = len(deliverable_ids)
@@ -440,8 +450,13 @@ def deliverables_view(request):
             } for d in deliverables
         ]
 
-        # Faculty progress
-        for faculty in FacultyProfile.objects.select_related('account'):
+        faculty_qs = FacultyProfile.objects.select_related('account').all()
+        if search:
+            faculty_qs = faculty_qs.filter(
+                Q(name__icontains=search) | Q(account__email__icontains=search)
+            )
+
+        for faculty in faculty_qs:
             approved_count = 0
             for d_id in deliverable_ids:
                 doc = FacultyDocument.objects.filter(
@@ -453,31 +468,52 @@ def deliverables_view(request):
                 if doc:
                     approved_count += 1
 
-            faculty_statuses.append({
+            faculty_status = {
                 "name": faculty.name,
                 "email": faculty.account.email,
                 "approved_count": approved_count,
                 "total_required": deliverable_count,
                 "faculty_uuid": faculty.uuid,
-            })
+            }
 
-            if approved_count == deliverable_count and deliverable_count > 0:
-                completed_submissions += 1
-            else:
-                pending_submissions += 1
+            # Filter by status if specified
+            if status_filter == "completed" and (approved_count != deliverable_count or deliverable_count == 0):
+                continue
+            if status_filter == "pending" and (approved_count == deliverable_count and deliverable_count > 0):
+                continue
+
+            faculty_statuses_raw.append(faculty_status)
+
+    # Pagination of faculty_statuses_raw
+    paginator = Paginator(faculty_statuses_raw, page_size)
+    page_obj = paginator.get_page(page_number)
+
+    # Recompute completed/pending based on the unpaginated filtered queryset
+    completed_submissions = sum(
+        1 for f in faculty_statuses_raw if f["approved_count"] == f["total_required"] and f["total_required"] > 0
+    )
+    pending_submissions = len(faculty_statuses_raw) - completed_submissions
+
+    # Preserve other GET params for pagination links
+    get_params = request.GET.copy()
+    if 'page' in get_params:
+        del get_params['page']
+    querystring = get_params.urlencode()
 
     context = {
         'total_faculty': total_faculty,
         'completed_submissions': completed_submissions,
         'pending_submissions': pending_submissions,
-        'faculty_statuses': faculty_statuses,
+        'page_obj': page_obj,
+        'paginator': paginator,
         'deliverables_list': deliverables_list,
         'academic_year_str': academic_year_str,
         'semester_str': semester_str,
+        'search': search,
+        'status_filter': status_filter,
+        'querystring': querystring,
     }
     return render(request, 'admin/admin_deliverables.html', context)
-
-
 
 
 @admin_required
@@ -585,3 +621,149 @@ def create_academic_year_view(request):
         'formset': formset,
     })
 
+
+
+
+
+
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db.models import Q, Count
+from faculty.models import FacultyRequest, RequestType
+from base.forms import RequestTypeForm, FacultyRequestForm, AdminFacultyRequestForm
+
+@admin_required
+def admin_request_list_view(request):
+    search = request.GET.get('search', '')
+    status = request.GET.get('status', '')
+    request_type_id = request.GET.get('request_type', '')
+
+    # Base queryset
+    requests_qs = FacultyRequest.objects.select_related("faculty", "request_type").order_by("-created_at")
+    
+    # Filtering
+    if search:
+        requests_qs = requests_qs.filter(
+            Q(description__icontains=search) |
+            Q(request_type__name__icontains=search) |
+            Q(faculty__name__icontains=search)
+        )
+    if status:
+        requests_qs = requests_qs.filter(status=status)
+    if request_type_id:
+        requests_qs = requests_qs.filter(request_type_id=request_type_id)
+
+    # Stats
+    total_requests = FacultyRequest.objects.count()
+    total_pending = FacultyRequest.objects.filter(status="Pending").count()
+    total_approved = FacultyRequest.objects.filter(status="Approved").count()
+    total_rejected = FacultyRequest.objects.filter(status="Rejected").count()
+
+    statuses = [
+        {'id': 'Pending', 'name': 'Pending'},
+        {'id': 'Approved', 'name': 'Approved'},
+        {'id': 'Rejected', 'name': 'Rejected'},
+    ]
+
+    # For request type filter dropdown
+    request_types = RequestType.objects.all()
+
+    return render(request, "admin/admin_request_list.html", {
+        "requests": requests_qs,
+        "statuses": statuses,
+        "request_types": request_types,
+        "search": search,
+        "status": status,
+        "request_type_id": request_type_id,
+        "total_requests": total_requests,
+        "total_pending": total_pending,
+        "total_approved": total_approved,
+        "total_rejected": total_rejected,
+    })
+
+
+@admin_required
+def admin_request_create_view(request):
+    if request.method == "POST":
+        form = AdminFacultyRequestForm(request.POST)
+        if form.is_valid():
+            faculty_request = form.save(commit=False)
+            faculty_request.created_by_admin = True
+            faculty_request.save()
+            messages.success(request, "Request created successfully.")
+            return redirect("admin_request_list")
+    else:
+        form = AdminFacultyRequestForm()
+
+    return render(request, "admin/admin_request_form.html", {"form": form})
+
+
+from django.views.decorators.http import require_POST
+
+@admin_required
+@require_POST
+def admin_request_action_view(request, uuid):
+    faculty_request = get_object_or_404(FacultyRequest, uuid=uuid)
+    action = request.POST.get("action")
+    remarks = request.POST.get("remarks", "")
+
+    if action == "approve":
+        faculty_request.status = "Approved"
+        messages.success(request, "Request approved.")
+    elif action == "reject":
+        faculty_request.status = "Rejected"
+        messages.success(request, "Request rejected.")
+    else:
+        messages.error(request, "Invalid action.")
+        return redirect("admin_request_list")
+
+    faculty_request.remarks = remarks
+    faculty_request.save()
+    return redirect("adminhub:request_list")
+
+
+
+
+@admin_required
+def request_type_list_view(request):
+    types = RequestType.objects.all().order_by("name")
+    return render(request, "admin/requests/request_type_list.html", {"types": types})
+
+
+@admin_required
+def request_type_create_view(request):
+    if request.method == "POST":
+        form = RequestTypeForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Request type added successfully.")
+            return redirect("request_type_list")
+    else:
+        form = RequestTypeForm()
+
+    return render(request, "admin/requests/request_type_form.html", {"form": form})
+
+
+@admin_required
+def request_type_edit_view(request, pk):
+    req_type = get_object_or_404(RequestType, pk=pk)
+    if request.method == "POST":
+        form = RequestTypeForm(request.POST, instance=req_type)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Request type updated successfully.")
+            return redirect("request_type_list")
+    else:
+        form = RequestTypeForm(instance=req_type)
+
+    return render(request, "admin/requests/request_type_form.html", {"form": form})
+
+
+@admin_required
+def request_type_delete_view(request, pk):
+    req_type = get_object_or_404(RequestType, pk=pk)
+    req_type.delete()
+    messages.success(request, "Request type deleted successfully.")
+    return redirect("request_type_list")
