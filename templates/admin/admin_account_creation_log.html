@@ -1,0 +1,46 @@
+{% extends "admin/admin_base.html" %}
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-8">
+  <div class="flex items-center gap-3 mb-4">
+    <a href="{% url 'adminhub:account_creation' %}" class="inline-flex items-center px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+      </svg>
+      Back to Account Creation
+    </a>
+    <h2 class="text-2xl font-bold text-gray-900">Created Faculty Account Log</h2>
+  </div>
+  <div class="bg-white rounded-lg shadow-md p-7">
+    <table class="min-w-full text-sm border">
+      <thead>
+        <tr class="bg-gray-100 text-gray-700 font-semibold">
+          <th class="px-4 py-3 border-b">Created At</th>
+          <th class="px-4 py-3 border-b">Faculty Email</th>
+          <th class="px-4 py-3 border-b">Password</th>
+          <th class="px-4 py-3 border-b">Applicant</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in logs %}
+        <tr>
+          <td class="px-4 py-3 border-b">{{ entry.created_at|date:"Y-m-d H:i" }}</td>
+          <td class="px-4 py-3 border-b">{{ entry.faculty_email }}</td>
+          <td class="px-4 py-3 border-b font-mono">{{ entry.password }}</td>
+          <td class="px-4 py-3 border-b">
+            {% if entry.applicant %}
+              {{ entry.applicant.first_name }} {{ entry.applicant.last_name }}
+            {% else %}
+              <span class="text-gray-400">
+                {{ entry.applicant_name|default:"None" }}
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-gray-500 py-6">No accounts logged yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -130,6 +130,7 @@ from django.db.models import Count, Q
 from django.core.paginator import Paginator
 from faculty.models import FacultyProfile, EmploymentStatus, FacultyDocument
 
+@admin_required
 def faculty_list_view(request):
     search = request.GET.get('search', '')
     status_id = request.GET.get('status', '')
@@ -416,6 +417,7 @@ from django.db.models import Q
 from django.core.paginator import Paginator
 from faculty.models import FacultyProfile, FacultyDocument, Deliverable, Semester
 
+@admin_required
 def deliverables_view(request):
     today = timezone.now().date()
     semester = Semester.objects.filter(is_active=True, start_date__lte=today, end_date__gte=today).select_related('academic_year').first()
@@ -767,3 +769,285 @@ def request_type_delete_view(request, pk):
     req_type.delete()
     messages.success(request, "Request type deleted successfully.")
     return redirect("request_type_list")
+
+
+
+
+
+
+
+from django.shortcuts import render
+from django.core.paginator import Paginator
+from applicant.models import Applicant
+
+from django.db.models import Count, Q
+
+
+@admin_required
+def applicant_list_view(request):
+    search = request.GET.get('search', '')
+    status = request.GET.get('status', '')
+
+    # 1. Queryset: Applicant list, filtered by search and status
+    applicant_qs = Applicant.objects.all().order_by('-created_at')
+    if search:
+        applicant_qs = applicant_qs.filter(
+            Q(first_name__icontains=search) |
+            Q(last_name__icontains=search) |
+            Q(email__icontains=search)
+        )
+    if status:
+        applicant_qs = applicant_qs.filter(status=status)
+
+    # 2. Annotate pending/missing documents (optional, if you want it in list)
+    # applicant_qs = applicant_qs.annotate(
+    #     pending_documents=Count('documents', filter=Q(documents__status='Pending'))
+    # )
+
+    # 3. Stats for dashboard cards
+    total_applicants = Applicant.objects.count()
+    total_hired = Applicant.objects.filter(status='hired').count()
+    total_failed = Applicant.objects.filter(status='failed').count()
+    total_pending = Applicant.objects.filter(status='pending').count()
+
+    # 4. Pagination
+    paginator = Paginator(applicant_qs, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # 5. For status filter dropdown
+    status_choices = Applicant._meta.get_field('status').choices
+
+    # 6. Preserve filters for pagination links
+    get_params = request.GET.copy()
+    if 'page' in get_params:
+        del get_params['page']
+    querystring = get_params.urlencode()
+
+    return render(request, 'admin/admin_applicant_list.html', {
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'status_choices': status_choices,
+        'total_applicants': total_applicants,
+        'total_hired': total_hired,
+        'total_failed': total_failed,
+        'total_pending': total_pending,
+        'search': search,
+        'status': status,
+        'querystring': querystring,
+    })
+
+
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from applicant.models import Applicant, ApplicantDocument
+from django.db import transaction
+from base.utils.email import send_applicant_status_email
+
+# Statuses in order for the stepper visualization
+STEPPER_STATUSES = [
+    ('pending', "Pending"),
+    ('demo_scheduled', "Demo Scheduled"),
+    ('for_interview', "For Interview"),
+    ('psych_test', "Psych Test"),
+    ('hired', "Hired"),
+    ('failed', "Failed"),
+]
+
+@admin_required
+def applicant_detail_view(request, pk):
+    applicant = get_object_or_404(Applicant, pk=pk)
+    documents = ApplicantDocument.objects.filter(applicant=applicant)
+    status_choices = Applicant._meta.get_field('status').choices
+
+    if request.method == "POST":
+        new_status = request.POST.get("status")
+        if new_status and new_status != applicant.status:
+            with transaction.atomic():
+                applicant.status = new_status
+                applicant.save()
+                send_applicant_status_email(applicant, new_status)
+                messages.success(request, "Status updated.")
+            return redirect('adminhub:applicant_detail', pk=applicant.pk)
+        else:
+            messages.warning(request, "No status change detected.")
+
+    # For stepper: build steps with current progress
+    stepper = []
+    found_active = False
+    for value, label in STEPPER_STATUSES:
+        is_active = (applicant.status == value)
+        stepper.append({
+            "value": value,
+            "label": label,
+            "completed": not found_active and not is_active,
+            "active": is_active,
+        })
+        if is_active:
+            found_active = True
+
+    return render(request, 'admin/admin_applicant_detail.html', {
+        'applicant': applicant,
+        'documents': documents,
+        'status_choices': status_choices,
+        'stepper': stepper,
+    })
+
+
+
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.db import transaction
+from applicant.models import Applicant, ApplicantDocument
+from faculty.models import FacultyProfile, EmploymentStatus, FacultyDocument
+from base.models import Account
+from .models import CreatedAccountLog
+from services.google_drive_service import CentralGoogleDriveService
+from django.utils.crypto import get_random_string
+from django.core.mail import send_mail
+from django.conf import settings
+
+@admin_required
+def account_creation_view(request):
+    hired_applicants = Applicant.objects.filter(
+        status='hired', account_created=False
+    ).order_by('last_name', 'first_name')
+
+    employment_statuses = EmploymentStatus.objects.filter(is_active=True).order_by('name')
+
+    if request.method == 'POST':
+        selected_ids = request.POST.getlist('selected')
+        status_id = request.POST.get('employment_status')
+        errors = []
+        created = []
+
+        if not status_id:
+            messages.error(request, "Employment status is required.")
+            return redirect('adminhub:account_creation')
+
+        try:
+            emp_status = EmploymentStatus.objects.get(pk=status_id)
+        except EmploymentStatus.DoesNotExist:
+            messages.error(request, "Selected employment status does not exist.")
+            return redirect('adminhub:account_creation')
+
+        for applicant_id in selected_ids:
+            email = request.POST.get(f'faculty_email_{applicant_id}', '').strip()
+            password = request.POST.get(f'faculty_password_{applicant_id}', '').strip()
+            if not email:
+                errors.append(f"Applicant {applicant_id}: Faculty email is required.")
+                continue
+            if Account.objects.filter(email=email).exists():
+                errors.append(f"{email}: Email already exists.")
+                continue
+            if not password:
+                password = get_random_string(8)
+            try:
+                with transaction.atomic():
+                    applicant = Applicant.objects.get(pk=applicant_id)
+                    account = Account.objects.create_user(
+                        email=email,
+                        password=password,
+                        role='faculty'
+                    )
+                    faculty = FacultyProfile.objects.create(
+                        account=account,
+                        name=f"{applicant.first_name} {applicant.last_name}",
+                        department=getattr(applicant, "department", ""),
+                        birth_date=applicant.birth_date,
+                        contact_number=applicant.contact_number,
+                        status=emp_status,
+                    )
+                    # Create Drive folder for the faculty
+                    try:
+                        drive = CentralGoogleDriveService()
+                        folder_id = drive.create_faculty_folder(faculty)
+                        faculty.gdrive_folder_id = folder_id
+                        faculty.save()
+                    except Exception as e:
+                        errors.append(f"{email}: Drive folder error: {e}")
+                    # Copy applicant docs to faculty and Drive
+                    for doc in ApplicantDocument.objects.filter(applicant=applicant):
+                        doc_name = f"{applicant.first_name} {applicant.last_name}"
+                        if applicant.suffix:
+                            doc_name += f" {applicant.suffix}"
+                        doc_name += f" - {doc.document_category.name}"
+                        try:
+                            # Copy the file in Google Drive from applicant to faculty folder
+                            new_file_id, new_file_link = drive.copy_file_to_folder(
+                                doc.google_drive_id,
+                                folder_id,
+                                new_name=doc_name
+                            )
+                        except Exception as e:
+                            errors.append(f"{email}: Failed to copy file for document '{doc_name}': {e}")
+                            continue  # skip this doc but process others
+                        FacultyDocument.objects.create(
+                            faculty=faculty,
+                            document_name=doc_name,
+                            document_category=doc.document_category,
+                            file_path=new_file_link,
+                            google_drive_id=new_file_id,
+                            file_size=doc.file_size,
+                            expiry_date=doc.expiry_date,
+                            status=doc.status,
+                            admin_remarks=doc.admin_remarks,
+                            # uploaded_by is skipped (nullable)
+                        )
+                    # Mark applicant as converted
+                    applicant.account_created = True
+                    applicant.save()
+                    # Log created account
+                    CreatedAccountLog.objects.create(
+                        faculty_email=email,
+                        password=password,
+                        applicant=applicant,
+                        applicant_name=f"{applicant.first_name} {applicant.last_name}",
+                        applicant_email=applicant.email,
+                        applicant_id_snapshot=applicant.applicant_id
+                    )
+                    # Email notification to old applicant email
+                    send_mail(
+                        subject="[FEMS] Your Faculty Account Has Been Created",
+                        message=(
+                            f"Hello {applicant.first_name},\n\n"
+                            f"Your faculty account has been created.\n"
+                            f"Login Email: {email}\n"
+                            f"Temporary Password: {password}\n\n"
+                            "Please log in and change your password immediately. "
+                            "If you have any questions, contact the admin.\n\n"
+                            "This is an automated message from FEMS."
+                        ),
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[applicant.email],
+                        fail_silently=True,
+                    )
+                    created.append(email)
+            except Exception as e:
+                errors.append(f"{email}: {str(e)}")
+
+        if created:
+            messages.success(request, f"✅ Created accounts: {', '.join(created)}")
+        if errors:
+            for err in errors:
+                messages.error(request, f"❌ {err}")
+        return redirect('adminhub:account_creation')
+
+    return render(request, 'admin/admin_account_creation.html', {
+        'hired_applicants': hired_applicants,
+        'employment_statuses': employment_statuses
+    })
+
+
+
+
+
+@admin_required
+def created_account_log_view(request):
+    logs = CreatedAccountLog.objects.select_related("applicant").order_by("-created_at")
+    return render(request, "admin/admin_account_creation_log.html", {
+        "logs": logs
+    })

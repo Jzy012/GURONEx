@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-3xl mx-auto py-10">
+  <h1 class="text-2xl font-bold mb-2">Application Status</h1>
+  <div class="mb-4">
+    <span class="font-semibold">Applicant ID:</span> {{ applicant.applicant_id }}<br>
+    <span class="font-semibold">Status:</span>
+    <span class="inline-block px-2 py-1 rounded
+      {% if applicant.status == 'pending' %}bg-yellow-200 text-yellow-800
+      {% elif applicant.status == 'hired' %}bg-green-200 text-green-800
+      {% elif applicant.status == 'failed' %}bg-red-200 text-red-800
+      {% else %}bg-gray-200 text-gray-800{% endif %}">
+      {{ applicant.get_status_display }}
+    </span>
+  </div>
+  <div class="mb-6">
+    <h2 class="text-lg font-semibold mb-2">Document Checklist</h2>
+    <ul class="space-y-2">
+      {% for req in required_docs %}
+        <li class="flex items-center justify-between bg-gray-50 px-4 py-2 rounded">
+          <span>
+            {{ req.document_category.name }}
+            {% if req.is_required %}
+              <span class="bg-blue-200 text-blue-800 px-1 text-xs rounded ml-2">Required</span>
+            {% else %}
+              <span class="bg-gray-200 text-gray-800 px-1 text-xs rounded ml-2">Optional</span>
+            {% endif %}
+          </span>
+          <span>
+            {% if docs|dictsort:"document_category.id"|dict_key:req.document_category.id %}
+              <span class="text-green-600 font-semibold">Uploaded</span>
+            {% else %}
+              <span class="text-red-500">Missing</span>
+            {% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+    <a href="{% url 'applicants:upload_doc' applicant.pk %}" class="mt-4 inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700">Upload Documents</a>
+  </div>
+  <div class="mb-6">
+    <h2 class="text-lg font-semibold mb-2">Timeline</h2>
+    <ul class="border-l-2 border-blue-300 pl-4">
+      {% for entry in timeline %}
+        <li class="mb-3">
+          <div class="text-xs text-gray-400">{{ entry.timestamp|date:"Y-m-d H:i" }}</div>
+          <div class="font-semibold">{{ entry.action }}</div>
+          {% if entry.note %}
+            <div class="text-sm text-gray-600">{{ entry.note }}</div>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div>
+    <h2 class="text-lg font-semibold mb-2">Announcements</h2>
+    <ul class="space-y-4">
+      {% for ann in announcements %}
+        <li class="p-4 rounded shadow bg-white">
+          <div class="font-bold text-blue-800">{{ ann.title }}</div>
+          <div>{{ ann.content|linebreaks }}</div>
+          {% if ann.attachment_link %}
+            <a href="{{ ann.attachment_link }}" class="text-blue-600 underline" target="_blank">Attachment</a>
+          {% endif %}
+          {% if ann.is_important %}
+            <span class="inline-block bg-red-200 text-red-800 px-2 py-1 rounded ml-2 text-xs">Important</span>
+          {% endif %}
+        </li>
+      {% empty %}
+        <li>No announcements at this time.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

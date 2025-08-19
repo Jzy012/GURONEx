@@ -1,0 +1,47 @@
+{% extends 'applicants/applicant_base.html' %}
+{% load static %}
+{% block content %}
+<div class="max-w-2xl mx-auto py-10">
+  <h1 class="text-3xl font-bold mb-6">Applicant Registration</h1>
+  <form method="post" enctype="multipart/form-data" class="space-y-6">
+    {% csrf_token %}
+    <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+      {{ basic_form.as_p }}
+    </div>
+    <h2 class="text-xl font-semibold mb-2">Required & Optional Documents</h2>
+    {% for form in forms %}
+      <div class="bg-gray-50 p-4 mb-3 rounded flex flex-col md:flex-row gap-4 items-center">
+        <div class="flex-1">
+          <label class="block font-semibold">Document Type</label>
+          <span>{{ form.fixed_document_category.name }}</span>
+          <input type="hidden" name="{{ form.prefix }}-document_category" value="{{ form.fixed_document_category.id }}">
+        </div>
+        <div class="flex-1">
+          {{ form.file.label_tag }}<br>
+          {{ form.file }}
+          {% if form.file.errors %}
+            <div class="text-red-600 text-sm">{{ form.file.errors }}</div>
+          {% endif %}
+        </div>
+        {% if form.fields.expiry_date and form.fixed_document_category.requires_expiry_date %}
+        <div>
+          {{ form.expiry_date.label_tag }}<br>
+          {{ form.expiry_date }}
+          {% if form.expiry_date.errors %}
+            <div class="text-red-600 text-sm">{{ form.expiry_date.errors }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+        <div class="flex-1">
+          {{ form.remarks.label_tag }}<br>
+          {{ form.remarks }}
+          {% if form.remarks.errors %}
+            <div class="text-red-600 text-sm">{{ form.remarks.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Submit Application</button>
+  </form>
+</div>
+{% endblock %}

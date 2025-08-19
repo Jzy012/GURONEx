@@ -574,3 +574,49 @@ class AdminFacultyRequestForm(forms.ModelForm):
         for fname, field in self.fields.items():
             field.widget.attrs["class"] = field_class
             field.widget.attrs["placeholder"] = field.label
+
+
+
+
+
+##################
+#Applicants Forms#
+##################
+
+
+from django import forms
+from applicant.models import Applicant, ApplicantDocument, ApplicantRequiredDocument
+from faculty.models import DocumentCategory
+
+class ApplicantForm(forms.ModelForm):
+    class Meta:
+        model = Applicant
+        fields = [
+            "first_name", "last_name", "suffix", "email", "contact_number",
+            "department", "birth_date", "emergency_contact_name", "emergency_contact_number"
+        ]
+
+from django import forms
+from applicant.models import ApplicantDocument
+
+class ApplicantDocumentUploadForm(forms.ModelForm):
+    class Meta:
+        model = ApplicantDocument
+        fields = ["document_category", "file", "expiry_date", "remarks"]
+
+    def __init__(self, *args, required_doc_cats=None, fixed_document_category=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fixed_document_category = fixed_document_category
+
+        if self.fixed_document_category:
+            # Hide/remove the field so user can’t change it
+            self.fields.pop("document_category", None)
+            # 🔑 Ensure instance has the fixed category right away
+            self.instance.document_category = self.fixed_document_category
+        elif required_doc_cats is not None:
+            self.fields["document_category"].queryset = required_doc_cats
+
+        # Handle expiry_date requirement
+        doc_cat = self.fixed_document_category or self.initial.get("document_category")
+        if doc_cat and getattr(doc_cat, "requires_expiry_date", False):
+            self.fields["expiry_date"].required = True

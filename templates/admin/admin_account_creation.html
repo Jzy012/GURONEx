@@ -1,0 +1,82 @@
+{% extends "admin/admin_base.html" %}
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8">
+
+  <div class="flex items-center gap-3 mb-4">
+    <a href="{% url 'adminhub:applicant_list' %}" class="inline-flex items-center px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+      </svg>
+      Back to Applicants
+    </a>
+    <h2 class="text-2xl font-bold text-gray-900">Bulk Faculty Account Creation</h2>
+    <a href="{% url 'adminhub:account_creation_log' %}" class="ml-auto px-3 py-2 bg-gray-700 hover:bg-gray-900 text-white rounded text-sm font-semibold">View Created Account Log</a>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-md p-7">
+    {% if hired_applicants %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-4 flex gap-4 items-center">
+        <label class="font-semibold text-gray-700">Employment Status for All:</label>
+        <select name="employment_status" class="px-3 py-2 border rounded-lg" required>
+          <option value="">Select status</option>
+          {% for status in employment_statuses %}
+            <option value="{{ status.pk }}">{{ status.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="ml-auto px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg font-semibold shadow transition disabled:opacity-50">
+          Create Accounts for Selected
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm border">
+          <thead>
+            <tr class="bg-gray-100 text-gray-700 font-semibold">
+              <th class="px-4 py-3 border-b"><input type="checkbox" id="select-all"></th>
+              <th class="px-4 py-3 border-b">Name</th>
+              <th class="px-4 py-3 border-b">Applicant Email</th>
+              <th class="px-4 py-3 border-b">Faculty Email</th>
+              <th class="px-4 py-3 border-b">Password (leave blank to autogenerate)</th>
+              <th class="px-4 py-3 border-b">Department</th>
+              <th class="px-4 py-3 border-b">Contact</th>
+              <th class="px-4 py-3 border-b">Birth Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for applicant in hired_applicants %}
+            <tr class="hover:bg-gray-50 transition">
+              <td class="px-4 py-3 border-b">
+                <input type="checkbox" name="selected" value="{{ applicant.pk }}">
+              </td>
+              <td class="px-4 py-3 border-b">{{ applicant.first_name }} {{ applicant.last_name }}</td>
+              <td class="px-4 py-3 border-b">{{ applicant.email }}</td>
+              <td class="px-4 py-3 border-b">
+                <input type="email" name="faculty_email_{{ applicant.pk }}" class="border rounded px-2 py-1 w-56" required>
+              </td>
+              <td class="px-4 py-3 border-b">
+                <input type="text" name="faculty_password_{{ applicant.pk }}" class="border rounded px-2 py-1 w-44" placeholder="leave blank to auto-generate">
+              </td>
+              <td class="px-4 py-3 border-b">{{ applicant.department }}</td>
+              <td class="px-4 py-3 border-b">{{ applicant.contact_number }}</td>
+              <td class="px-4 py-3 border-b">{{ applicant.birth_date|date:"Y-m-d" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+    <script>
+      document.getElementById('select-all').onclick = function() {
+        var checkboxes = document.getElementsByName('selected');
+        for (var checkbox of checkboxes) {
+          checkbox.checked = this.checked;
+        }
+      }
+    </script>
+    {% else %}
+      <div class="text-gray-500 font-semibold text-center py-10">No hired applicants pending account creation.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

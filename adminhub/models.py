@@ -59,3 +59,23 @@ class AnnouncementViewLog(models.Model):
 
     def __str__(self):
         return f"{self.user.email} saw {self.announcement.title} at {self.seen_at}"
+
+
+
+
+
+from django.db import models
+from applicant.models import Applicant
+
+class CreatedAccountLog(models.Model):
+    faculty_email = models.EmailField()
+    password = models.CharField(max_length=128)
+    applicant = models.ForeignKey(Applicant, on_delete=models.SET_NULL, null=True)
+    # Snapshot fields
+    applicant_name = models.CharField(max_length=255, blank=True)
+    applicant_email = models.EmailField(blank=True)
+    applicant_id_snapshot = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.faculty_email} ({self.created_at})"

@@ -1,11 +1,11 @@
 from django.contrib import admin
-from .models import AdminProfile, Announcement, AnnouncementViewLog
+from .models import AdminProfile, Announcement, AnnouncementViewLog, CreatedAccountLog
  
 # Register your models here.
 
 
 admin.site.register(AdminProfile)
-
+admin.site.register(CreatedAccountLog)
 
 # adminhub/admin.py
 
@@ -21,3 +21,5 @@ class AnnouncementViewLogAdmin(admin.ModelAdmin):
     list_display = ('user', 'announcement', 'seen_at')
     list_filter = ('seen_at',)
     search_fields = ('user__email', 'announcement__title')
+
+

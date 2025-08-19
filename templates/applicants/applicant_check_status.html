@@ -1,0 +1,18 @@
+{% extends 'applicants/applicant_base.html' %}
+{% block content %}
+<div class="max-w-md mx-auto my-12">
+  <h1 class="text-2xl font-bold mb-4">Check Application Status</h1>
+  <form method="post" class="space-y-4 bg-white shadow p-6 rounded">
+    {% csrf_token %}
+    <div>
+      <label for="applicant_id" class="font-semibold">Applicant ID</label>
+      <input type="text" name="applicant_id" id="applicant_id" required class="mt-1 block w-full rounded border-gray-300 shadow-sm"/>
+    </div>
+    <div>
+      <label for="email" class="font-semibold">Email</label>
+      <input type="email" name="email" id="email" required class="mt-1 block w-full rounded border-gray-300 shadow-sm"/>
+    </div>
+    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Lookup Status</button>
+  </form>
+</div>
+{% endblock %}

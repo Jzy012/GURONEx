@@ -22,4 +22,5 @@ urlpatterns = [
     path('', include('base.urls')),
     path('', include('adminhub.urls')),
     path('', include('faculty.urls')),
+    path('', include('applicant.urls')),
 ]

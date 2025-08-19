@@ -11,6 +11,7 @@ from base.models import GoogleStorageAccount
 import json
 
 
+
 SCOPES = [
     'https://www.googleapis.com/auth/drive',
     'openid',
@@ -41,13 +42,11 @@ class CentralGoogleDriveService:
             client_secret=self.client_secret,
             scopes=SCOPES
         )
-
         if self.account.token_expiry <= now():
             creds.refresh(GoogleRequest())
             self.account.access_token = creds.token
             self.account.token_expiry = creds.expiry
             self.account.save()
-
         return creds
 
     def create_folder(self, name, parent_id=None):
@@ -66,20 +65,30 @@ class CentralGoogleDriveService:
             query += f" and '{parent_id}' in parents"
         else:
             query += " and 'root' in parents"
-
         files = self.service.files().list(q=query, fields="files(id)").execute().get("files", [])
         if files:
             return files[0]["id"]
         return self.create_folder(name, parent_id)
 
+    def get_or_create_folder_path(self, path):
+        """
+        Recursively creates folders for a path like "FEMS/Applicants/APL-00001 - John Smith"
+        Returns the final folder's ID.
+        """
+        parts = path.strip("/").split("/")
+        parent_id = None
+        for part in parts:
+            parent_id = self.get_or_create_named_folder(part, parent_id=parent_id)
+        return parent_id
+
     def create_faculty_folder(self, faculty_profile):
-        fems_root = self.get_or_create_named_folder("FEMS")
-        faculty_root = self.get_or_create_named_folder("Faculty", parent_id=fems_root)
+        folder_path = f"FEMS/Faculty/{faculty_profile.name.strip().replace('/', '_').replace('\\', '_')}"
+        return self.get_or_create_folder_path(folder_path)
 
-        clean_name = faculty_profile.name.strip().replace("/", "_").replace("\\", "_")
-        folder_id = self.get_or_create_named_folder(clean_name, parent_id=faculty_root)
-
-        return folder_id
+    def create_applicant_folder(self, applicant):
+        folder_name = f"{applicant.applicant_id} - {applicant.first_name} {applicant.last_name}{' ' + applicant.suffix if applicant.suffix else ''}".strip()
+        folder_path = f"FEMS/Applicants/{folder_name}"
+        return self.get_or_create_folder_path(folder_path)
 
     def share_folder_with_user(self, folder_id, user_email, role="writer"):
         permission = {
@@ -92,3 +101,21 @@ class CentralGoogleDriveService:
             body=permission,
             sendNotificationEmail=True
         ).execute()
+    
+    def copy_file_to_folder(self, file_id, destination_folder_id, new_name=None):
+        """
+        Copies a file in Drive to a different folder.
+        Returns (new_file_id, new_webViewLink)
+        """
+        body = {
+            'parents': [destination_folder_id]
+        }
+        if new_name:
+            body['name'] = new_name
+        # Make the copy
+        new_file = self.service.files().copy(
+            fileId=file_id,
+            body=body,
+            fields='id, webViewLink'
+        ).execute()
+        return new_file['id'], new_file.get('webViewLink')
