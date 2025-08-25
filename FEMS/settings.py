@@ -33,16 +33,21 @@ SECRET_KEY = 'django-insecure-x&c*y_$a!ayh(81uic+g^7=-663_&aiw6@*)+)l_eyoxga6$v4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '192.168.1.9',
+    '127.0.0.1'
+]
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'rest_framework',
     'base.apps.BaseConfig',
     'adminhub.apps.AdminhubConfig',
     'faculty.apps.FacultyConfig',
     'applicant.apps.ApplicantConfig',
+    'rfid.apps.RfidConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

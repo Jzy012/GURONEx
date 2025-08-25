@@ -23,4 +23,5 @@ urlpatterns = [
     path('', include('adminhub.urls')),
     path('', include('faculty.urls')),
     path('', include('applicant.urls')),
+    path('', include('rfid.urls')),
 ]

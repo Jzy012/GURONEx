@@ -4,7 +4,13 @@
 
   <!-- Page Title and Back Button -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    <h2 class="text-3xl font-bold text-gray-900">👨‍🏫 Faculty List</h2>
+    <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
+      <svg class="w-8 h-8 text-[#800505]" fill="none" stroke="currentColor" stroke-width="2"
+          viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M5.121 17.804A3 3 0 017 17h10a3 3 0 011.879.804M15 
+            10a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg> Faculty List</h2>
     <a href="{% url 'adminhub:home' %}"
        class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"

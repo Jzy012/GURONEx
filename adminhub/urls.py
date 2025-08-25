@@ -37,14 +37,38 @@ urlpatterns = [
 
     path('admin/applicants/', views.applicant_list_view, name='applicant_list'),
     path('admin/applicants/<int:pk>/', views.applicant_detail_view, name='applicant_detail'),
-
+    path('admin/applicants/account-creation/', views.account_creation_view, name='account_creation'),
+    path('admin/applicants/account-creation/log/', views.created_account_log_view, name='account_creation_log'),
 
     path("admin/request-types/",views.request_type_list_view,name="request_type_list"),
     path("admin/request-types/create/",views.request_type_create_view,name="request_type_create"),
     path("admin/request-types/<int:pk>/edit/",views.request_type_edit_view,name="request_type_edit"),
     path("admin/request-types/<int:pk>/delete/",views.request_type_delete_view,name="request_type_delete"),
-    path('applicants/account-creation/', views.account_creation_view, name='account_creation'),
-    path('applicants/account-creation/log/', views.created_account_log_view, name='account_creation_log'),
+    
+
+
+    path('admin/attendance-logs/',views.attendance_logs_view, name='attendance_logs'),
+    # path('api/rfid_tap/', views.rfid_tap_api, name='rfid_tap_api'),
+    path('admin/pair-rfid/', views.pair_rfid, name='pair_rfid'),
+    path('api/rfid_pairing_tap/', views.rfid_pairing_tap_api, name='rfid_pairing_tap_api'),
+
+    path('admin/faculty/<uuid:faculty_uuid>/dtr/',views.dtr_tab_view,name='dtr_tab'),
+
+    path('admin/teaching-assignments', views.teaching_assignment_view, name='teaching_assignment'),
+
+    path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/',views.teaching_assignment_list, name='teaching_assignment_list'),
+
+    # Create assignment for a faculty
+    path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/create/',views.teaching_assignment_create, name='teaching_assignment_create'),
+
+    # Bulk upload for a faculty
+    path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/bulk-upload/',views.teaching_assignment_bulk_upload, name='teaching_assignment_bulk_upload'),
+
+    # Update a specific assignment (by assignment pk)
+    path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/<int:pk>/edit/',views.teaching_assignment_update, name='teaching_assignment_update'),
+
+    # Delete a specific assignment (by assignment pk)
+    path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/<int:pk>/delete/',views.teaching_assignment_delete, name='teaching_assignment_delete'),
 
     path('admin/settings/', views.admin_settings, name='admin_settings'),
     path('admin/settings/academic-years/', views.academic_years_view, name='academic_years'),

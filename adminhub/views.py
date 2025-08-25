@@ -22,12 +22,74 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 
 
-# Create your views here.
+from django.shortcuts import render
+from base.decorators import admin_required
+from base.utils.admin_data import get_admin_data
+from applicant.models import Applicant
+from faculty.models import FacultyProfile, FacultyDocument, FacultyRequest
+from adminhub.models import Announcement
+from django.db.models import Sum
+from base.models import GoogleStorageAccount  # adjust import if needed
+from django.utils import timezone
 
 @admin_required
 def home(request):
-    data = get_admin_data(request)
-    return render(request, 'admin/admin_home.html', data)
+    # Stats cards
+    data = get_admin_data(request) if 'get_admin_data' in globals() else {}
+
+    total_applicants = Applicant.objects.count()
+    total_faculty = FacultyProfile.objects.count()
+    total_pending_docs = FacultyDocument.objects.filter(status='Pending').count()
+    total_requests = FacultyRequest.objects.count()
+    total_storage_bytes = FacultyDocument.objects.aggregate(total_size=Sum('file_size'))['total_size'] or 0
+
+    def format_storage(size_bytes):
+        if size_bytes >= 1024**3:
+            return f"{size_bytes / (1024**3):.2f} GB"
+        elif size_bytes >= 1024**2:
+            return f"{size_bytes / (1024**2):.2f} MB"
+        elif size_bytes >= 1024:
+            return f"{size_bytes / 1024:.2f} KB"
+        return f"{size_bytes} bytes"
+    total_storage = format_storage(total_storage_bytes)
+
+    # Recent announcements
+    recent_announcements = Announcement.objects.order_by('-created_at')[:3]
+
+    # Google Drive Status
+    account = GoogleStorageAccount.objects.filter(is_active=True).first()
+    status = {
+        "label": "Disconnected",
+        "color": "bg-red-100 text-red-800",
+        "message": "No active Google Drive account.",
+    }
+    if account:
+        if account.token_expiry and account.token_expiry > timezone.now():
+            status = {
+                "label": "Connected",
+                "color": "bg-green-100 text-green-800",
+                "message": f"Active account: {account.email}",
+            }
+        else:
+            status = {
+                "label": "Expired",
+                "color": "bg-yellow-100 text-yellow-800",
+                "message": "Token expired — reauthentication required.",
+            }
+
+    context = {
+        'total_applicants': total_applicants,
+        'total_faculty': total_faculty,
+        'total_pending_docs': total_pending_docs,
+        'total_requests': total_requests,
+        'total_storage': total_storage,
+        'recent_announcements': recent_announcements,
+        'status': status,
+    }
+    if data:
+        context = {**data, **context}
+
+    return render(request, 'admin/admin_home.html', context)
 
     
 
@@ -307,7 +369,7 @@ def edit_faculty_view(request, faculty_uuid):
 
 
 
-from datetime import date
+from datetime import date, datetime
 from django.shortcuts import render
 from django.contrib import messages
 
@@ -1051,3 +1113,234 @@ def created_account_log_view(request):
     return render(request, "admin/admin_account_creation_log.html", {
         "logs": logs
     })
+
+
+
+from rfid.models import RFIDTag, AttendanceLog
+from rfid.views import format_log
+from django.utils import timezone
+import calendar
+
+@admin_required
+def attendance_logs_view(request):
+    faculty_id = request.GET.get('faculty_id')
+    month = int(request.GET.get('month', timezone.now().month))
+    year = int(request.GET.get('year', timezone.now().year))
+
+    faculties = FacultyProfile.objects.all().order_by('name')
+    logs = AttendanceLog.objects.select_related("faculty").order_by("-date", "-time_in")
+
+    if faculty_id:
+        logs = logs.filter(faculty__uuid=faculty_id)  # <-- Updated to use uuid
+    if month:
+        logs = logs.filter(date__month=month)
+    if year:
+        logs = logs.filter(date__year=year)
+
+    context = {
+        "logs": [format_log(log) for log in logs],
+        "faculties": faculties,
+        "selected_faculty_id": faculty_id if faculty_id else None,
+        "selected_month": month,
+        "selected_year": year,
+        "month_range": [(i, calendar.month_name[i]) for i in range(1, 13)],
+        "years": range(2020, timezone.now().year + 2),
+    }
+    return render(request, "admin/admin_attendance_logs.html", context)
+
+
+
+from django.shortcuts import render
+from faculty.models import FacultyProfile
+from rfid.models import RFIDTag
+
+@admin_required
+def pair_rfid(request):
+    faculties_qs = FacultyProfile.objects.all()
+    faculties = [
+        {
+            "uuid": str(f.uuid),
+            "pk": f.pk,
+            "name": f.name
+        } for f in faculties_qs
+    ]
+    rfid_map = {tag.faculty_id: tag.uid for tag in RFIDTag.objects.exclude(faculty=None)}
+
+    message = None
+    message_class = ""
+    if request.method == 'POST':
+        faculty_id = request.POST.get('faculty_id')
+        rfid_uid = request.POST.get('rfid_uid', '').strip()
+        faculty = next((f for f in faculties if f['uuid'] == faculty_id), None)
+        if not faculty:
+            message = "Faculty not found."
+            message_class = "bg-red-100 text-red-800"
+        else:
+            faculty_obj = FacultyProfile.objects.get(pk=faculty['pk'])
+            tag, created = RFIDTag.objects.get_or_create(uid=rfid_uid)
+            if tag.faculty and tag.faculty != faculty_obj:
+                message = f"RFID {rfid_uid} is already paired to {tag.faculty.name}."
+                message_class = "bg-red-100 text-red-800"
+            else:
+                tag.faculty = faculty_obj
+                tag.save()
+                rfid_map[faculty_obj.pk] = tag.uid
+                message = f"RFID <b>{rfid_uid}</b> successfully paired to <b>{faculty_obj.name}</b>!"
+                message_class = "bg-green-100 text-green-800"
+    return render(request, 'admin/admin_pair_rfid.html', {
+        'faculties': faculties,      # list of dicts, safe for JSON
+        'rfid_map': rfid_map,        # mapping is serializable
+        'message': message,
+        'message_class': message_class,
+    })
+
+
+from django.http import JsonResponse
+from django.core.cache import cache
+
+def rfid_pairing_tap_api(request):
+    uid = cache.get('last_rfid_uid')
+    return JsonResponse({"uid": uid if uid else ""})
+
+
+
+from django.core.paginator import Paginator
+from django.db.models import Q
+
+@admin_required
+def teaching_assignment_view(request):
+    search_query = request.GET.get('search', '').strip()
+    faculty_qs = FacultyProfile.objects.all()
+    if search_query:
+        faculty_qs = faculty_qs.filter(
+            Q(name__icontains=search_query) | Q(account__email__icontains=search_query)
+        )
+    paginator = Paginator(faculty_qs, 15)  # Show 15 per page
+    page_number = request.GET.get('page')
+    faculty_list = paginator.get_page(page_number)
+    return render(request, 'admin/admin_teaching_assignments.html', {
+        'faculty_list': faculty_list,
+        'paginator': paginator,
+        'page_obj': faculty_list,
+    })
+
+
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from faculty.models import TeachingAssignment, FacultyProfile
+from base.forms import TeachingAssignmentForm, TeachingAssignmentBulkUploadForm
+
+@admin_required
+def teaching_assignment_list(request, faculty_uuid):
+    faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
+    assignments = TeachingAssignment.objects.filter(faculty=faculty)
+    return render(request, 'admin/admin_faculty_teaching_assignment.html', {'faculty': faculty, 'assignments': assignments})
+
+
+@admin_required
+def teaching_assignment_create(request, faculty_uuid):
+    faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
+    if request.method == 'POST':
+        form = TeachingAssignmentForm(request.POST)
+        if form.is_valid():
+            assignment = form.save(commit=False)
+            assignment.faculty = faculty
+            assignment.save()
+            return redirect('adminhub:teaching_assignment_list', faculty_uuid=faculty.uuid)
+    else:
+        form = TeachingAssignmentForm(initial={'faculty': faculty})
+    return render(request, 'admin/admin_teaching_assignment_create.html', {'form': form, 'faculty': faculty})
+
+
+@admin_required
+def teaching_assignment_update(request, faculty_uuid, pk):
+    assignment = get_object_or_404(TeachingAssignment, pk=pk, faculty__uuid=faculty_uuid)
+    if request.method == 'POST':
+        form = TeachingAssignmentForm(request.POST, instance=assignment)
+        if form.is_valid():
+            form.save()
+            return redirect('adminhub:teaching_assignment_list', faculty_uuid=assignment.faculty.uuid)
+    else:
+        form = TeachingAssignmentForm(instance=assignment)
+    return render(request, 'admin/admin_teaching_assignment_create.html', {'form': form, 'faculty': assignment.faculty})
+
+
+@admin_required
+def teaching_assignment_delete(request, pk):
+    assignment = get_object_or_404(TeachingAssignment, pk=pk)
+    faculty_id = assignment.faculty.id
+    if request.method == 'POST':
+        assignment.delete()
+        return redirect('teaching_assignment_list', faculty_id=faculty_id)
+    return render(request, 'teaching_assignment/confirm_delete.html', {'assignment': assignment})
+
+
+
+
+import pandas as pd 
+from django.contrib import messages
+
+@admin_required
+def teaching_assignment_bulk_upload(request, faculty_id):
+    faculty = get_object_or_404(FacultyProfile, id=faculty_id)
+    if request.method == 'POST':
+        form = TeachingAssignmentBulkUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            file = form.cleaned_data['file']
+            try:
+                df = pd.read_csv(file) if file.name.endswith('.csv') else pd.read_excel(file)
+                for _, row in df.iterrows():
+                    TeachingAssignment.objects.create(
+                        faculty=faculty,
+                        subject_code=row['subject_code'],
+                        subject_description=row['subject_description'],
+                        year_section=row['year_section'],
+                        day_of_week=row['day_of_week'].lower()[:3],  # expects 'mon', 'tue', etc.
+                        start_time=row['start_time'],
+                        end_time=row['end_time'],
+                        semester_id=row['semester_id'],  # assumes ID is provided
+                    )
+                messages.success(request, "Bulk upload successful.")
+            except Exception as e:
+                messages.error(request, f"Error: {e}")
+            return redirect('teaching_assignment_list', faculty_id=faculty.id)
+    else:
+        form = TeachingAssignmentBulkUploadForm()
+    return render(request, 'admin/admin_teaching_assignment/bulk_upload.html', {'form': form, 'faculty': faculty})
+
+
+
+
+
+from django.shortcuts import render, get_object_or_404
+from datetime import date
+import calendar
+from faculty.models import FacultyProfile 
+from services.dtr_service import DTRCalculator
+
+@admin_required
+def dtr_tab_view(request, faculty_uuid):
+    faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
+    today = date.today()
+    year = int(request.GET.get('year', today.year))
+    month = int(request.GET.get('month', today.month))
+    
+    # Get DTR data
+    dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
+
+    # For year dropdown, show last 3 years and next year
+    year_choices = [today.year-1, today.year, today.year+1]
+    
+    months = [(i, calendar.month_name[i]) for i in range(1, 13)]
+
+
+    context = {
+        'faculty': faculty,
+        'dtr': dtr,
+        'month': month,
+        'year': year,
+        'year_choices': year_choices,
+        'months': months,
+    }
+    return render(request, 'admin/admin_dtr.html', context)

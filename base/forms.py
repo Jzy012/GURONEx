@@ -620,3 +620,26 @@ class ApplicantDocumentUploadForm(forms.ModelForm):
         doc_cat = self.fixed_document_category or self.initial.get("document_category")
         if doc_cat and getattr(doc_cat, "requires_expiry_date", False):
             self.fields["expiry_date"].required = True
+
+
+
+
+from django import forms
+from faculty.models import TeachingAssignment
+
+class TeachingAssignmentForm(forms.ModelForm):
+    class Meta:
+        model = TeachingAssignment
+        fields = [
+             'subject_code', 'subject_description', 'year_section',
+            'day_of_week', 'start_time', 'end_time', 'semester'
+        ]
+        widgets = {
+            'start_time': forms.TimeInput(format='%H:%M', attrs={'type': 'time'}),
+            'end_time': forms.TimeInput(format='%H:%M', attrs={'type': 'time'}),
+        }
+
+
+
+class TeachingAssignmentBulkUploadForm(forms.Form):
+    file = forms.FileField(help_text="Upload CSV or Excel file")

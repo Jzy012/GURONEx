@@ -225,3 +225,26 @@ class FacultyRequest(models.Model):
 
     def __str__(self):
         return f"{self.request_type} - {self.faculty}"
+
+
+
+class TeachingAssignment(models.Model):
+    DAYS_OF_WEEK = [
+        ('mon', 'Monday'),
+        ('tue', 'Tuesday'),
+        ('wed', 'Wednesday'),
+        ('thu', 'Thursday'),
+        ('fri', 'Friday'),
+        ('sat', 'Saturday'),
+    ]
+    faculty = models.ForeignKey(FacultyProfile, on_delete=models.CASCADE)
+    subject_code = models.CharField(max_length=20)
+    subject_description = models.CharField(max_length=200)
+    year_section = models.CharField(max_length=20)      # e.g. BSIT 2-1
+    day_of_week = models.CharField(max_length=3, choices=DAYS_OF_WEEK)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.faculty} - {self.subject_code} ({self.get_day_of_week_display()} {self.start_time}-{self.end_time})"
