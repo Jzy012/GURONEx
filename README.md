@@ -8,7 +8,7 @@
 **LINANG** is a **web-based Faculty and Employee Management System** designed to streamline academic administrative processes.  
 It provides **automated attendance tracking**, **document management**, and **centralized communication** between administrators and faculty members.
 
-The primary goal is to **improve efficiency and transparency** by automating manual workflows, reducing paperwork, and enabling real-time access to information.
+The primary goal is to **improve efficiency and transparency** by automating manual workflows, reducing paperwork, and enabling centralized access to information.
 
 ---
 
@@ -23,10 +23,10 @@ The primary goal is to **improve efficiency and transparency** by automating man
 - Secure Google Drive integration for faculty document uploads and centralized storage.
 
 ✅ **Applicant Management**  
-- Simplified application process, email notifications, and admin approval workflow.
+- Simplified application process, and admin approval workflow.
 
 ✅ **Announcements & Notifications**  
-- System-wide announcements with tracking for unseen important messages.
+- System-wide announcements.
 
 ✅ **Optional Two-Factor Authentication (2FA)**  
 - Email OTP for added account security.
@@ -38,11 +38,11 @@ The primary goal is to **improve efficiency and transparency** by automating man
 
 ## 🛠 Tech Stack  
 - **Backend:** Django (Python)  
-- **Frontend:** Tailwind CSS  
-- **Database:** PostgreSQL (or MySQL)  
+- **Frontend:** Django Templates & Tailwind CSS  
+- **Database:** PostgreSQL   
 - **Cloud Storage:** Google Drive API  
-- **IoT:** ESP32 with RFID module (RC522/PN532)  
-- **Authentication:** Django Auth with optional 2FA  
+- **RFID Integration:** ESP32 with RFID module (RC522/PN532)  
+- **Authentication:** Django Auth Features with optional 2FA  
 
 ---
 
