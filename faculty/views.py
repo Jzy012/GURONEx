@@ -3,11 +3,69 @@ from base.decorators import faculty_required, admin_required
 from base.forms import TwoFactorToggleForm
 from django.contrib import messages
 from base.utils.faculty_data import get_faculty_data
+from .models import FacultyProfile
 # Create your views here.
+
+from django.shortcuts import render
+from django.db.models import Q
+from base.decorators import faculty_required
+from base.utils.faculty_data import get_faculty_data
+from faculty.models import FacultyDocument, FacultyRequest, Deliverable, Semester
+from adminhub.models import Announcement
+from django.utils import timezone
 
 @faculty_required
 def home(request):
     data = get_faculty_data(request)
+    faculty = request.user.faculty_profile
+    today = timezone.now().date()
+
+    # Pending Documents (status = Pending, for this faculty)
+    pending_documents = FacultyDocument.objects.filter(
+        faculty=faculty,
+        status="Pending"
+    ).count()
+
+    # Pending Requests (status = Pending or Open, for this faculty)
+    pending_requests = FacultyRequest.objects.filter(
+        faculty=faculty,
+        status__in=["Pending", "Open"]
+    ).count()
+
+    # Deliverables to Upload (assigned for active semester, not uploaded or not approved)
+    semester = Semester.objects.filter(
+        is_active=True,
+        start_date__lte=today,
+        end_date__gte=today
+    ).first()
+
+    pending_deliverables = 0
+    if semester:
+        deliverables = Deliverable.objects.filter(semester=semester)
+        uploaded_docs = FacultyDocument.objects.filter(faculty=faculty, semester=semester)
+        for d in deliverables:
+            doc = uploaded_docs.filter(deliverable=d).first()
+            # fallback for old uploads
+            if not doc:
+                doc = uploaded_docs.filter(document_category=d.document_category).first()
+            if not doc or doc.status != "Approved":
+                pending_deliverables += 1
+
+    # Recent Announcements (latest 3)
+    recent_announcements = Announcement.objects.filter(
+        visible_to_roles__contains=[request.user.role],
+        start_date__lte=today
+    ).filter(
+        Q(end_date__gte=today) | Q(end_date__isnull=True)
+    ).order_by('-created_at')[:3]
+
+    data.update({
+        'pending_documents': pending_documents,
+        'pending_requests': pending_requests,
+        'pending_deliverables': pending_deliverables,
+        'recent_announcements': recent_announcements,
+    })
+
     return render(request, 'faculty/faculty_home.html', data)
 
 
@@ -153,6 +211,98 @@ def faculty_document_upload(request):
 
     context = {**data, "formset": formset}
     return render(request, "faculty/faculty_document_upload.html", context)
+
+
+
+
+
+
+
+from django.shortcuts import render
+from django.utils import timezone
+import calendar
+from django.core.paginator import Paginator
+
+from rfid.models import AttendanceLog
+from .models import FacultyProfile
+from rfid.views import format_log  # <-- import your formatting utility
+
+
+@faculty_required
+def faculty_attendance_logs_view(request):
+    faculty = request.user.faculty_profile
+    month = int(request.GET.get('month', timezone.now().month))
+    year = int(request.GET.get('year', timezone.now().year))
+
+    logs_qs = AttendanceLog.objects.filter(faculty=faculty).order_by("-date", "-time_in")
+
+    if month:
+        logs_qs = logs_qs.filter(date__month=month)
+    if year:
+        logs_qs = logs_qs.filter(date__year=year)
+
+    paginator = Paginator(logs_qs, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    get_params = request.GET.copy()
+    if 'page' in get_params:
+        del get_params['page']
+    querystring = get_params.urlencode()
+
+    context = {
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "logs": [format_log(log) for log in page_obj.object_list],
+        "selected_month": month,
+        "selected_year": year,
+        "month_range": [(i, calendar.month_name[i]) for i in range(1, 13)],
+        "years": range(2020, timezone.now().year + 2),
+        "querystring": querystring,
+        "logs_total": logs_qs.count(),
+    }
+    return render(request, "faculty/faculty_attendance_logs.html", context)
+
+
+
+from django.shortcuts import render
+from datetime import date
+import calendar
+
+from faculty.models import TeachingAssignment
+from services.dtr_service import DTRCalculator
+
+# Replace with your actual faculty RBAC decorator
+
+@faculty_required
+def faculty_teaching_assignment_dtr_view(request):
+    faculty = request.user.faculty_profile
+    today = date.today()
+    year = int(request.GET.get('year', today.year))
+    month = int(request.GET.get('month', today.month))
+
+    # All teaching assignments for this faculty
+    assignments = TeachingAssignment.objects.filter(faculty=faculty).select_related('semester').order_by('semester', 'day_of_week', 'start_time')
+
+    # DTR for the selected month and year
+    dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
+
+    # For year dropdown, show last 3 years and next year
+    year_choices = [today.year-1, today.year, today.year+1]
+
+    months = [(i, calendar.month_name[i]) for i in range(1, 13)]
+
+    context = {
+        'faculty': faculty,
+        'assignments': assignments,
+        'dtr': dtr,
+        'month': month,
+        'year': year,
+        'year_choices': year_choices,
+        'months': months,
+    }
+    return render(request, 'faculty/faculty_teaching_assignment_dtr.html', context)
+
 
 
 

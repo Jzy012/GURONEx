@@ -1,23 +1,18 @@
 import json
-from datetime import timedelta
-from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
-from google.auth.transport.requests import Request as GoogleRequest
-from django.utils.timezone import now
 from django.conf import settings
+from base.models import GoogleStorageAccount
 
-from base.models import GoogleDriveToken  # replace with your actual app name
-
-SCOPES = ['https://www.googleapis.com/auth/drive',
-          'openid',
-          'https://www.googleapis.com/auth/userinfo.email',
-          'https://www.googleapis.com/auth/userinfo.profile',
-          ]
+SCOPES = [
+    'https://www.googleapis.com/auth/drive',
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+]
 
 def load_client_secrets():
     with open(settings.GOOGLE_CLIENT_SECRET_FILE, 'r') as f:
         secrets = json.load(f)
-        # Accept either "installed" or "web" as key for the client secrets
         if "installed" in secrets:
             return secrets["installed"]
         elif "web" in secrets:
@@ -27,9 +22,8 @@ def load_client_secrets():
 
 class GoogleOAuthService:
     def __init__(self, user):
-        self.user = user
+        self.user = user  # still useful for admin logging or UI, but not for token storage
         self.client_secrets = load_client_secrets()
-
         if not all(k in self.client_secrets for k in ['client_id', 'client_secret']):
             raise ValueError("Missing client_id or client_secret in client_secret.json")
 
@@ -41,7 +35,7 @@ class GoogleOAuthService:
         )
         auth_url, _ = flow.authorization_url(
             access_type='offline',
-            prompt='consent'  # forces refresh token every time
+            prompt='consent'
         )
         return auth_url
 
@@ -54,51 +48,22 @@ class GoogleOAuthService:
         flow.fetch_token(code=code)
         creds = flow.credentials
 
-        token_obj, created = GoogleDriveToken.objects.get_or_create(
-            user=self.user,
-            defaults={
-                'access_token': creds.token,
-                'refresh_token': creds.refresh_token,
-                'token_expiry': creds.expiry,
-            }
+        # Save centrally! Deactivate old accounts.
+        from google.oauth2 import id_token
+        from google.auth.transport import requests as google_requests
+        token_info = id_token.verify_oauth2_token(
+            creds.id_token, google_requests.Request(), audience=creds.client_id
         )
-        if not created:
-            token_obj.access_token = creds.token
-            token_obj.refresh_token = creds.refresh_token
-            token_obj.token_expiry = creds.expiry
-            token_obj.save()
+        email = token_info.get("email")
 
+        # Deactivate all other accounts
+        GoogleStorageAccount.objects.exclude(email=email).update(is_active=False)
+
+        account, _ = GoogleStorageAccount.objects.get_or_create(email=email)
+        account.access_token = creds.token           # uses property setter (encrypted)
+        account.refresh_token = creds.refresh_token  # uses property setter (encrypted)
+        account.token_expiry = creds.expiry
+        account.is_active = True
+        account.save()
 
         return creds
-    
-
-from google.auth.exceptions import RefreshError
-
-def get_credentials(self):
-    try:
-        token_obj = GoogleDriveToken.objects.get(user=self.user)
-    except GoogleDriveToken.DoesNotExist:
-        return None
-
-    creds = Credentials(
-        token=token_obj.access_token,
-        refresh_token=token_obj.refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=self.client_secrets['client_id'],
-        client_secret=self.client_secrets['client_secret'],
-        scopes=SCOPES
-    )
-
-    try:
-        if not creds.valid or creds.expired:
-            creds.refresh(GoogleRequest())
-            token_obj.access_token = creds.token
-            token_obj.token_expiry = creds.expiry
-            token_obj.save()
-    except RefreshError as e:
-        if "invalid_grant" in str(e):
-            # Refresh token revoked → must re-auth
-            return None
-        raise
-
-    return creds

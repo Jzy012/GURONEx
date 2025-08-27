@@ -1,16 +1,10 @@
+import json
 from googleapiclient.discovery import build
 from django.conf import settings
-from faculty.models import FacultyProfile
-from services.google_oauth_service import GoogleOAuthService
-
+from django.utils.timezone import now
 from google.auth.transport.requests import Request as GoogleRequest
 from google.oauth2.credentials import Credentials
-from django.utils.timezone import now
 from base.models import GoogleStorageAccount
-
-import json
-
-
 
 SCOPES = [
     'https://www.googleapis.com/auth/drive',
@@ -26,7 +20,11 @@ def load_client_secrets():
 
 class CentralGoogleDriveService:
     def __init__(self):
-        self.account = GoogleStorageAccount.objects.get(is_active=True)
+        # --- Only use the global GoogleStorageAccount ---
+        self.account = GoogleStorageAccount.objects.filter(is_active=True).first()
+        if not self.account:
+            raise Exception("No active Google Drive storage account found. Please connect Google Drive in admin.")
+
         client_secrets = load_client_secrets()
         self.client_id = client_secrets["client_id"]
         self.client_secret = client_secrets["client_secret"]
@@ -42,12 +40,15 @@ class CentralGoogleDriveService:
             client_secret=self.client_secret,
             scopes=SCOPES
         )
+        # --- Always refresh if expired ---
         if self.account.token_expiry <= now():
             creds.refresh(GoogleRequest())
             self.account.access_token = creds.token
             self.account.token_expiry = creds.expiry
             self.account.save()
         return creds
+
+    # --- All Google Drive actions below use central account ---
 
     def create_folder(self, name, parent_id=None):
         metadata = {
@@ -71,10 +72,6 @@ class CentralGoogleDriveService:
         return self.create_folder(name, parent_id)
 
     def get_or_create_folder_path(self, path):
-        """
-        Recursively creates folders for a path like "FEMS/Applicants/APL-00001 - John Smith"
-        Returns the final folder's ID.
-        """
         parts = path.strip("/").split("/")
         parent_id = None
         for part in parts:
@@ -103,16 +100,11 @@ class CentralGoogleDriveService:
         ).execute()
     
     def copy_file_to_folder(self, file_id, destination_folder_id, new_name=None):
-        """
-        Copies a file in Drive to a different folder.
-        Returns (new_file_id, new_webViewLink)
-        """
         body = {
             'parents': [destination_folder_id]
         }
         if new_name:
             body['name'] = new_name
-        # Make the copy
         new_file = self.service.files().copy(
             fileId=file_id,
             body=body,

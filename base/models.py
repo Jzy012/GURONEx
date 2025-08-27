@@ -133,33 +133,6 @@ def get_fernet():
     key = settings.FERNET_KEY
     return Fernet(key)
 
-class GoogleDriveToken(models.Model):
-    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE)
-    _access_token = models.TextField()
-    _refresh_token = models.TextField()
-    token_expiry = models.DateTimeField()
-
-    def set_access_token(self, token):
-        f = get_fernet()
-        self._access_token = f.encrypt(token.encode()).decode()
-
-    def get_access_token(self):
-        f = get_fernet()
-        return f.decrypt(self._access_token.encode()).decode()
-
-    def set_refresh_token(self, token):
-        f = get_fernet()
-        self._refresh_token = f.encrypt(token.encode()).decode()
-
-    def get_refresh_token(self):
-        f = get_fernet()
-        return f.decrypt(self._refresh_token.encode()).decode()
-
-    access_token = property(get_access_token, set_access_token)
-    refresh_token = property(get_refresh_token, set_refresh_token)
-
-    def __str__(self):
-        return f"Google OAuth token for {self.user}"
 
 
 

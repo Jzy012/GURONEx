@@ -42,13 +42,11 @@
 
 <body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen flex items-center justify-center px-4">
 
-
-
   <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl p-8 md:p-16 flex flex-col items-start justify-center space-y-6 fade-in text-gray-800">
     
     <!-- Logo -->
     <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo"
-      class="w-20 h-20 mb-2 rounded-full  bg-white object-contain" />
+      class="w-20 h-20 mb-2 rounded-full bg-white object-contain" />
 
     <!-- Heading -->
     <h1 class="text-4xl md:text-5xl font-bold leading-snug">
@@ -67,8 +65,14 @@
       LINANG streamlines PUP-SPC Faculty Management with a modern, secure, and user-friendly platform designed for efficiency and clarity.
     </p>
 
+    <!-- Main Button -->
     <a href="{% url 'login' %}" class="inline-block bg-[#800505] hover:bg-[#a80707] text-white font-semibold py-3 px-8 rounded-lg transition duration-200 text-base shadow-md mt-2">
-      Get Started
+      Log In
+    </a>
+
+    <!-- Small Applicant Link -->
+    <a href="{% url 'applicants:home' %}" class="text-[#800505] hover:text-[#a80707] text-sm font-medium mt-3 transition duration-200">
+      Want to be a part of PUP-SPC? Apply now!
     </a>
   </div>
 

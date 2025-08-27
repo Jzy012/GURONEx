@@ -1,0 +1,81 @@
+{% extends "applicants/applicant_base.html" %}
+{% load static %}
+
+{% block title %}Applicant Home{% endblock %}
+
+{% block content %}
+<style>
+  body {
+    font-family: 'karla', sans-serif;
+  }
+  .fade-in {
+    animation: fade-in 0.8s ease-out both;
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .divider {
+    width: 60px;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #a80707 0%, #800505 100%);
+    margin: 0.5rem 0 1.5rem 0;
+  }
+</style>
+
+<div class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen flex flex-col items-center justify-center px-4 relative">
+
+  <!-- Back Button (Top-Left with Hover Effect) -->
+  <a href="{% url 'index' %}" 
+     class="absolute top-6 left-6 flex items-center gap-2 text-white font-semibold text-lg px-3 py-2 rounded-full transition duration-300 ease-in-out hover:bg-white/20 hover:backdrop-blur-md hover:shadow-md">
+    <!-- Icon -->
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+    </svg>
+    <span>Back</span>
+  </a>
+
+  <!-- Main Card -->
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-8 md:p-16 flex flex-col items-start justify-center space-y-6 fade-in text-gray-800">
+    
+    <!-- Logo -->
+    <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo"
+      class="w-20 h-20 mb-2 rounded-full bg-white object-contain" />
+
+    <!-- Heading -->
+    <h1 class="text-4xl md:text-5xl font-bold leading-snug">
+      Applicant Portal
+    </h1>
+
+    <div class="divider"></div>
+
+    <!-- Subtitle -->
+    <p class="text-lg md:text-2xl font-light max-w-3xl text-left w-full">
+      Apply and track your application status easily through our modern platform.
+    </p>
+
+    <!-- Description -->
+    <p class="text-base md:text-lg text-gray-700 max-w-3xl text-left w-full">
+      Start your journey with PUP-SPC by submitting your application online and monitoring its progress. Our goal is to provide a seamless and transparent process for every applicant.
+    </p>
+
+    <!-- Action Buttons -->
+    <div class="flex flex-col md:flex-row gap-4 mt-4">
+      <a href="{% url 'applicants:apply' %}" class="inline-block bg-[#800505] hover:bg-[#a80707] text-white font-semibold py-3 px-8 rounded-lg transition duration-200 text-base shadow-md">
+        Apply Now
+      </a>
+      <a href="{% url 'applicants:check_status' %}" class="inline-block bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-8 rounded-lg transition duration-200 text-base shadow-md">
+        Check Status
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

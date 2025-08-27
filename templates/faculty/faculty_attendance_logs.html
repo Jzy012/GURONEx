@@ -1,39 +1,28 @@
-{% extends 'admin/admin_base.html' %}
+{% extends 'faculty/faculty_base.html' %}
 
 {% block content %}
-<div class="space-y-8 overflow-x-hidden">
+<div class="space-y-8">
 
-  <!-- Page Title and Back Button (responsive) -->
+  <!-- Page Title and Top Buttons (Back to Home & Teaching Assignments/DTR) -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-[#800505]">
         <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
       </svg>
-      Attendance Logs
+      My Attendance Logs
     </h2>
-    <a href="{% url 'adminhub:home' %}"
-       class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.5" stroke="currentColor" class="w-5 h-4">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-      </svg>
-      <span>Back to Home</span>
-    </a>
-  </div>
-
-  <!-- Commands Row: upper right, above search bar, responsive -->
-  <div class="flex justify-end mb-2">
     <div class="flex flex-row gap-2">
-      <a href="{% url 'adminhub:pair_rfid' %}"
+      <a href="{% url 'faculty:home' %}"
          class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12H8m4-4v8"/>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.5" stroke="currentColor" class="w-5 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
         </svg>
-        Pair RFID
+        <span>Back to Home</span>
       </a>
-      <a href="{% url 'adminhub:teaching_assignment' %}"
+      <a href="{% url 'faculty:faculty_teaching_assignment' %}"
          class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-4 opacity-80">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 opacity-80">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
         </svg>
         Teaching Assignments/DTR
@@ -43,15 +32,6 @@
 
   <!-- Filter/Search Bar (responsive) -->
   <form method="get" class="bg-white p-4 rounded-lg shadow flex flex-col gap-2 sm:flex-row sm:gap-4">
-    <div class="flex-1 min-w-0 sm:min-w-[200px]">
-      <label class="block text-sm font-medium text-gray-600 mb-1">Faculty</label>
-      <select name="faculty_id" id="faculty-select" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
-        <option value="">All Faculties</option>
-        {% for faculty in faculties %}
-          <option value="{{ faculty.uuid }}" {% if faculty.uuid|stringformat:"s" == selected_faculty_id|stringformat:"s" %}selected{% endif %}>{{ faculty.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
     <div class="min-w-0 sm:min-w-[120px]">
       <label class="block text-sm font-medium text-gray-600 mb-1">Month</label>
       <select name="month" id="month-select" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
@@ -76,27 +56,25 @@
   </form>
 
   <!-- Desktop Table (sm and up) -->
-  <div class="hidden sm:block bg-white rounded-lg shadow overflow-x-auto">
+  <div class="hidden sm:block bg-white rounded-lg shadow w-full max-w-full">
     <table class="w-full border-collapse text-sm">
       <thead class="bg-gray-100 border-t border-gray-200">
         <tr class="text-left font-semibold text-gray-700">
-          <th class="px-2 sm:px-5 py-3 border-b">Faculty</th>
-          <th class="px-2 sm:px-5 py-3 border-b">Date</th>
-          <th class="px-2 sm:px-5 py-3 border-b">Time In</th>
-          <th class="px-2 sm:px-5 py-3 border-b">Time Out</th>
+          <th class="px-2 sm:px-5 py-3 border-b whitespace-normal break-words">Date</th>
+          <th class="px-2 sm:px-5 py-3 border-b whitespace-normal break-words">Time In</th>
+          <th class="px-2 sm:px-5 py-3 border-b whitespace-normal break-words">Time Out</th>
         </tr>
       </thead>
       <tbody class="text-gray-900">
         {% for log in logs %}
         <tr class="hover:bg-gray-50 transition">
-          <td class="px-2 sm:px-5 py-3 border-b">{{ log.faculty }}</td>
-          <td class="px-2 sm:px-5 py-3 border-b">{{ log.date }}</td>
-          <td class="px-2 sm:px-5 py-3 border-b">{{ log.time_in }}</td>
-          <td class="px-2 sm:px-5 py-3 border-b">{{ log.time_out }}</td>
+          <td class="px-2 sm:px-5 py-3 border-b whitespace-normal break-words">{{ log.date }}</td>
+          <td class="px-2 sm:px-5 py-3 border-b whitespace-normal break-words">{{ log.time_in }}</td>
+          <td class="px-2 sm:px-5 py-3 border-b whitespace-normal break-words">{{ log.time_out }}</td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="4" class="px-2 sm:px-5 py-10 text-center text-gray-500 font-semibold">No logs found.</td>
+          <td colspan="3" class="px-2 sm:px-5 py-10 text-center text-gray-500 font-semibold">No logs found.</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -108,17 +86,16 @@
     {% for log in logs %}
     <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200">
       <div class="flex justify-between items-center mb-3 border-b border-gray-300 pb-2">
-        <h3 class="text-lg font-semibold text-gray-900 truncate">{{ log.faculty }}</h3>
-        <span class="text-xs text-gray-500">{{ log.date }}</span>
+        <span class="text-xs text-gray-500 break-words">{{ log.date }}</span>
       </div>
       <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-gray-700 text-sm">
         <div>
           <p class="font-semibold">Time In</p>
-          <p>{{ log.time_in }}</p>
+          <p class="break-words">{{ log.time_in }}</p>
         </div>
         <div>
           <p class="font-semibold">Time Out</p>
-          <p>{{ log.time_out }}</p>
+          <p class="break-words">{{ log.time_out }}</p>
         </div>
       </div>
     </div>

@@ -1120,6 +1120,7 @@ from rfid.models import RFIDTag, AttendanceLog
 from rfid.views import format_log
 from django.utils import timezone
 import calendar
+from django.core.paginator import Paginator
 
 @admin_required
 def attendance_logs_view(request):
@@ -1128,25 +1129,41 @@ def attendance_logs_view(request):
     year = int(request.GET.get('year', timezone.now().year))
 
     faculties = FacultyProfile.objects.all().order_by('name')
-    logs = AttendanceLog.objects.select_related("faculty").order_by("-date", "-time_in")
+    logs_qs = AttendanceLog.objects.select_related("faculty").order_by("-date", "-time_in")
 
     if faculty_id:
-        logs = logs.filter(faculty__uuid=faculty_id)  # <-- Updated to use uuid
+        logs_qs = logs_qs.filter(faculty__uuid=faculty_id)
     if month:
-        logs = logs.filter(date__month=month)
+        logs_qs = logs_qs.filter(date__month=month)
     if year:
-        logs = logs.filter(date__year=year)
+        logs_qs = logs_qs.filter(date__year=year)
+
+    # Pagination
+    paginator = Paginator(logs_qs, 20)  # 20 logs per page (adjust as needed)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Querystring without 'page'
+    get_params = request.GET.copy()
+    if 'page' in get_params:
+        del get_params['page']
+    querystring = get_params.urlencode()
 
     context = {
-        "logs": [format_log(log) for log in logs],
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "logs": [format_log(log) for log in page_obj.object_list],
         "faculties": faculties,
         "selected_faculty_id": faculty_id if faculty_id else None,
         "selected_month": month,
         "selected_year": year,
         "month_range": [(i, calendar.month_name[i]) for i in range(1, 13)],
         "years": range(2020, timezone.now().year + 2),
+        "querystring": querystring,
+        "logs_total": logs_qs.count(),
     }
     return render(request, "admin/admin_attendance_logs.html", context)
+
 
 
 

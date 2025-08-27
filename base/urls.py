@@ -15,6 +15,8 @@ urlpatterns =[
     path('reset-password/', views.reset_password_view, name='reset_password'),
 
     path("verify-2fa-otp/", views.verify_two_factor_otp_view, name="verify_2fa_otp"),
+    path("resend-2fa-otp/", views.resend_two_factor_otp_view, name="resend_2fa_otp"),
+
 
     path('authorize-google/', views.authorize_google, name='authorize_google'),
     path('oauth2callback/', views.oauth2callback, name='oauth2callback'),

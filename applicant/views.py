@@ -13,6 +13,15 @@ import io
 from googleapiclient.http import MediaIoBaseUpload
 
 
+
+
+
+
+def applicant_home(request):
+    return render(request, "applicants/applicant_home.html")
+
+
+
 def applicant_apply(request):
     required_docs = ApplicantRequiredDocument.objects.all()
     doc_categories = [doc.document_category for doc in required_docs]
@@ -21,7 +30,10 @@ def applicant_apply(request):
         basic_form = ApplicantForm(request.POST)
         forms = [
             ApplicantDocumentUploadForm(
-                request.POST, request.FILES, prefix=f"doc{idx}", fixed_document_category=doc_cat
+                request.POST, request.FILES,
+                prefix=f"doc{idx}",
+                fixed_document_category=doc_cat,
+                index=idx
             )
             for idx, doc_cat in enumerate(doc_categories)
         ]
@@ -72,7 +84,11 @@ def applicant_apply(request):
     else:
         basic_form = ApplicantForm()
         forms = [
-            ApplicantDocumentUploadForm(prefix=f"doc{idx}", fixed_document_category=doc_cat)
+            ApplicantDocumentUploadForm(
+                prefix=f"doc{idx}",
+                fixed_document_category=doc_cat,
+                index=idx
+            )
             for idx, doc_cat in enumerate(doc_categories)
         ]
     context = {
@@ -81,6 +97,9 @@ def applicant_apply(request):
         "required_docs": required_docs,
     }
     return render(request, "applicants/applicant_apply.html", context)
+
+
+
 
 def applicant_check_status(request):
     if request.method == "POST":

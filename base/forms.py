@@ -399,50 +399,6 @@ class SemesterForm(forms.ModelForm):
 
 
 
-# class AcademicYearForm(forms.ModelForm):
-#     class Meta:
-#         model = AcademicYear
-#         fields = ['year_start', 'year_end', 'is_active']
-
-#     def save(self, commit=True):
-#         academic_year = super().save(commit=commit)
-
-#         if commit:
-#             if not academic_year.semesters.exists():
-#                 # Create 1st Semester
-#                 Semester.objects.create(
-#                     academic_year=academic_year,
-#                     semester_type='1st',
-#                     start_date=date(academic_year.year_start, 8, 1),
-#                     end_date=date(academic_year.year_start, 12, 31),
-#                 )
-#                 # Create 2nd Semester
-#                 Semester.objects.create(
-#                     academic_year=academic_year,
-#                     semester_type='2nd',
-#                     start_date=date(academic_year.year_end, 1, 1),
-#                     end_date=date(academic_year.year_end, 5, 31),
-#                 )
-#                 # Create Summer Term
-#                 Semester.objects.create(
-#                     academic_year=academic_year,
-#                     semester_type='summer',
-#                     start_date=date(academic_year.year_end, 6, 1),
-#                     end_date=date(academic_year.year_end, 7, 31),
-#                 )
-#                 # (Optional) Create Full Year
-#                 # Semester.objects.create(
-#                 #     academic_year=academic_year,
-#                 #     semester_type='full',
-#                 #     start_date=date(academic_year.year_start, 8, 1),
-#                 #     end_date=date(academic_year.year_end, 7, 31),
-#                 # )
-
-#         return academic_year
-
-
-
-
 from django import forms
 from faculty.models import DeliverableTemplate, DocumentCategory
 
@@ -588,6 +544,8 @@ from django import forms
 from applicant.models import Applicant, ApplicantDocument, ApplicantRequiredDocument
 from faculty.models import DocumentCategory
 
+
+
 class ApplicantForm(forms.ModelForm):
     class Meta:
         model = Applicant
@@ -595,6 +553,25 @@ class ApplicantForm(forms.ModelForm):
             "first_name", "last_name", "suffix", "email", "contact_number",
             "department", "birth_date", "emergency_contact_name", "emergency_contact_number"
         ]
+        widgets = {
+            'birth_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for fname, field in self.fields.items():
+            field.widget.attrs["class"] = field_class
+            field.widget.attrs["placeholder"] = field.label
+
+        # Optionally, add a more specific placeholder for contact number
+        self.fields['contact_number'].widget.attrs["placeholder"] = "e.g. 09XXXXXXXXX"
+
+  
+
 
 from django import forms
 from applicant.models import ApplicantDocument
@@ -604,23 +581,28 @@ class ApplicantDocumentUploadForm(forms.ModelForm):
         model = ApplicantDocument
         fields = ["document_category", "file", "expiry_date", "remarks"]
 
-    def __init__(self, *args, required_doc_cats=None, fixed_document_category=None, **kwargs):
+    def __init__(self, *args, required_doc_cats=None, fixed_document_category=None, index=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fixed_document_category = fixed_document_category
 
         if self.fixed_document_category:
-            # Hide/remove the field so user can’t change it
             self.fields.pop("document_category", None)
-            # 🔑 Ensure instance has the fixed category right away
             self.instance.document_category = self.fixed_document_category
         elif required_doc_cats is not None:
             self.fields["document_category"].queryset = required_doc_cats
 
-        # Handle expiry_date requirement
         doc_cat = self.fixed_document_category or self.initial.get("document_category")
         if doc_cat and getattr(doc_cat, "requires_expiry_date", False):
             self.fields["expiry_date"].required = True
 
+        # Hide file input, assign unique id for JS/label targeting
+        file_id = f'file_input_{index}' if index is not None else 'file_input__empty'
+        existing_class = self.fields['file'].widget.attrs.get('class', '')
+        self.fields['file'].widget.attrs.update({
+            'class': (existing_class + ' hidden').strip(),
+            'id': file_id,
+            'placeholder': 'Select File',
+        })
 
 
 

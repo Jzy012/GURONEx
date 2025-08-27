@@ -2,8 +2,199 @@
 {% block title %}Faculty Home{% endblock %}
 
 {% block content %}
-    <h2>Dashboard</h2>
-    <p>Welcome to your faculty dashboard, {{ name }}.</p>
+<div class="space-y-8">
+
+  <!-- Welcome Row -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <h2 class="text-3xl font-bold text-gray-900">
+      Welcome, {{ name }}
+    </h2>
+  </div>
+
+  <!-- ================= Stats Cards ================= -->
+  <div class="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2 lg:grid-cols-3">
+    <!-- Pending Documents -->
+    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+      <div>
+        <h2 class="text-sm text-gray-500">Pending Documents</h2>
+        <p class="text-2xl font-semibold">{{ pending_documents }}</p>
+      </div>
+      <div class="p-3 bg-yellow-100 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+          stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-yellow-500">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 
+              1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25
+              m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 
+              1.125v17.25c0 .621.504 1.125 1.125 
+              1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 
+              9 0 0 0-9-9Z" />
+        </svg>
+      </div>
+    </div>
+    <!-- Pending Requests -->
+    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+      <div>
+        <h2 class="text-sm text-gray-500">Pending Requests</h2>
+        <p class="text-2xl font-semibold">{{ pending_requests }}</p>
+      </div>
+      <div class="p-3 bg-blue-100 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+          stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-blue-500">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25" />
+        </svg>
+      </div>
+    </div>
+    <!-- Deliverables to Upload -->
+    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+      <div>
+        <h2 class="text-sm text-gray-500">Deliverables to Upload</h2>
+        <p class="text-2xl font-semibold">{{ pending_deliverables }}</p>
+      </div>
+      <div class="p-3 bg-purple-100 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+            viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+            class="w-7 h-7 text-purple-500">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Quick Access & Actions Grid ================= -->
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5 ">
+    <!-- Quick Access (3 columns on desktop) -->
+    <div class="lg:col-span-3 lg:row-span-2">
+      <div class="bg-white shadow rounded-lg p-6 h-full flex flex-col">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Quick Access Modules</h3>
+        <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
+          <!-- Documents -->
+          <a href="{% url 'faculty:faculty_documents' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-1">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-yellow-500 mb-2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 
+                  1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25
+                  m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 
+                  1.125v17.25c0 .621.504 1.125 1.125 
+                  1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 
+                  9 0 0 0-9-9Z" />
+            </svg>
+            <span class="text-sm font-medium text-gray-700">Documents</span>
+            <span class="text-xs text-gray-500 mt-1 text-center">Browse, upload, and manage your documents.</span>
+          </a>
+          <!-- Attendance Logs -->
+          <a href="{% url 'faculty:faculty_attendance_logs' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-1">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-green-600 mb-2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
+            </svg>
+            <span class="text-sm font-medium text-gray-700">Attendance Logs</span>
+            <span class="text-xs text-gray-500 mt-1 text-center">Track and review your attendance records.</span>
+          </a>
+          <!-- Announcements -->
+          <a href="{% url 'faculty:faculty_announcements' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-1">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-red-500 mb-2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46" />
+            </svg>
+            <span class="text-sm font-medium text-gray-700">Announcements</span>
+            <span class="text-xs text-gray-500 mt-1 text-center">View latest announcements for you.</span>
+          </a>
+          <!-- Deliverables -->
+          <a href="{% url 'faculty:faculty_deliverables' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-1">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                class="w-6 h-6 text-purple-500 mb-2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
+            </svg>
+            <span class="text-sm font-medium text-gray-700">Deliverables</span>
+            <span class="text-xs text-gray-500 mt-1 text-center">View assigned and submitted deliverables.</span>
+          </a>
+          <!-- Requests -->
+          <a href="{% url 'faculty:faculty_request_list' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-1">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-blue-500 mb-2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25" />
+            </svg>
+            <span class="text-sm font-medium text-gray-700">Requests</span>
+            <span class="text-xs text-gray-500 mt-1 text-center">View and manage your requests.</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <!-- Quick Actions (2 columns on desktop) -->
+    <div class="lg:col-span-2 lg:col-start-4">
+      <div class="bg-white shadow rounded-lg p-6 h-full flex flex-col">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <a href="{% url 'faculty:upload_documents' %}" class="flex items-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 text-white">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+            Upload Documents
+          </a>
+          <a href="{% url 'faculty:faculty_deliverables_upload' %}" class="flex items-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                class="w-5 h-5 mr-2 text-white">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026" />
+            </svg>
+            Upload Deliverables
+          </a>
+          <a href="{% url 'faculty:faculty_teaching_assignment' %}" class="flex items-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 text-white">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25-2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25"/>
+            </svg>
+            Check DTR
+          </a>
+          <a href="{% url 'faculty:faculty_request_create' %}" class="flex items-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
+            <svg class="w-5 h-5 mr-2 text-white" fill="none" stroke="currentColor" stroke-width="2"
+              viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M17 16l4-4m0 0l-4-4m4 4H7" />
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3 12a9 9 0 0118 0" />
+            </svg>
+            New Request
+          </a>
+        </div>
+      </div>
+    </div>
+    <!-- Recent Announcements -->
+    <div class="lg:col-span-2 lg:col-start-4 lg:row-start-2">
+      <div class="bg-white shadow rounded-lg p-6 h-full flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-800">Recent Announcements</h3>
+          <a href="{% url 'faculty:faculty_announcements' %}" class="text-[#800505] text-sm font-semibold hover:underline">View All</a>
+        </div>
+        {% if recent_announcements %}
+          <ul class="divide-y">
+            {% for a in recent_announcements %}
+              <li class="py-2 flex items-center gap-2">
+                <button type="button"
+                        class="text-[#800505] font-semibold hover:underline text-left"
+                        onclick="openAnnouncementModal('{{ a.uuid }}')">
+                  {{ a.title }}
+                </button> 
+                <span class="text-xs text-gray-500"> - {{ a.created_at|date:"M d, Y H:i" }}</span>
+                {% if a.is_important %}
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                    stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-red-700 bg-red-100 rounded-full p-0.5 border border-red-300">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                  </svg>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <span class="text-gray-400 text-sm">No recent announcements.</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -25,7 +216,6 @@
     </div>
 </div>
 
-<!-- Modal JavaScript -->
 <script>
 function openAnnouncementModal(uuid) {
     fetch(`/faculty/announcements/view/${uuid}/`)
