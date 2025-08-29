@@ -23,7 +23,7 @@ The primary goal is to **improve efficiency and transparency** by automating man
 - Secure Google Drive integration for faculty document uploads and centralized storage.
 
 ✅ **Applicant Management**  
-- Simplified application process, and admin approval workflow.
+- Simplified application process and admin approval workflow.
 
 ✅ **Announcements & Notifications**  
 - System-wide announcements.
@@ -47,60 +47,54 @@ The primary goal is to **improve efficiency and transparency** by automating man
 ---
 
 ## 📂 Project Structure  
-
-
+```bash
 FEMS/
-┣ adminhub/ # Admin dashboard & management features
-┣ applicant/ # Applicant module (submission & approval flow)
-┣ base/ # Core Django app (models, forms, utils, auth)
-┣ faculty/ # Faculty dashboard & features
-┣ FEMS/ # Project settings, urls, wsgi/asgi
-┣ gdrive_credentials/ # Google Drive credentials (gitignored)
-┣ node_modules/ # Dependencies for TailwindCSS (npm)
-┣ rfid/ # RFID attendance module (ESP32 integration)
-┣ services/ # External services integration (e.g., Google Drive API)
-┣ static/ # Static files (CSS, JS, images)
-┣ templates/ # HTML templates
-┣ venv/ # Python virtual environment (gitignored)
-┣ .env # Environment variables (gitignored)
-┣ .gitignore # Git ignore rules
-┣ manage.py # Django management script
-┣ package.json # Node.js dependencies
-┣ package-lock.json # Node.js lock file
-┣ requirements.txt # Python dependencies
-┣ tailwind.config.js # TailwindCSS configuration
-┗ README.md # Project documentation
+ ┣ adminhub/            # Admin dashboard & management features
+ ┣ applicant/           # Applicant module (submission & approval flow)
+ ┣ base/                # Core Django app (models, forms, utils, auth)
+ ┣ faculty/             # Faculty dashboard & features
+ ┣ FEMS/                # Project settings, urls, wsgi/asgi
+ ┣ gdrive_credentials/  # Google Drive credentials (gitignored)
+ ┣ node_modules/        # Dependencies for TailwindCSS (npm)
+ ┣ rfid/                # RFID attendance module (ESP32 integration)
+ ┣ services/            # External services integration (e.g., Google Drive API)
+ ┣ static/              # Static files (CSS, JS, images)
+ ┣ templates/           # HTML templates
+ ┣ venv/                # Python virtual environment (gitignored)
+ ┣ .env                 # Environment variables (gitignored)
+ ┣ .gitignore           # Git ignore rules
+ ┣ manage.py            # Django management script
+ ┣ package.json         # Node.js dependencies
+ ┣ package-lock.json    # Node.js lock file
+ ┣ requirements.txt     # Python dependencies
+ ┣ tailwind.config.js   # TailwindCSS configuration
+ ┗ README.md            # Project documentation
+```
 
 ---
 
-🔑 Environment Variables
+## 🔑 Environment Variables  
 
-# Django
-DEBUG=True
-SECRET_KEY=your_django_secret_key
+Make sure to configure the following environment variables in your `.env` file:  
 
-# Database
-DB_NAME=your_database_name
-DB_USER=your_database_user
-DB_PASSWORD=your_database_password
-DB_HOST=localhost
-DB_PORT=5432
+- `DEBUG` → `True` or `False` depending on development/production  
+- `SECRET_KEY` → Your Django secret key  
+- `DB_NAME` → Your database name  
+- `DB_USER` → Your database user  
+- `DB_PASSWORD` → Your database password  
+- `DB_HOST` → Usually `localhost`  
+- `DB_PORT` → Default is `5432` for PostgreSQL  
+- `EMAIL_HOST_USER` → Your email address (used for sending OTPs, notifications, etc.)  
+- `EMAIL_HOST_PASSWORD` → Your email app password  
+- `GOOGLE_SERVICE_ACCOUNT_FILE` → Path to your Google service account JSON file (e.g., `gdrive_credentials/fems-gdrive-integration-key.json`)  
+- `GOOGLE_CLIENT_SECRET_FILE` → Path to your Google OAuth client secret JSON file (e.g., `gdrive_credentials/client_secret.json`)  
+- `GOOGLE_OAUTH2_REDIRECT_URI` → Redirect URI for Google OAuth (e.g., `http://localhost:8000/oauth2callback`)  
+- `FERNET_KEY` → Your generated Fernet encryption key  
 
-# Email (for OTP / Notifications)
-EMAIL_HOST_USER=your_email@gmail.com
-EMAIL_HOST_PASSWORD=your_email_app_password
-
-# Google Drive Integration
-GOOGLE_SERVICE_ACCOUNT_FILE=gdrive_credentials/fems-gdrive-integration-key.json
-GOOGLE_CLIENT_SECRET_FILE=gdrive_credentials/client_secret.json
-GOOGLE_OAUTH2_REDIRECT_URI=http://localhost:8000/oauth2callback
-
-# Security
-FERNET_KEY=your_generated_fernet_key
 
 ---
 
-📜 License & Copyright
+## 📜 License & Copyright
 
 This project is developed as part of a Capstone Study and is intended for academic purposes only.
 
