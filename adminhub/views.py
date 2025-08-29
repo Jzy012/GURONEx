@@ -250,7 +250,7 @@ def admin_2fa(request):
         form = TwoFactorToggleForm(request.POST, instance=user)
         if form.is_valid():
             form.save()
-            messages.success(request, "2FA setting updated.")
+            messages.success(request, "2FA setting updated." , extra_tags="2fa")
             return redirect("adminhub:admin_2fa")
     else:
         form = TwoFactorToggleForm(instance=user)
@@ -919,8 +919,8 @@ STEPPER_STATUSES = [
 ]
 
 @admin_required
-def applicant_detail_view(request, pk):
-    applicant = get_object_or_404(Applicant, pk=pk)
+def applicant_detail_view(request, uuid):
+    applicant = get_object_or_404(Applicant, uuid=uuid)
     documents = ApplicantDocument.objects.filter(applicant=applicant)
     status_choices = Applicant._meta.get_field('status').choices
 
@@ -932,7 +932,7 @@ def applicant_detail_view(request, pk):
                 applicant.save()
                 send_applicant_status_email(applicant, new_status)
                 messages.success(request, "Status updated.")
-            return redirect('adminhub:applicant_detail', pk=applicant.pk)
+            return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
         else:
             messages.warning(request, "No status change detected.")
 
@@ -981,7 +981,7 @@ def account_creation_view(request):
     employment_statuses = EmploymentStatus.objects.filter(is_active=True).order_by('name')
 
     if request.method == 'POST':
-        selected_ids = request.POST.getlist('selected')
+        selected_uuids = request.POST.getlist('selected')
         status_id = request.POST.get('employment_status')
         errors = []
         created = []
@@ -996,11 +996,11 @@ def account_creation_view(request):
             messages.error(request, "Selected employment status does not exist.")
             return redirect('adminhub:account_creation')
 
-        for applicant_id in selected_ids:
-            email = request.POST.get(f'faculty_email_{applicant_id}', '').strip()
-            password = request.POST.get(f'faculty_password_{applicant_id}', '').strip()
+        for applicant_uuid in selected_uuids:
+            email = request.POST.get(f'faculty_email_{applicant_uuid}', '').strip()
+            password = request.POST.get(f'faculty_password_{applicant_uuid}', '').strip()
             if not email:
-                errors.append(f"Applicant {applicant_id}: Faculty email is required.")
+                errors.append(f"Applicant {applicant_uuid}: Faculty email is required.")
                 continue
             if Account.objects.filter(email=email).exists():
                 errors.append(f"{email}: Email already exists.")
@@ -1009,7 +1009,7 @@ def account_creation_view(request):
                 password = get_random_string(8)
             try:
                 with transaction.atomic():
-                    applicant = Applicant.objects.get(pk=applicant_id)
+                    applicant = Applicant.objects.get(uuid=applicant_uuid)
                     account = Account.objects.create_user(
                         email=email,
                         password=password,
@@ -1221,6 +1221,91 @@ def rfid_pairing_tap_api(request):
 
 
 
+
+
+
+
+
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from django.contrib import messages
+from base.forms import ManualAttendanceLogForm
+from rfid.models import  RFIDTag
+from django.utils import timezone
+
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from django.contrib import messages
+from base.forms import ManualAttendanceLogForm
+from rfid.models import FacultyProfile, RFIDTag, AttendanceLog
+from django.utils import timezone
+import datetime
+
+@admin_required
+def manual_attendance_log_view(request):
+    faculties_qs = FacultyProfile.objects.all().order_by('name')
+    faculties = [
+        {'uuid': str(faculty.uuid), 'name': faculty.name, 'pk': faculty.pk}
+        for faculty in faculties_qs
+    ]
+    rfid_map = {str(tag.faculty.uuid): tag.uid for tag in RFIDTag.objects.select_related("faculty") if tag.faculty_id}
+
+    message = ""
+    message_class = ""
+    initial = {}
+
+    if request.method == "POST":
+        form = ManualAttendanceLogForm(request.POST)
+        if form.is_valid():
+            faculty = form.cleaned_data['faculty']
+            uid = form.cleaned_data['uid']
+            date = form.cleaned_data['date']
+            time_in = form.cleaned_data['time_in']
+            time_out = form.cleaned_data['time_out']
+
+            # Store datetimes in the default Django way
+            tz = timezone.get_current_timezone()
+            time_in_dt = datetime.datetime.combine(date, time_in, tzinfo=tz)
+            time_out_dt = datetime.datetime.combine(date, time_out, tzinfo=tz)
+
+            AttendanceLog.objects.create(
+                faculty=faculty,
+                uid=uid,
+                date=date,
+                time_in=time_in_dt,
+                time_out=time_out_dt
+            )
+            messages.success(request, "Attendance log created successfully.")
+            return redirect(reverse('adminhub:attendance_logs'))
+        else:
+            # Show first error as the message
+            message = form.errors.as_text().replace("* ", "").replace("\n", "<br>")
+            message_class = "bg-red-100 text-red-800"
+            initial = {
+                'faculty': request.POST.get('faculty', ''),
+                'uid': request.POST.get('uid', ''),
+                'date': request.POST.get('date', ''),
+                'time_in': request.POST.get('time_in', ''),
+                'time_out': request.POST.get('time_out', ''),
+            }
+    else:
+        form = ManualAttendanceLogForm()
+        initial = {
+            'date': timezone.localdate()
+        }
+
+    return render(request, 'admin/admin_manual_attendance_log.html', {
+        'faculties': faculties,
+        'rfid_map': rfid_map,
+        'message': message,
+        'message_class': message_class,
+        **initial,
+    })
+
+
+
+
+
 from django.core.paginator import Paginator
 from django.db.models import Q
 
@@ -1333,7 +1418,8 @@ def teaching_assignment_bulk_upload(request, faculty_id):
 from django.shortcuts import render, get_object_or_404
 from datetime import date
 import calendar
-from faculty.models import FacultyProfile 
+from faculty.models import FacultyProfile
+from rfid.models import AttendanceLog
 from services.dtr_service import DTRCalculator
 
 @admin_required
@@ -1342,15 +1428,55 @@ def dtr_tab_view(request, faculty_uuid):
     today = date.today()
     year = int(request.GET.get('year', today.year))
     month = int(request.GET.get('month', today.month))
-    
-    # Get DTR data
+
+    # Get DTR data (per assignment per day)
     dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
+
+    # Get all logs by date for the month
+    from calendar import monthrange
+    days_in_month = monthrange(year, month)[1]
+    logs_by_date = {}
+    for day_num in range(1, days_in_month + 1):
+        current_date = date(year, month, day_num)
+        logs_by_date[current_date] = list(
+            AttendanceLog.objects.filter(faculty=faculty, date=current_date).order_by('time_in')
+        )
+
+    # Post-process DTR rows so every attendance log is shown, even unmatched ones
+    for row in dtr:
+        day_logs = logs_by_date.get(row['date'], [])
+        assignment_status_logs = set(
+            status['attendance_log'].id
+            for status in row['statuses']
+            if status['attendance_log']
+        )
+        # Add logs that aren't matched to any assignment
+        for log in day_logs:
+            if log.id not in assignment_status_logs:
+                row['statuses'].append({
+                    'assignment': None,
+                    'attendance_log': log,
+                    'status': 'has log',
+                })
+        # If there are logs but no assignment and no status yet, add a status for each log
+        if not row['statuses'] and day_logs:
+            for log in day_logs:
+                row['statuses'].append({
+                    'assignment': None,
+                    'attendance_log': log,
+                    'status': 'has log',
+                })
+        # If still no statuses (no assignment, no log), keep 'no assignment'
+        elif not row['statuses']:
+            row['statuses'].append({
+                'assignment': None,
+                'attendance_log': None,
+                'status': 'no assignment',
+            })
 
     # For year dropdown, show last 3 years and next year
     year_choices = [today.year-1, today.year, today.year+1]
-    
     months = [(i, calendar.month_name[i]) for i in range(1, 13)]
-
 
     context = {
         'faculty': faculty,

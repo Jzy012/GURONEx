@@ -82,7 +82,7 @@ def faculty_2fa(request):
         form = TwoFactorToggleForm(request.POST, instance=user)
         if form.is_valid():
             form.save()
-            messages.success(request, "2FA setting updated.")
+            messages.success(request, "2FA setting updated.", extra_tags="2fa")
             return redirect("faculty:faculty_2fa")
     else:
         form = TwoFactorToggleForm(instance=user)
@@ -132,6 +132,7 @@ from .models import FacultyDocument
 import io
 from googleapiclient.http import MediaIoBaseUpload
 
+@faculty_required
 def faculty_document_upload(request):
     data = get_faculty_data(request)
 
@@ -270,6 +271,7 @@ from datetime import date
 import calendar
 
 from faculty.models import TeachingAssignment
+from rfid.models import AttendanceLog
 from services.dtr_service import DTRCalculator
 
 # Replace with your actual faculty RBAC decorator
@@ -287,6 +289,48 @@ def faculty_teaching_assignment_dtr_view(request):
     # DTR for the selected month and year
     dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
 
+    # Get all logs by date for the month
+    from calendar import monthrange
+    days_in_month = monthrange(year, month)[1]
+    logs_by_date = {}
+    for day_num in range(1, days_in_month + 1):
+        current_date = date(year, month, day_num)
+        logs_by_date[current_date] = list(
+            AttendanceLog.objects.filter(faculty=faculty, date=current_date).order_by('time_in')
+        )
+
+    # Post-process DTR rows so every attendance log is shown, even unmatched ones
+    for row in dtr:
+        day_logs = logs_by_date.get(row['date'], [])
+        assignment_status_logs = set(
+            status['attendance_log'].id
+            for status in row['statuses']
+            if status['attendance_log']
+        )
+        # Add logs that aren't matched to any assignment
+        for log in day_logs:
+            if log.id not in assignment_status_logs:
+                row['statuses'].append({
+                    'assignment': None,
+                    'attendance_log': log,
+                    'status': 'has log',
+                })
+        # If there are logs but no assignment and no status yet, add a status for each log
+        if not row['statuses'] and day_logs:
+            for log in day_logs:
+                row['statuses'].append({
+                    'assignment': None,
+                    'attendance_log': log,
+                    'status': 'has log',
+                })
+        # If still no statuses (no assignment, no log), keep 'no assignment'
+        elif not row['statuses']:
+            row['statuses'].append({
+                'assignment': None,
+                'attendance_log': None,
+                'status': 'no assignment',
+            })
+
     # For year dropdown, show last 3 years and next year
     year_choices = [today.year-1, today.year, today.year+1]
 
@@ -302,7 +346,6 @@ def faculty_teaching_assignment_dtr_view(request):
         'months': months,
     }
     return render(request, 'faculty/faculty_teaching_assignment_dtr.html', context)
-
 
 
 

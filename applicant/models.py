@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from faculty.models import DocumentCategory
+import uuid
 
 def generate_applicant_id():
     last_applicant = Applicant.objects.order_by('-id').first()
@@ -12,6 +13,7 @@ def generate_applicant_id():
 
 class Applicant(models.Model):
     applicant_id = models.CharField(max_length=20, unique=True, editable=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     suffix = models.CharField(max_length=20, blank=True)

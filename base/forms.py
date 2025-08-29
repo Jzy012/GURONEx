@@ -103,6 +103,20 @@ class PasswordResetForm(forms.Form):
     
 
 
+from django.contrib.auth.forms import PasswordChangeForm
+
+class StyledPasswordChangeForm(PasswordChangeForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for visible in self.visible_fields():
+            visible.field.widget.attrs.update({
+                'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#800505] text-base'
+            })
+
+
+
+
+
 class TwoFactorToggleForm(forms.ModelForm):
     class Meta:
         model = Account
@@ -111,6 +125,12 @@ class TwoFactorToggleForm(forms.ModelForm):
             'two_factor_authentication': 'Enable Two-Factor Authentication (2FA)',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Style the checkbox with Tailwind classes for a modern look
+        self.fields['two_factor_authentication'].widget.attrs.update({
+            'class': 'h-5 w-5 text-[#800505] focus:ring-[#800505] border-gray-300 rounded'
+        })
 
 
 
@@ -335,8 +355,24 @@ from faculty.models import DeliverableTemplate, Semester
 class AssignDeliverablesForm(forms.Form):
     semester = forms.ModelChoiceField(queryset=Semester.objects.all())
     template = forms.ModelChoiceField(queryset=DeliverableTemplate.objects.all())
-    deadline = forms.DateField(widget=forms.SelectDateWidget)
+    deadline = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date'})
+    )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for fname, field in self.fields.items():
+            if fname == "deadline":
+                # Ensure the date input gets the same styling
+                field.widget.attrs["class"] = field_class
+                field.widget.attrs["placeholder"] = field.label
+            else:
+                field.widget.attrs["class"] = field_class
+                field.widget.attrs["placeholder"] = field.label
 
 
 
@@ -349,29 +385,48 @@ import datetime
 
 
 CURRENT_YEAR = datetime.datetime.now().year
-YEAR_CHOICES = [(y, f"{y}–{y + 1}") for y in range(CURRENT_YEAR, CURRENT_YEAR + 6)]
+YEAR_CHOICES = [(y, f"{y}–{y + 1}") for y in range(CURRENT_YEAR, CURRENT_YEAR + 8)]
 
 class AcademicYearForm(forms.ModelForm):
     academic_year = forms.ChoiceField(
         choices=YEAR_CHOICES,
         label="Academic Year",
-        widget=forms.Select(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition'
+        })
     )
 
     class Meta:
         model = AcademicYear
         fields = ['is_active']  # Only include what's still relevant from the model
         labels = {
-            'is_active': 'Active'  # ✅ Rename label here
+            'is_active': 'Active'
         }
+        widgets = {
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-checkbox h-5 w-5 text-[#800505] focus:ring-[#800505] transition'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Style all fields except academic_year (already styled above)
+        for name, field in self.fields.items():
+            if name != 'academic_year':
+                if isinstance(field.widget, forms.CheckboxInput):
+                    field.widget.attrs.update({
+                        'class': 'form-checkbox h-5 w-5 text-[#800505] focus:ring-[#800505] transition'
+                    })
+                else:
+                    field.widget.attrs.update({
+                        'class': 'w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition'
+                    })
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-
         selected_year = int(self.cleaned_data['academic_year'])
         instance.year_start = selected_year
         instance.year_end = selected_year + 1
-
         if commit:
             instance.save()
         return instance
@@ -379,25 +434,39 @@ class AcademicYearForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         year_start = int(cleaned_data.get('academic_year'))
-
         if AcademicYear.objects.filter(year_start=year_start, year_end=year_start + 1).exists():
             raise forms.ValidationError("This academic year already exists.")
 
 class SemesterForm(forms.ModelForm):
     start_date = forms.DateField(
-        widget=forms.DateInput(attrs={'type': 'date'}),
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition'
+        }),
         required=True
     )
     end_date = forms.DateField(
-        widget=forms.DateInput(attrs={'type': 'date'}),
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition'
+        }),
         required=True
     )
+
+    # Override the choices for semester_type here
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        filtered_choices = [choice for choice in Semester.SEMESTER_CHOICES if choice[0] != "full"]
+        self.fields["semester_type"].choices = filtered_choices
 
     class Meta:
         model = Semester
         fields = ['semester_type', 'start_date', 'end_date']
-
-
+        widgets = {
+            'semester_type': forms.Select(attrs={
+                'class': 'w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition'
+            })
+        }
 
 from django import forms
 from faculty.models import DeliverableTemplate, DocumentCategory
@@ -413,6 +482,19 @@ class DeliverableTemplateForm(forms.ModelForm):
         model = DeliverableTemplate
         fields = ['name', 'document_categories']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for fname, field in self.fields.items():
+            if not isinstance(field.widget, forms.CheckboxSelectMultiple):
+                field.widget.attrs["class"] = field_class
+                field.widget.attrs["placeholder"] = field.label
+        # Add custom class to checklist for template targeting (optional)
+        if "document_categories" in self.fields:
+            self.fields["document_categories"].widget.attrs["class"] = "custom-checklist"
 
 from django.forms import BaseFormSet
 
@@ -613,7 +695,7 @@ class TeachingAssignmentForm(forms.ModelForm):
     class Meta:
         model = TeachingAssignment
         fields = [
-             'subject_code', 'subject_description', 'year_section',
+            'subject_code', 'subject_description', 'year_section',
             'day_of_week', 'start_time', 'end_time', 'semester'
         ]
         widgets = {
@@ -621,7 +703,54 @@ class TeachingAssignmentForm(forms.ModelForm):
             'end_time': forms.TimeInput(format='%H:%M', attrs={'type': 'time'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            old = field.widget.attrs.get('class', '')
+            field.widget.attrs['class'] = (
+                old + ' block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm '
+                'focus:outline-none focus:ring-2 focus:ring-[#800505] focus:border-[#800505] text-sm'
+            ).strip()
 
 
 class TeachingAssignmentBulkUploadForm(forms.Form):
     file = forms.FileField(help_text="Upload CSV or Excel file")
+
+
+
+
+from django import forms
+from rfid.models import AttendanceLog, FacultyProfile
+from django.core.exceptions import ValidationError
+
+class ManualAttendanceLogForm(forms.ModelForm):
+    faculty = forms.ModelChoiceField(queryset=FacultyProfile.objects.all(), widget=forms.HiddenInput())
+    date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-input'}))
+    time_in = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time', 'class': 'form-input'}))
+    time_out = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time', 'class': 'form-input'}))
+    uid = forms.CharField(widget=forms.HiddenInput())
+
+    class Meta:
+        model = AttendanceLog
+        fields = ['faculty', 'uid', 'date']  # Do NOT include time_in/time_out!
+
+    def clean(self):
+        cleaned_data = super().clean()
+        faculty = cleaned_data.get('faculty')
+        date = cleaned_data.get('date')
+        time_in = cleaned_data.get('time_in')
+        time_out = cleaned_data.get('time_out')
+
+        # Only one log per faculty per date
+        if faculty and date:
+            qs = AttendanceLog.objects.filter(faculty=faculty, date=date)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise ValidationError("An attendance log for this faculty and date already exists.")
+
+        # Time out must be after time in
+        if time_in and time_out and time_out <= time_in:
+            raise ValidationError("Time out must be after time in.")
+
+        return cleaned_data

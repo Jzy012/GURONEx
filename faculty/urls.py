@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from django.contrib.auth import views as auth_views
+from base.forms import StyledPasswordChangeForm
 
 
 app_name = 'faculty'
@@ -30,6 +31,7 @@ urlpatterns = [
 
     path('faculty/settings/change-password/', auth_views.PasswordChangeView.as_view(
         template_name='faculty/faculty_change_password.html',
+        form_class=StyledPasswordChangeForm,
         success_url='/faculty/settings/change-password/done/'
     ), name='faculty_change_password'),
 

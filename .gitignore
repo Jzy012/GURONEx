@@ -1,21 +1,16 @@
 
-#Ignore environment variables file
-.env                                                                                                                                                                
 
-# Ignore virtual environment
+# Environment variables
+.env
+
+# Virtual environment
 venv/
 
+# Google Drive credentials (ignore all JSON files inside)
+gdrive_credentials/*.json
 
-# Ignore all files inside the folder
-gdrive_credentials/*
-
-# But don't ignore the folder itself
-!gdrive_credentials/
-
-
-
-# Ignore all files inside the folder
+# Node modules
 node_modules/
 
-
+# Build artifacts
 static/css/output.css

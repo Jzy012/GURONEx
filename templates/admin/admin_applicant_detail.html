@@ -3,14 +3,14 @@
 <div class="max-w-3xl mx-auto space-y-8">
 
   <!-- Back and Title -->
-  <div class="flex items-center gap-3">
+  <div class="flex items-center justify-between gap-3">
+    <h2 class="text-2xl font-bold text-gray-900">Applicant Profile</h2>
     <a href="{% url 'adminhub:applicant_list' %}" class="inline-flex items-center px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-4">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
       </svg>
       Back to Applicants
     </a>
-    <h2 class="text-2xl font-bold text-gray-900">Applicant Profile</h2>
   </div>
 
   <!-- Applicant Info Card -->
@@ -29,7 +29,10 @@
           {{ applicant.get_status_display }}
         </span>
       </div>
+      <div class="text-gray-700">Birth Date: {{ applicant.birth_date|date:"Y-m-d" }}</div>
       <div class="text-gray-700">Email: <span class="font-mono">{{ applicant.email }}</span></div>
+      <div class="text-gray-700">Contact: {{ applicant.contact_number|default:"—" }}</div>
+      <div class="text-gray-700">Department: {{ applicant.department }}</div>
       <div class="text-gray-500 text-sm">Applied: {{ applicant.created_at|date:"Y-m-d H:i" }}</div>
     </div>
   </div>

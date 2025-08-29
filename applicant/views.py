@@ -78,7 +78,7 @@ def applicant_apply(request):
                     note="Initial application and document upload."
                 )
                 messages.success(request, "Application submitted! Please keep your Applicant ID for future status checks.")
-                return redirect("applicants:check_status")
+                return redirect("applicants:registration_confirmed")
         else:
             messages.error(request, "Please correct errors in your form(s).")
     else:
@@ -98,6 +98,12 @@ def applicant_apply(request):
     }
     return render(request, "applicants/applicant_apply.html", context)
 
+
+
+
+def applicant_registration_confirmed(request):
+    
+    return render(request, "applicants/applicant_registration_confirmed.html")
 
 
 

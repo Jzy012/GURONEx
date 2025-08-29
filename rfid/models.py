@@ -5,6 +5,8 @@ from django.db import models
 
 from django.db import models
 from faculty.models import FacultyProfile  # adjust import to your FEMS app location
+from django.utils import timezone
+
 
 class RFIDTag(models.Model):
     faculty = models.ForeignKey(FacultyProfile, on_delete=models.CASCADE, null=True, blank=True)
@@ -13,7 +15,7 @@ class RFIDTag(models.Model):
 class AttendanceLog(models.Model):
     faculty = models.ForeignKey(FacultyProfile, on_delete=models.CASCADE)
     uid = models.CharField(max_length=50)
-    date = models.DateField(auto_now_add=True)
+    date = models.DateField(default=timezone.localdate)
     time_in = models.DateTimeField(null=True, blank=True)
     time_out = models.DateTimeField(null=True, blank=True)
 

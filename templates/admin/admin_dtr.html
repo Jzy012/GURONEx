@@ -88,6 +88,10 @@
               <span class="text-red-700 font-semibold">Absent</span>
             {% elif status.status == 'overtime' %}
               <span class="text-purple-700 font-semibold">Overtime</span>
+            {% elif status.status == 'early in' %}
+              <span class="text-blue-700 font-semibold">Early In</span>
+            {% elif status.status == 'has log' %}
+              <span class="font-semibold">Has Log</span>
             {% else %}
               <span class="text-gray-500">{{ status.status }}</span>
             {% endif %}

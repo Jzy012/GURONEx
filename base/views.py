@@ -49,11 +49,11 @@ def login_view(request):
             user = authenticate(request, email=email, password=password)
 
             if user is not None:
-                if user.two_factor_authentication:
+                if getattr(user, 'two_factor_authentication', False):
                     otp_obj = UserOTP.create_for_user(user, purpose='login_2fa', expiry_minutes=5)
                     send_otp_email(user.email, otp_obj.otp, purpose='login_2fa')
                     request.session['pre_2fa_user_id'] = user.id
-                    messages.info(request, 'A login OTP has been sent to your email.')
+                    messages.info(request, 'A login OTP has been sent to your email.', extra_tags='login')
                     return redirect('verify_2fa_otp')
                 else:
                     auth_login(request, user)
@@ -62,7 +62,7 @@ def login_view(request):
                     elif user.role == 'faculty':
                         return redirect('faculty:home')
             else:
-                messages.error(request, 'Invalid credentials.')
+                messages.error(request, 'Invalid credentials.', extra_tags='login')
     else:
         form = LoginForm()
 
@@ -323,13 +323,36 @@ def oauth2callback(request):
 def google_drive_status(request):
     account = GoogleStorageAccount.objects.filter(is_active=True).first()
     if not account:
-        status = "❌ Disconnected. Re-authentication required."
+        status = {
+            "label": "Disconnected",
+            "icon": "❌",
+            "message": "No Google Drive account connected. Re-authentication required.",
+            "color_class": "bg-red-100 text-red-800"
+        }
         reauth_url = reverse("authorize_google")
     elif account.token_expiry and account.token_expiry > timezone.now():
-        status = f"✅ Connected. Expires at {account.token_expiry.strftime('%Y-%m-%d %H:%M:%S')}"
+        status = {
+            "label": "Connected",
+            "icon": "✅",
+            "message": f"Access token valid. Expires at {account.token_expiry.strftime('%Y-%m-%d %H:%M:%S')}",
+            "color_class": "bg-green-100 text-green-800"
+        }
+        reauth_url = None
+    elif account.refresh_token:
+        status = {
+            "label": "Connected (will refresh)",
+            "icon": "✅",
+            "message": "Access token expired, but refresh token is valid. Will auto-refresh when needed.",
+            "color_class": "bg-yellow-100 text-yellow-800"
+        }
         reauth_url = None
     else:
-        status = "⚠️ Token expired – re-authentication required."
+        status = {
+            "label": "Disconnected",
+            "icon": "⚠️",
+            "message": "Token expired and cannot be refreshed. Re-authentication required.",
+            "color_class": "bg-red-100 text-red-800"
+        }
         reauth_url = reverse("authorize_google")
     return render(request, "admin/admin_home.html", {
         "status": status,

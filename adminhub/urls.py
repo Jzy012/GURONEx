@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from django.contrib.auth import views as auth_views
-
+from base.forms import StyledPasswordChangeForm
 
 app_name = 'adminhub'
 
@@ -36,7 +36,8 @@ urlpatterns = [
     path("admin/requests/<uuid:uuid>/action/", views.admin_request_action_view, name="request_action"),
 
     path('admin/applicants/', views.applicant_list_view, name='applicant_list'),
-    path('admin/applicants/<int:pk>/', views.applicant_detail_view, name='applicant_detail'),
+    # path('admin/applicants/<int:pk>/', views.applicant_detail_view, name='applicant_detail'),
+    path('admin/applicants/<uuid:uuid>/', views.applicant_detail_view, name='applicant_detail'),
     path('admin/applicants/account-creation/', views.account_creation_view, name='account_creation'),
     path('admin/applicants/account-creation/log/', views.created_account_log_view, name='account_creation_log'),
 
@@ -48,7 +49,7 @@ urlpatterns = [
 
 
     path('admin/attendance-logs/',views.attendance_logs_view, name='attendance_logs'),
-    # path('api/rfid_tap/', views.rfid_tap_api, name='rfid_tap_api'),
+    path('admin/attendance-logs/manual-log/', views.manual_attendance_log_view, name='manual_attendance_log'),
     path('admin/pair-rfid/', views.pair_rfid, name='pair_rfid'),
     path('api/rfid_pairing_tap/', views.rfid_pairing_tap_api, name='rfid_pairing_tap_api'),
 
@@ -75,8 +76,11 @@ urlpatterns = [
     path('admin/settings/academic-years/create/', views.create_academic_year_view, name='create_academic_year'),
 
 
+   
+
     path('admin/settings/change-password/', auth_views.PasswordChangeView.as_view(
         template_name='admin/admin_change_password.html',
+        form_class=StyledPasswordChangeForm,
         success_url='/admin/settings/change-password/done/'
     ), name='admin_change_password'),
 
