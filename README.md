@@ -1,12 +1,12 @@
-<h1 align="center" style="font-size: 50px;">🚀 LINANG</h1>
-<h3 align="center">Linking Information Network for Administration and Narrative Gathering</h3>
+<h1 style="font-size: 50px;">LINANG</h1>
+<h3 >Linking Information Network for Administration and Narrative Gathering</h3>
 
 
 ---
 
 ## 📌 Overview  
 **LINANG** is a **web-based Human Resources Information System** designed to streamline academic administrative processes.  
-It provides **automated attendance tracking**, **document management**, **applicant management**, and **centralized communication** within the system.
+It provides **automated attendance tracking**, **document management**, and **faculty and applicant management** within the system.
 
 The primary goal is to **improve efficiency and transparency** by automating manual workflows, reducing paperwork, and enabling centralized access to information.
 
@@ -45,6 +45,8 @@ The primary goal is to **improve efficiency and transparency** by automating man
 - **Authentication:** Django Auth Features with optional 2FA  
 
 ---
+
+
 
 ## 📂 Project Structure  
 ```bash
