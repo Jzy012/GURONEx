@@ -16,7 +16,6 @@
         <tr class="bg-gray-100 text-gray-700 font-semibold">
           <th class="px-4 py-3 border-b">Created At</th>
           <th class="px-4 py-3 border-b">Faculty Email</th>
-          <th class="px-4 py-3 border-b">Password</th>
           <th class="px-4 py-3 border-b">Applicant</th>
         </tr>
       </thead>
@@ -25,7 +24,6 @@
         <tr>
           <td class="px-4 py-3 border-b">{{ entry.created_at|date:"Y-m-d H:i" }}</td>
           <td class="px-4 py-3 border-b">{{ entry.faculty_email }}</td>
-          <td class="px-4 py-3 border-b font-mono">{{ entry.password }}</td>
           <td class="px-4 py-3 border-b">
             {% if entry.applicant %}
               {{ entry.applicant.first_name }} {{ entry.applicant.last_name }}
@@ -37,7 +35,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" class="text-center text-gray-500 py-6">No accounts logged yet.</td></tr>
+        <tr><td colspan="3" class="text-center text-gray-500 py-6">No accounts logged yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>

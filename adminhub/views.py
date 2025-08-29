@@ -1173,15 +1173,33 @@ from rfid.models import RFIDTag
 
 @admin_required
 def pair_rfid(request):
-    faculties_qs = FacultyProfile.objects.all()
-    faculties = [
-        {
-            "uuid": str(f.uuid),
-            "pk": f.pk,
-            "name": f.name
-        } for f in faculties_qs
-    ]
+    faculties_qs = FacultyProfile.objects.all().order_by('-created_at')
     rfid_map = {tag.faculty_id: tag.uid for tag in RFIDTag.objects.exclude(faculty=None)}
+    faculties = []
+
+    # Identify the most recently created faculty (newest)
+    newest_faculty = faculties_qs.first() if faculties_qs else None
+
+    for f in faculties_qs:
+        pk = f.pk
+        is_unpaired = pk not in rfid_map
+        is_new = newest_faculty and (f.pk == newest_faculty.pk)
+        faculties.append({
+            "uuid": str(f.uuid),
+            "pk": pk,
+            "name": f.name,
+            "is_new": is_new,
+            "is_unpaired": is_unpaired,
+        })
+
+    # Sort: new and unpaired first, then other unpaired, then paired, then by name
+    faculties.sort(
+        key=lambda x: (
+            not x['is_new'],         # False (new) sorts before True
+            not x['is_unpaired'],    # False (unpaired) before True (paired)
+            x['name'].lower(),
+        )
+    )
 
     message = None
     message_class = ""
@@ -1205,8 +1223,8 @@ def pair_rfid(request):
                 message = f"RFID <b>{rfid_uid}</b> successfully paired to <b>{faculty_obj.name}</b>!"
                 message_class = "bg-green-100 text-green-800"
     return render(request, 'admin/admin_pair_rfid.html', {
-        'faculties': faculties,      # list of dicts, safe for JSON
-        'rfid_map': rfid_map,        # mapping is serializable
+        'faculties': faculties,      # now includes is_new and is_unpaired
+        'rfid_map': rfid_map,
         'message': message,
         'message_class': message_class,
     })

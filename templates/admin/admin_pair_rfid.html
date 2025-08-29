@@ -53,9 +53,21 @@
             <li>
               <button type="button"
                 class="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 text-left text-sm"
-                :class="{'font-semibold text-[#800505]': selected === f.uuid}"
+                :class="{
+                  'font-semibold text-[#800505]': selected === f.uuid,
+                  'bg-yellow-50 border-l-4 border-yellow-400': f.is_new,
+                  'bg-blue-50': !f.is_new && f.is_unpaired
+                }"
                 @click="select(f.uuid)">
-                <span x-text="f.name"></span>
+                <span class="flex items-center gap-2">
+                  <span x-text="f.name"></span>
+                  <template x-if="f.is_new">
+                    <span class="text-xs bg-yellow-400/90 text-white rounded px-1.5 py-0.5 ml-1">NEW</span>
+                  </template>
+                  <template x-if="!f.is_new && f.is_unpaired">
+                    <span class="text-xs bg-blue-300/80 text-white rounded px-1.5 py-0.5 ml-1">Unpaired</span>
+                  </template>
+                </span>
                 <template x-if="rfid_map[f.pk]">
                   <span class="flex items-center gap-1 text-green-700 text-xs font-medium">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"
