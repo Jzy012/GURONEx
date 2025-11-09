@@ -146,6 +146,8 @@ class FacultyDocument(models.Model):
     file_path = models.URLField(max_length=500)
     google_drive_id = models.CharField(max_length=255)
 
+    uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+
     file_size = models.PositiveIntegerField(null=True, blank=True)      # auto-filled on upload
 
     expiry_date = models.DateField(null=True, blank=True)  # only required if category.requires_expiry_date

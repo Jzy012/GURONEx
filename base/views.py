@@ -25,7 +25,6 @@ from google.auth.transport import requests as google_requests
 from services.google_oauth_service import GoogleOAuthService
 
 # Constants
-MAX_OTP_REQUESTS_PER_DAY = 20
 
 # --------- Main Views --------- #
 
@@ -50,8 +49,8 @@ def login_view(request):
 
             if user is not None:
                 if getattr(user, 'two_factor_authentication', False):
-                    otp_obj = UserOTP.create_for_user(user, purpose='login_2fa', expiry_minutes=5)
-                    send_otp_email(user.email, otp_obj.otp, purpose='login_2fa')
+                    otp_obj, raw_otp = UserOTP.create_for_user(user, purpose='login_2fa', expiry_minutes=5)
+                    send_otp_email(user.email, raw_otp, purpose='login_2fa')
                     request.session['pre_2fa_user_id'] = user.id
                     messages.info(request, 'A login OTP has been sent to your email.', extra_tags='login')
                     return redirect('verify_2fa_otp')
@@ -74,7 +73,18 @@ def logout_view(request):
     return redirect('login')
 
 
-# --------- Forgot Password Views --------- #
+
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.http import JsonResponse
+from django.utils import timezone
+from django.contrib.auth import get_user_model, login as auth_login
+from django.views.decorators.cache import never_cache
+
+
+MAX_OTP_REQUESTS_PER_DAY = 20
+MAX_2FA_OTP_REQUESTS_PER_DAY = 20  # Set your preferred limit
 
 def forgot_password_view(request):
     if request.method == "POST":
@@ -93,8 +103,8 @@ def forgot_password_view(request):
                 messages.error(request, "Maximum OTP requests reached for today. Please try again tomorrow.")
                 return redirect("forgot_password")
 
-            otp_obj = UserOTP.create_for_user(user, purpose='password_reset', expiry_minutes=10)
-            send_otp_email(email, otp_obj.otp, purpose='password_reset')
+            otp_obj, raw_otp = UserOTP.create_for_user(user, purpose='password_reset', expiry_minutes=10)
+            send_otp_email(email, raw_otp, purpose='password_reset')
             request.session["otp_email"] = email
 
             messages.success(request, "If your email is registered, you will receive an OTP.")
@@ -102,7 +112,6 @@ def forgot_password_view(request):
     else:
         form = ForgotPasswordForm()
     return render(request, "authentication/forgot_password.html", {"form": form})
-
 
 @never_cache
 def verify_otp_view(request):
@@ -122,14 +131,8 @@ def verify_otp_view(request):
                 messages.error(request, "Invalid OTP.")
                 return redirect("verify_otp")
 
-            otp_obj = UserOTP.objects.filter(
-                user=user,
-                purpose='password_reset',
-                is_used=False,
-                expires_at__gt=timezone.now()
-            ).order_by("-created_at").first()
-
-            if otp_obj and otp_obj.otp == otp:
+            otp_obj = UserOTP.get_active_otp(user, purpose='password_reset')
+            if otp_obj and otp_obj.verify_otp(otp):
                 if otp_obj.has_expired():
                     messages.error(request, "OTP has expired. Please request a new one.")
                     return redirect("forgot_password")
@@ -143,7 +146,6 @@ def verify_otp_view(request):
         form = OTPVerificationForm()
 
     return render(request, "authentication/verify_otp.html", {"form": form})
-
 
 def resend_otp_view(request):
     email = request.session.get("otp_email")
@@ -165,12 +167,78 @@ def resend_otp_view(request):
 
     UserOTP.objects.filter(user=user, purpose="password_reset", is_used=False).update(is_used=True)
 
-    otp_obj = UserOTP.create_for_user(user, purpose='password_reset', expiry_minutes=10)
-    send_otp_email(email, otp_obj.otp, purpose='password_reset')
+    otp_obj, raw_otp = UserOTP.create_for_user(user, purpose='password_reset', expiry_minutes=10)
+    send_otp_email(email, raw_otp, purpose='password_reset')
 
     return JsonResponse({"success": True, "message": "A new OTP has been sent."})
 
+@never_cache
+def verify_two_factor_otp_view(request):
+    User = get_user_model()
+    user_id = request.session.get("pre_2fa_user_id")
+    if not user_id:
+        messages.error(request, "Session expired or invalid.")
+        return redirect("login")
 
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        messages.error(request, "User not found.")
+        return redirect("login")
+
+    if request.method == "POST":
+        form = TwoFactorOTPVerificationForm(request.POST)
+        if form.is_valid():
+            otp = form.cleaned_data["otp"]
+
+            otp_obj = UserOTP.get_active_otp(user, purpose='login_2fa')
+            if otp_obj and otp_obj.verify_otp(otp):
+                if otp_obj.has_expired():
+                    messages.error(request, "OTP has expired. Please log in again.")
+                    return redirect("login")
+
+                otp_obj.mark_as_used()
+                del request.session["pre_2fa_user_id"]
+                auth_login(request, user)
+
+                if user.role == 'admin':
+                    return redirect("adminhub:home")
+                elif user.role == 'faculty':
+                    return redirect("faculty:home")
+            else:
+                messages.error(request, "Invalid or expired OTP.")
+    else:
+        form = TwoFactorOTPVerificationForm()
+
+    return render(request, "authentication/verify_two_factor_otp.html", {"form": form})
+
+def resend_two_factor_otp_view(request):
+    user_id = request.session.get("pre_2fa_user_id")
+    if not user_id:
+        return JsonResponse({"success": False, "message": "Session expired. Try logging in again."}, status=400)
+
+    User = get_user_model()
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({"success": False, "message": "Account not found."}, status=404)
+
+    otp_requests = UserOTP.otp_requests_today(user, purpose='login_2fa')
+    if otp_requests >= MAX_2FA_OTP_REQUESTS_PER_DAY:
+        return JsonResponse({
+            "success": False,
+            "message": "You’ve reached the maximum number of code requests today. Please try again tomorrow."
+        }, status=429)
+
+    UserOTP.objects.filter(user=user, purpose="login_2fa", is_used=False).update(is_used=True)
+
+    otp_obj, raw_otp = UserOTP.create_for_user(user, purpose='login_2fa', expiry_minutes=10)
+    send_otp_email(user.email, raw_otp, purpose='login_2fa')
+
+    return JsonResponse({"success": True, "message": "A new code has been sent."})
+
+
+@never_cache
 def reset_password_view(request):
     user_id = request.session.get("reset_user_id")
     if not user_id:
@@ -196,92 +264,6 @@ def reset_password_view(request):
 
     return render(request, "authentication/reset_password.html", {"form": form})
 
-
-# --------- Two-Factor Authentication Views --------- #
-
-@never_cache
-def verify_two_factor_otp_view(request):
-    User = get_user_model()
-    user_id = request.session.get("pre_2fa_user_id")
-    if not user_id:
-        messages.error(request, "Session expired or invalid.")
-        return redirect("login")
-
-    try:
-        user = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        messages.error(request, "User not found.")
-        return redirect("login")
-
-    if request.method == "POST":
-        form = TwoFactorOTPVerificationForm(request.POST)
-        if form.is_valid():
-            otp = form.cleaned_data["otp"]
-
-            otp_obj = UserOTP.objects.filter(
-                user=user,
-                purpose='login_2fa',
-                is_used=False,
-                expires_at__gt=timezone.now()
-            ).order_by("-created_at").first()
-
-            if otp_obj and otp_obj.otp == otp:
-                if otp_obj.has_expired():
-                    messages.error(request, "OTP has expired. Please log in again.")
-                    return redirect("login")
-
-                otp_obj.mark_as_used()
-                del request.session["pre_2fa_user_id"]
-                auth_login(request, user)
-
-                if user.role == 'admin':
-                    return redirect("adminhub:home")
-                elif user.role == 'faculty':
-                    return redirect("faculty:home")
-            else:
-                messages.error(request, "Invalid or expired OTP.")
-    else:
-        form = TwoFactorOTPVerificationForm()
-
-    return render(request, "authentication/verify_two_factor_otp.html", {"form": form})
-
-
-
-
-from django.http import JsonResponse
-from django.utils import timezone
-from django.contrib.auth import get_user_model
-# Ensure UserOTP and send_otp_email are imported
-
-MAX_2FA_OTP_REQUESTS_PER_DAY = 20  # Set your preferred limit
-
-def resend_two_factor_otp_view(request):
-    user_id = request.session.get("pre_2fa_user_id")
-    if not user_id:
-        return JsonResponse({"success": False, "message": "Session expired. Try logging in again."}, status=400)
-
-    User = get_user_model()
-    try:
-        user = User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        return JsonResponse({"success": False, "message": "Account not found."}, status=404)
-
-    # Check rate limit
-    otp_requests = UserOTP.otp_requests_today(user, purpose='login_2fa')
-    if otp_requests >= MAX_2FA_OTP_REQUESTS_PER_DAY:
-        return JsonResponse({
-            "success": False,
-            "message": "You’ve reached the maximum number of code requests today. Please try again tomorrow."
-        }, status=429)
-
-    # Mark old OTPs as used
-    UserOTP.objects.filter(user=user, purpose="login_2fa", is_used=False).update(is_used=True)
-
-    # Generate new OTP and send (via email, SMS, etc.)
-    otp_obj = UserOTP.create_for_user(user, purpose='login_2fa', expiry_minutes=10)
-    send_otp_email(user.email, otp_obj.otp, purpose='login_2fa')
-
-    return JsonResponse({"success": True, "message": "A new code has been sent."})
 
 
 # --------- Google Drive OAuth Views --------- #

@@ -22,7 +22,7 @@ def load_client_secrets():
 
 class GoogleOAuthService:
     def __init__(self, user):
-        self.user = user  # still useful for admin logging or UI, but not for token storage
+        self.user = user
         self.client_secrets = load_client_secrets()
         if not all(k in self.client_secrets for k in ['client_id', 'client_secret']):
             raise ValueError("Missing client_id or client_secret in client_secret.json")
@@ -56,14 +56,29 @@ class GoogleOAuthService:
         )
         email = token_info.get("email")
 
+        # Check that all required fields are present
+        if not creds.token or not creds.refresh_token or not creds.expiry:
+            raise ValueError("Missing required credential data (access_token, refresh_token, or expiry).")
+
         # Deactivate all other accounts
         GoogleStorageAccount.objects.exclude(email=email).update(is_active=False)
 
-        account, _ = GoogleStorageAccount.objects.get_or_create(email=email)
-        account.access_token = creds.token           # uses property setter (encrypted)
-        account.refresh_token = creds.refresh_token  # uses property setter (encrypted)
-        account.token_expiry = creds.expiry
-        account.is_active = True
-        account.save()
+        # Use defaults to ensure NOT NULL columns are set on creation
+        account, created = GoogleStorageAccount.objects.get_or_create(
+            email=email,
+            defaults={
+                'access_token': creds.token,
+                'refresh_token': creds.refresh_token,
+                'token_expiry': creds.expiry,
+                'is_active': True,
+            }
+        )
+        if not created:
+            # Update all fields if the account already exists
+            account.access_token = creds.token
+            account.refresh_token = creds.refresh_token
+            account.token_expiry = creds.expiry
+            account.is_active = True
+            account.save()
 
         return creds

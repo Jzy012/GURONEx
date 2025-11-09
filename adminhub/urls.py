@@ -11,7 +11,9 @@ urlpatterns = [
 
 
     path('admin/documents/', views.documents, name='documents'),
-
+    path('admin/documents/view/<uuid:uid>/', views.view_document, name='view_document'),
+    path('admin/document/change-status/<uuid:uid>/', views.change_document_status, name='change_document_status'),
+    path('admin/documents/download/<uuid:uid>/', views.download_document, name='download_document'),
 
     path('admin/faculty-list/', views.faculty_list_view, name='faculty_list'),
     path('admin/faculty/<uuid:faculty_uuid>/', views.faculty_detail_view, name='faculty_detail'),
@@ -36,7 +38,6 @@ urlpatterns = [
     path("admin/requests/<uuid:uuid>/action/", views.admin_request_action_view, name="request_action"),
 
     path('admin/applicants/', views.applicant_list_view, name='applicant_list'),
-    # path('admin/applicants/<int:pk>/', views.applicant_detail_view, name='applicant_detail'),
     path('admin/applicants/<uuid:uuid>/', views.applicant_detail_view, name='applicant_detail'),
     path('admin/applicants/account-creation/', views.account_creation_view, name='account_creation'),
     path('admin/applicants/account-creation/log/', views.created_account_log_view, name='account_creation_log'),
@@ -52,23 +53,12 @@ urlpatterns = [
     path('admin/attendance-logs/manual-log/', views.manual_attendance_log_view, name='manual_attendance_log'),
     path('admin/pair-rfid/', views.pair_rfid, name='pair_rfid'),
     path('api/rfid_pairing_tap/', views.rfid_pairing_tap_api, name='rfid_pairing_tap_api'),
-
     path('admin/faculty/<uuid:faculty_uuid>/dtr/',views.dtr_tab_view,name='dtr_tab'),
-
     path('admin/teaching-assignments', views.teaching_assignment_view, name='teaching_assignment'),
-
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/',views.teaching_assignment_list, name='teaching_assignment_list'),
-
-    # Create assignment for a faculty
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/create/',views.teaching_assignment_create, name='teaching_assignment_create'),
-
-    # Bulk upload for a faculty
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/bulk-upload/',views.teaching_assignment_bulk_upload, name='teaching_assignment_bulk_upload'),
-
-    # Update a specific assignment (by assignment pk)
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/<int:pk>/edit/',views.teaching_assignment_update, name='teaching_assignment_update'),
-
-    # Delete a specific assignment (by assignment pk)
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/<int:pk>/delete/',views.teaching_assignment_delete, name='teaching_assignment_delete'),
 
     path('admin/settings/', views.admin_settings, name='admin_settings'),

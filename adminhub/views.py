@@ -185,6 +185,140 @@ def documents(request):
     return render(request, 'admin/admin_documents_storage.html', context)
 
 
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.views.decorators.csrf import csrf_exempt   # Use csrf_protect in production
+
+@admin_required
+@require_POST
+def change_document_status(request, uid):
+    try:
+        doc = FacultyDocument.objects.get(uid=uid)
+    except FacultyDocument.DoesNotExist:
+        return JsonResponse({"error": "Document not found"}, status=404)
+
+    new_status = request.POST.get('status')
+    remarks = request.POST.get('remarks', '')  # could be empty
+
+    if new_status not in ['Approved', 'Rejected', 'Pending']:
+        return JsonResponse({"error": "Invalid status"}, status=400)
+
+    doc.status = new_status
+    doc.admin_remarks = remarks
+    doc.save(update_fields=['status', 'admin_remarks'])
+
+    # You could also send back some info for updating the row
+    return JsonResponse({
+        "success": True,
+        "status": doc.status,
+        "admin_remarks": doc.admin_remarks,
+    })
+
+from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponse, StreamingHttpResponse, Http404
+from django.urls import reverse
+import mimetypes
+import io
+
+from faculty.models import FacultyDocument
+from services.google_drive_service import CentralGoogleDriveService
+from googleapiclient.http import MediaIoBaseDownload
+
+def view_document(request, uid):
+    """
+    Optional preview page (kept for compatibility).
+    Lookup by uid (UUID) instead of numeric id.
+    """
+    doc = get_object_or_404(FacultyDocument, uid=uid)
+    name_on_drive = doc.document_name or f"document_{doc.id}"
+    ext = name_on_drive.split('.')[-1].lower() if '.' in name_on_drive else ''
+    is_pdf = ext == 'pdf'
+    is_image = ext in ('jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp')
+
+    # Build absolute download URL using uid
+    download_path = reverse('adminhub:download_document', args=[doc.uid])
+    download_url = request.build_absolute_uri(download_path)
+    preview_url = f"{download_url}?inline=1"
+
+    context = {
+        'doc': doc,
+        'is_pdf': is_pdf,
+        'is_image': is_image,
+        'download_url': download_url,
+        'preview_url': preview_url,
+    }
+    return render(request, 'admin/admin_document_view.html', context)
+
+
+def _stream_drive_media(drive_service: CentralGoogleDriveService, file_id: str, chunk_size: int = 1024 * 256):
+    request = drive_service.service.files().get_media(fileId=file_id)
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request, chunksize=chunk_size)
+    done = False
+    last_pos = 0
+    while not done:
+        status, done = downloader.next_chunk()
+        data = fh.getvalue()[last_pos:]
+        if data:
+            yield data
+            last_pos = len(fh.getvalue())
+    remaining = fh.getvalue()[last_pos:]
+    if remaining:
+        yield remaining
+
+
+def download_document(request, uid):
+    """
+    Streams or returns bytes for a document stored on Google Drive.
+    Uses uid (UUID) to lookup document.
+    Query param inline=1 requests inline preview (only honored for PDF/images).
+    """
+    doc = get_object_or_404(FacultyDocument, uid=uid)
+    file_id = doc.google_drive_id
+
+    drive = CentralGoogleDriveService()
+    want_inline = request.GET.get('inline', '0').lower() in ('1', 'true', 'yes')
+
+    # Get metadata
+    try:
+        meta = drive.service.files().get(fileId=file_id, fields='mimeType, name, size').execute()
+        mime_type = meta.get('mimeType')
+        name_on_drive = meta.get('name') or doc.document_name or f'document_{doc.id}'
+    except Exception:
+        raise Http404("Could not retrieve file metadata from Google Drive.")
+
+    def _finalize_response(resp: HttpResponse):
+        resp['X-Frame-Options'] = 'SAMEORIGIN'
+        resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return resp
+
+    # Google-native types -> export to PDF
+    if mime_type and mime_type.startswith('application/vnd.google-apps.'):
+        export_mime = 'application/pdf'
+        try:
+            exported_bytes = drive.service.files().export(fileId=file_id, mimeType=export_mime).execute()
+        except Exception:
+            raise Http404("File could not be exported from Google Drive.")
+
+        content_type = export_mime
+        disposition = 'inline' if (want_inline and content_type == 'application/pdf') else 'attachment'
+        resp = HttpResponse(exported_bytes, content_type=content_type)
+        resp['Content-Disposition'] = f'{disposition}; filename="{name_on_drive}"'
+        resp['Content-Length'] = str(len(exported_bytes))
+        return _finalize_response(resp)
+
+    # Binary files -> stream
+    content_type = mime_type or mimetypes.guess_type(name_on_drive)[0] or 'application/octet-stream'
+    inline_allowed = (content_type == 'application/pdf') or content_type.startswith('image/')
+
+    if want_inline and inline_allowed:
+        response = StreamingHttpResponse(_stream_drive_media(drive, file_id), content_type=content_type)
+        response['Content-Disposition'] = f'inline; filename="{name_on_drive}"'
+        return _finalize_response(response)
+
+    response = StreamingHttpResponse(_stream_drive_media(drive, file_id), content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{name_on_drive}"'
+    return _finalize_response(response)
 
 
 from django.shortcuts import render

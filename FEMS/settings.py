@@ -36,7 +36,10 @@ DEBUG = env('DEBUG')
 ALLOWED_HOSTS = [
     '192.168.1.9',
     '127.0.0.1',
-    'localhost'
+    'localhost',
+    '192.168.1.6',
+    '172.20.10.3',
+    '192.168.1.5'
 
 ]
 
@@ -187,3 +190,5 @@ GOOGLE_OAUTH2_REDIRECT_URI = env("GOOGLE_OAUTH2_REDIRECT_URI")
 
 # Fernet Key for encryption
 FERNET_KEY = env("FERNET_KEY")
+
+GOOGLE_DRIVE_ROOT_FOLDER_ID = env("GOOGLE_DRIVE_ROOT_FOLDER_ID")

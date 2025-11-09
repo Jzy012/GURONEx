@@ -114,7 +114,7 @@
             {% endif %}
           </td>
           <td class="px-5 py-4 border-b">
-            <a href="{{ doc.file_path }}" target="_blank"
+            <a href="{% url 'faculty:download_document' doc.uid %}?inline=1" target="_blank" rel="noopener noreferrer"
                class="text-[#800505] hover:underline font-medium">View</a>
           </td>
         </tr>
@@ -135,7 +135,7 @@
     <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200">
       <div class="flex justify-between items-center mb-3 border-b border-gray-300 pb-2">
         <h3 class="text-lg font-semibold text-gray-900 truncate">{{ doc.document_name }}</h3>
-        <a href="{{ doc.file_path }}" target="_blank"
+        <a href="{% url 'faculty:download_document' doc.uid %}?inline=1" target="_blank" rel="noopener noreferrer"
            class="text-[#800505] hover:underline text-sm font-semibold whitespace-nowrap">
           View
         </a>

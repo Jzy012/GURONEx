@@ -55,6 +55,13 @@ class Account(AbstractUser):
 
 
 # Password Reset OTP Model
+from django.db import models
+from django.conf import settings
+from django.utils import timezone
+from django.contrib.auth.hashers import make_password, check_password
+from datetime import timedelta
+import secrets
+
 class UserOTP(models.Model):
     PURPOSE_CHOICES = [
         ('password_reset', 'Password Reset'),
@@ -62,7 +69,7 @@ class UserOTP(models.Model):
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    otp = models.CharField(max_length=6)
+    otp = models.CharField(max_length=128)  # Increased for hash
     purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
@@ -93,9 +100,11 @@ class UserOTP(models.Model):
             expires_at__gt=timezone.now()
         ).update(is_used=True)
 
-        otp = cls.generate_otp()
+        raw_otp = cls.generate_otp()
+        hashed_otp = make_password(raw_otp)
         expires_at = timezone.now() + timedelta(minutes=expiry_minutes)
-        return cls.objects.create(user=user, otp=otp, purpose=purpose, expires_at=expires_at)
+        obj = cls.objects.create(user=user, otp=hashed_otp, purpose=purpose, expires_at=expires_at)
+        return obj, raw_otp  # Return both for email
 
     @staticmethod
     def otp_requests_today(user, purpose):
@@ -115,9 +124,11 @@ class UserOTP(models.Model):
             expires_at__gt=timezone.now()
         ).order_by('-created_at').first()
 
-    def __str__(self):
-        return f"{self.user.email} - OTP: {self.otp} ({self.purpose})"
+    def verify_otp(self, otp_input):
+        return check_password(otp_input, self.otp)
 
+    def __str__(self):
+        return f"{self.user.email} - OTP ({self.purpose})"
 
 
 

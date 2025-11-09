@@ -12,6 +12,7 @@ urlpatterns = [
 
     path('faculty/documents/upload/', views.faculty_document_upload, name='upload_documents'),
     path('faculty/documents/', views.faculty_documents_view, name='faculty_documents'),
+    path('faculty/documents/download/<uuid:uid>/', views.download_document, name='download_document'),
 
     path('faculty/attendance-logs/', views.faculty_attendance_logs_view, name='faculty_attendance_logs'),
     path('faculty/teaching-assignments/', views.faculty_teaching_assignment_dtr_view, name='faculty_teaching_assignment'),
