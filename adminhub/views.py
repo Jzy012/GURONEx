@@ -1304,14 +1304,13 @@ def attendance_logs_view(request):
 from django.shortcuts import render
 from faculty.models import FacultyProfile
 from rfid.models import RFIDTag
+from django.db import transaction
 
 @admin_required
 def pair_rfid(request):
     faculties_qs = FacultyProfile.objects.all().order_by('-created_at')
-    rfid_map = {tag.faculty_id: tag.uid for tag in RFIDTag.objects.exclude(faculty=None)}
+    rfid_map = {tag.faculty_id: tag.uid for tag in RFIDTag.objects.exclude(faculty=None).filter(is_active=True)}
     faculties = []
-
-    # Identify the most recently created faculty (newest)
     newest_faculty = faculties_qs.first() if faculties_qs else None
 
     for f in faculties_qs:
@@ -1326,42 +1325,81 @@ def pair_rfid(request):
             "is_unpaired": is_unpaired,
         })
 
-    # Sort: new and unpaired first, then other unpaired, then paired, then by name
     faculties.sort(
         key=lambda x: (
-            not x['is_new'],         # False (new) sorts before True
-            not x['is_unpaired'],    # False (unpaired) before True (paired)
+            not x['is_new'],
+            not x['is_unpaired'],
             x['name'].lower(),
         )
     )
 
     message = None
     message_class = ""
+    show_confirm_modal = False
+    confirm_context = {}
+
     if request.method == 'POST':
         faculty_id = request.POST.get('faculty_id')
         rfid_uid = request.POST.get('rfid_uid', '').strip()
+        confirm_pair = request.POST.get('confirm_pair')
+
         faculty = next((f for f in faculties if f['uuid'] == faculty_id), None)
-        if not faculty:
+
+        # --- VALIDATION: Check errors first ---
+        if not (faculty_id and rfid_uid):
+            message = "Faculty and RFID UID are required."
+            message_class = "bg-red-100 text-red-800"
+        elif not faculty:
             message = "Faculty not found."
             message_class = "bg-red-100 text-red-800"
         else:
-            faculty_obj = FacultyProfile.objects.get(pk=faculty['pk'])
-            tag, created = RFIDTag.objects.get_or_create(uid=rfid_uid)
-            if tag.faculty and tag.faculty != faculty_obj:
-                message = f"RFID {rfid_uid} is already paired to {tag.faculty.name}."
+            try:
+                with transaction.atomic():
+                    faculty_obj = FacultyProfile.objects.get(pk=faculty['pk'])
+                    tag, created = RFIDTag.objects.get_or_create(uid=rfid_uid)
+
+                    # Block if this RFID is already active for another faculty
+                    if tag.faculty and tag.faculty != faculty_obj and tag.is_active:
+                        message = f"RFID <b>{rfid_uid}</b> is already actively paired to <b>{tag.faculty.name}</b>. Unpair it there before pairing it here."
+                        message_class = "bg-red-100 text-red-800"
+
+                    # --- PASSED VALIDATION: Ready for confirmation modal ---
+                    else:
+                        existing_active = RFIDTag.objects.filter(faculty=faculty_obj, is_active=True).exclude(uid=rfid_uid).first()
+                        if not confirm_pair:
+                            show_confirm_modal = True
+                            confirm_context = {
+                                'faculty_id': faculty_id,
+                                'faculty_name': faculty_obj.name,
+                                'rfid_uid': rfid_uid,
+                                'has_previous': bool(existing_active),
+                                'prev_uid': existing_active.uid if existing_active else None,
+                            }
+                        else:
+                            # Actually execute pairing
+                            RFIDTag.objects.filter(faculty=faculty_obj, is_active=True).exclude(uid=rfid_uid).update(is_active=False)
+                            tag.faculty = faculty_obj
+                            tag.is_active = True
+                            tag.save()
+                            rfid_map[faculty_obj.pk] = tag.uid
+                            if created or not tag.is_active:
+                                message = f"RFID <b>{rfid_uid}</b> successfully paired to <b>{faculty_obj.name}</b>!"
+                            else:
+                                message = f"RFID <b>{rfid_uid}</b> is now set as the active card for <b>{faculty_obj.name}</b>."
+                            message_class = "bg-green-100 text-green-800"
+            except Exception as exc:
+                message = f"An unexpected error occurred: {exc}"
                 message_class = "bg-red-100 text-red-800"
-            else:
-                tag.faculty = faculty_obj
-                tag.save()
-                rfid_map[faculty_obj.pk] = tag.uid
-                message = f"RFID <b>{rfid_uid}</b> successfully paired to <b>{faculty_obj.name}</b>!"
-                message_class = "bg-green-100 text-green-800"
+
     return render(request, 'admin/admin_pair_rfid.html', {
-        'faculties': faculties,      # now includes is_new and is_unpaired
+        'faculties': faculties,
         'rfid_map': rfid_map,
         'message': message,
         'message_class': message_class,
+        'show_confirm_modal': show_confirm_modal,
+        'confirm_context': confirm_context,
     })
+
 
 
 from django.http import JsonResponse
@@ -1492,18 +1530,520 @@ def teaching_assignment_list(request, faculty_uuid):
     return render(request, 'admin/admin_faculty_teaching_assignment.html', {'faculty': faculty, 'assignments': assignments})
 
 
+# ... imports unchanged ...
+# Adjust the path/name to your real file. Only the bulk_confirm view changed significantly.
+
+import json
+import datetime
+import logging
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db import transaction
+from django.utils.translation import gettext as _
+from base.forms import TeachingAssignmentBulkUploadForm
+from faculty.models import TeachingAssignment, FacultyProfile, Semester
+from base.utils.teaching_assignment import read_file_to_rows, get_all_faculty_list, get_all_semesters
+from base.decorators import admin_required
+
+logger = logging.getLogger(__name__)
+SESSION_KEY = 'ta_bulk_upload_rows'
+
+# (Upload view unchanged)
+@admin_required
+def teaching_assignment_bulk_upload(request):
+    form = TeachingAssignmentBulkUploadForm(request.POST or None, request.FILES or None)
+    if request.method == 'POST':
+        logger.debug("Bulk upload POST: FILES keys=%s", list(request.FILES.keys()))
+        uploaded_files = request.FILES.getlist('files')
+
+        if not uploaded_files:
+            form.add_error(None, "No files uploaded. Please select one or more files.")
+        else:
+            all_rows = []
+            errors = []
+            for f in uploaded_files:
+                name = f.name.lower()
+                if not (name.endswith('.csv') or name.endswith('.xls') or name.endswith('.xlsx')):
+                    errors.append(f"Unsupported file type: {f.name}")
+                    continue
+                try:
+                    rows = read_file_to_rows(f)
+                    all_rows.extend(rows)
+                except Exception as e:
+                    logger.exception("Error reading upload file %s", f.name)
+                    errors.append(f"{f.name}: {e}")
+
+            for e in errors:
+                messages.error(request, e)
+
+            if not all_rows:
+                messages.error(request, _("No valid rows parsed from uploaded file(s). Please check the file(s) and the required columns."))
+            else:
+                for row in all_rows:
+                    row['default_faculty_uuid'] = None
+                    name = (row.get('faculty_name') or '').strip()
+                    if name:
+                        f_obj = (FacultyProfile.objects.filter(name__iexact=name).first()
+                                 or FacultyProfile.objects.filter(name__icontains=name).first())
+                        if f_obj:
+                            row['default_faculty_uuid'] = str(f_obj.uuid)
+
+                request.session[SESSION_KEY] = all_rows
+                request.session.modified = True
+                messages.success(request, _(f"Parsed {len(all_rows)} rows from uploaded file(s). Please review and assign faculty on the next page."))
+                return redirect('adminhub:teaching_assignment_bulk_confirm')
+
+    return render(request, 'admin/admin_teaching_assignment_upload.html', {'form': form})
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db import transaction
+from django.utils.translation import gettext as gettext_func
+import json
+import datetime
+import logging
+import re
+
+from django.core.exceptions import ValidationError as DjangoValidationError
+
+from base.forms import TeachingAssignmentBulkUploadForm
+from faculty.models import TeachingAssignment, FacultyProfile, Semester
+from base.utils.teaching_assignment import read_file_to_rows, get_all_faculty_list, get_all_semesters
+from base.decorators import admin_required
+
+logger = logging.getLogger(__name__)
+SESSION_KEY = 'ta_bulk_upload_rows'
+
+
+def clean_uuid_string(s: str) -> str:
+    """
+    Clean a posted UUID-like string that may contain surrounding quotes,
+    curly quotes, or literal backslash-unicode escapes like '\\u002D'.
+    Returns a cleaned plain ASCII UUID string (with hyphens) if possible.
+    """
+    if not s:
+        return s
+    if not isinstance(s, str):
+        s = str(s)
+
+    # Replace common Unicode curly quotes with straight quotes
+    s = s.replace('\u201c', '"').replace('\u201d', '"').replace('\u2018', "'").replace('\u2019', "'")
+
+    # If the string contains literal backslash-u sequences (e.g. "\\u002D"),
+    # decode those escape sequences to actual characters.
+    if '\\u' in s or '\\x' in s:
+        try:
+            s = bytes(s, 'utf-8').decode('unicode_escape')
+        except Exception:
+            pass
+
+    # Strip whitespace
+    s = s.strip()
+
+    # Remove surrounding straight or curly quotes if present
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+        s = s[1:-1].strip()
+    if (s.startswith('“') and s.endswith('”')) or (s.startswith('‘') and s.endswith('’')):
+        s = s[1:-1].strip()
+
+    return s
+
+
+@admin_required
+def teaching_assignment_bulk_confirm(request):
+    original_rows = request.session.get(SESSION_KEY)
+    if not original_rows:
+        messages.error(request, gettext_func("No parsed upload data found. Please upload files first."))
+        return redirect('adminhub:teaching_assignment_bulk_upload')
+
+    # Build UI lists and JSON payloads
+    faculty_list = get_all_faculty_list()
+    semester_list = get_all_semesters()
+
+    def normalize_faculties(fac_list):
+        out = []
+        for f in fac_list:
+            if isinstance(f, dict):
+                uuid = f.get('uuid') or f.get('id') or ''
+                display = f.get('display') or f.get('name') or f.get('label') or ''
+            else:
+                uuid = getattr(f, 'uuid', '') or getattr(f, 'id', '')
+                display = getattr(f, 'display', '') or getattr(f, 'name', '')
+            out.append({'uuid': str(uuid), 'display': display})
+        return out
+
+    def normalize_semesters(s_list):
+        out = []
+        for s in s_list:
+            if isinstance(s, dict):
+                sid = s.get('id') or s.get('pk') or ''
+                display = s.get('display') or s.get('name') or ''
+            else:
+                sid = getattr(s, 'id', '')
+                display = getattr(s, 'display', '') or getattr(s, 'name', '')
+            out.append({'id': sid, 'display': display})
+        return out
+
+    faculty_list_norm = normalize_faculties(faculty_list)
+    semester_list_norm = normalize_semesters(semester_list)
+    faculty_list_json = json.dumps(faculty_list_norm)
+    semester_list_json = json.dumps(semester_list_norm)
+
+    active_sem = Semester.objects.filter(is_active=True).order_by('-academic_year__year_start').first()
+
+    def parse_time_string(value):
+        v = (value or '').strip()
+        if not v:
+            return None
+        try:
+            parts = v.split(':')
+            if len(parts) == 2:
+                h, m = int(parts[0]), int(parts[1])
+                return datetime.time(hour=h, minute=m)
+            elif len(parts) >= 3:
+                h, m, s = int(parts[0]), int(parts[1]), int(parts[2])
+                return datetime.time(hour=h, minute=m, second=s)
+        except Exception:
+            pass
+        try:
+            return datetime.time.fromisoformat(v)
+        except Exception:
+            return None
+
+    def db_overlap_exists(faculty, semester, day_of_week, start_time, end_time):
+        return TeachingAssignment.objects.filter(
+            faculty=faculty,
+            semester=semester,
+            day_of_week=day_of_week,
+            start_time__lt=end_time,
+            end_time__gt=start_time
+        ).exists()
+
+    if request.method == 'POST':
+        # Determine submitted row indexes from POST keys (supports user-added rows)
+        submitted_indexes = set()
+        idx_re = re.compile(r'_(\d+)$')
+        for key in request.POST.keys():
+            m = idx_re.search(key)
+            if m:
+                try:
+                    submitted_indexes.add(int(m.group(1)))
+                except Exception:
+                    pass
+        # Fallback: if none found, use original rows indices
+        if not submitted_indexes:
+            submitted_indexes = set(range(len(original_rows)))
+
+        # If user removed all rows, handle that early (consider only submitted indexes)
+        included_any = False
+        for idx in sorted(submitted_indexes):
+            if request.POST.get(f'include_{idx}', '1') == '1':
+                included_any = True
+                break
+        if not included_any:
+            try:
+                del request.session[SESSION_KEY]
+            except KeyError:
+                pass
+            messages.info(request, gettext_func("No rows selected; upload cancelled."))
+            return redirect('adminhub:teaching_assignment_bulk_upload')
+
+        enriched = []
+        batch_index = {}
+
+        # First pass: parse and basic validation; respect include_{idx} flag
+        for idx in sorted(submitted_indexes):
+            include_flag = request.POST.get(f'include_{idx}', '1')
+            # merge with original row if exists
+            original = original_rows[idx] if (isinstance(original_rows, (list, tuple)) and idx < len(original_rows)) else {}
+            row_num = original.get('row_num') or (idx + 1)
+
+            # If removed, preserve values for display but mark removed
+            if include_flag != '1':
+                raw_faculty_choice = request.POST.get(f'assign_{idx}', '') or original.get('default_faculty_uuid') or ''
+                cleaned_faculty_choice = clean_uuid_string(raw_faculty_choice)
+                enriched.append({
+                    'row_num': row_num,
+                    'index': idx,
+                    'removed': True,
+                    'errors': [],
+                    'subject_code': request.POST.get(f'subject_code_{idx}', '') or original.get('subject_code', '') or '',
+                    'subject_description': request.POST.get(f'subject_description_{idx}', '') or original.get('subject_description', '') or '',
+                    'year_section': request.POST.get(f'year_section_{idx}', '') or original.get('year_section', '') or '',
+                    'day_of_week': request.POST.get(f'day_{idx}', '') or original.get('day_of_week', '') or '',
+                    'start_raw': request.POST.get(f'start_time_{idx}', '') or (original.get('start_time') or ''),
+                    'end_raw': request.POST.get(f'end_time_{idx}', '') or (original.get('end_time') or ''),
+                    'room': request.POST.get(f'room_{idx}', '') or (original.get('room') or ''),
+                    'faculty_choice': cleaned_faculty_choice,
+                    'semester_choice': request.POST.get(f'semester_{idx}', '') or original.get('semester_id') or '',
+                    'faculty_uuid': cleaned_faculty_choice,
+                    'semester_id': (request.POST.get(f'semester_{idx}', '') or original.get('semester_id') or ''),
+                    'start_time': None,
+                    'end_time': None,
+                    'faculty_obj': None,
+                    'semester_obj': None,
+                })
+                continue
+
+            # included row - validate; read POST first then fallback to original
+            data = {
+                'row_num': row_num,
+                'index': idx,
+                'original': original,
+                'errors': [],
+                'removed': False,
+                'faculty_uuid': None,
+                'semester_id': None,
+                'subject_code': (request.POST.get(f'subject_code_{idx}', '') or original.get('subject_code', '') or '').strip(),
+                'subject_description': (request.POST.get(f'subject_description_{idx}', '') or original.get('subject_description', '') or '').strip(),
+                'year_section': (request.POST.get(f'year_section_{idx}', '') or original.get('year_section', '') or '').strip(),
+                'day_of_week': (request.POST.get(f'day_{idx}', '') or original.get('day_of_week', '') or '').strip(),
+                'start_raw': request.POST.get(f'start_time_{idx}', '') or (original.get('start_time') or ''),
+                'end_raw': request.POST.get(f'end_time_{idx}', '') or (original.get('end_time') or ''),
+                'room': request.POST.get(f'room_{idx}', '') or (original.get('room') or ''),
+                'faculty_choice': request.POST.get(f'assign_{idx}', '') or original.get('default_faculty_uuid') or '',
+                'semester_choice': request.POST.get(f'semester_{idx}', '') or original.get('semester_id') or '',
+                'start_time': None,
+                'end_time': None,
+                'faculty_obj': None,
+                'semester_obj': None,
+            }
+
+            # Resolve faculty (sanitize posted value first)
+            raw_choice = data.get('faculty_choice', '') or ''
+            clean_choice = clean_uuid_string(raw_choice)
+            data['faculty_choice'] = clean_choice
+
+            if clean_choice in ('', 'skip'):
+                data['errors'].append("Faculty is required.")
+            else:
+                try:
+                    # Attempt lookup safely; catch validation errors raised when field expects UUID
+                    try:
+                        f_obj = FacultyProfile.objects.get(uuid=clean_choice)
+                    except (ValueError, TypeError, DjangoValidationError):
+                        f_obj = None
+
+                    if f_obj is None:
+                        # tolerant fallback by stripping unusual characters
+                        alt = clean_choice.replace('\u2013', '-').replace('\u2014', '-').strip(' "\'')
+                        if alt and alt != clean_choice:
+                            try:
+                                f_obj = FacultyProfile.objects.get(uuid=alt)
+                            except Exception:
+                                f_obj = None
+
+                    if f_obj is None:
+                        raise FacultyProfile.DoesNotExist()
+
+                    data['faculty_obj'] = f_obj
+                    data['faculty_uuid'] = str(f_obj.uuid)
+                    data['faculty_choice'] = str(f_obj.uuid)
+                except FacultyProfile.DoesNotExist:
+                    data['errors'].append("Selected faculty not found.")
+
+            # Resolve semester
+            if not data['semester_choice']:
+                data['errors'].append("Semester is required.")
+            else:
+                try:
+                    sem_obj = Semester.objects.get(id=int(data['semester_choice']))
+                    data['semester_obj'] = sem_obj
+                    data['semester_id'] = sem_obj.id
+                except Exception:
+                    data['errors'].append("Selected semester not found.")
+
+            # Times parsing
+            start_t = parse_time_string(data['start_raw'])
+            end_t = parse_time_string(data['end_raw'])
+            data['start_time'] = start_t
+            data['end_time'] = end_t
+
+            if data['start_raw'] and not start_t:
+                data['errors'].append("Invalid Start Time format.")
+            if data['end_raw'] and not end_t:
+                data['errors'].append("Invalid End Time format.")
+
+            # Required fields besides faculty/semester/time
+            if not data['subject_code']:
+                data['errors'].append("Subject Code is required.")
+            if not data['subject_description']:
+                data['errors'].append("Subject Description is required.")
+            if not data['year_section']:
+                data['errors'].append("Year/Section is required.")
+            if not data['day_of_week']:
+                data['errors'].append("Day of Week is required.")
+            if data['start_time'] and data['end_time'] and data['start_time'] >= data['end_time']:
+                data['errors'].append("End Time must be after Start Time.")
+
+            enriched.append(data)
+
+        # Second pass: duplicate and DB-overlap detection for included & structurally valid rows
+        for data in enriched:
+            if data.get('removed') or data['errors']:
+                continue
+            f_obj = data['faculty_obj']
+            sem_obj = data['semester_obj']
+            day = data['day_of_week']
+            st = data['start_time']
+            et = data['end_time']
+
+            duplicate_exists = TeachingAssignment.objects.filter(
+                faculty=f_obj,
+                subject_code__iexact=data['subject_code'],
+                year_section__iexact=data['year_section'],
+                day_of_week=day,
+                start_time=st,
+                end_time=et,
+                semester=sem_obj
+            ).exists()
+            if duplicate_exists:
+                data['errors'].append("Duplicate of an existing assignment (exact match).")
+                continue
+
+            if db_overlap_exists(f_obj, sem_obj, day, st, et):
+                data['errors'].append(
+                    f"Overlaps existing assignment ({st.strftime('%H:%M')}–{et.strftime('%H:%M')} {day})."
+                )
+
+        # Third pass: intra-batch overlaps (mark both rows)
+        for data in enriched:
+            if data.get('removed') or data['errors']:
+                continue
+            key = (data['faculty_obj'].id, data['semester_obj'].id, data['day_of_week'])
+            batch_index.setdefault(key, []).append(data)
+
+        for key, rows_group in batch_index.items():
+            rows_group.sort(key=lambda r: r['start_time'])
+            for i in range(len(rows_group)):
+                for j in range(i + 1, len(rows_group)):
+                    r1 = rows_group[i]
+                    r2 = rows_group[j]
+                    if r1['start_time'] < r2['end_time'] and r1['end_time'] > r2['start_time']:
+                        msg1 = (
+                            f"Overlaps row {r2['row_num']} ({r2['start_time'].strftime('%H:%M')}–{r2['end_time'].strftime('%H:%M')} {r2['day_of_week']})."
+                        )
+                        msg2 = (
+                            f"Overlaps row {r1['row_num']} ({r1['start_time'].strftime('%H:%M')}–{r1['end_time'].strftime('%H:%M')} {r1['day_of_week']})."
+                        )
+                        r1['errors'].append(msg1)
+                        r2['errors'].append(msg2)
+
+        any_errors = any(d['errors'] for d in enriched if not d.get('removed'))
+        if any_errors:
+            # Re-render with enriched rows and inline errors; always pass the JSON and normalized lists
+            return render(
+                request,
+                'admin/admin_teaching_assignment_upload_confirm.html',
+                {
+                    'rows': enriched,
+                    'faculty_list': faculty_list_norm,
+                    'semester_list': semester_list_norm,
+                    'faculty_list_json': faculty_list_json,
+                    'semester_list_json': semester_list_json,
+                    'has_errors': True,
+                }
+            )
+
+        # No errors: create only included rows (skip removed)
+        to_create = []
+        for data in enriched:
+            if data.get('removed'):
+                continue
+            ta = TeachingAssignment(
+                faculty=data['faculty_obj'],
+                subject_code=data['subject_code'],
+                subject_description=data['subject_description'],
+                year_section=data['year_section'],
+                day_of_week=data['day_of_week'],
+                start_time=data['start_time'],
+                end_time=data['end_time'],
+                semester=data['semester_obj'],
+                room=(data['room'].strip() or None)
+            )
+            to_create.append(ta)
+
+        try:
+            TeachingAssignment.objects.bulk_create(to_create, batch_size=200)
+        except Exception as e:
+            # On DB error, re-render with general error and preserve rows for correction
+            return render(
+                request,
+                'admin/admin_teaching_assignment_upload_confirm.html',
+                {
+                    'rows': enriched,
+                    'faculty_list': faculty_list_norm,
+                    'semester_list': semester_list_norm,
+                    'faculty_list_json': faculty_list_json,
+                    'semester_list_json': semester_list_json,
+                    'has_errors': True,
+                    'general_error': str(e),
+                }
+            )
+
+        # Success: clear session and redirect
+        try:
+            del request.session[SESSION_KEY]
+        except KeyError:
+            pass
+
+        messages.success(request, gettext_func(f"Successfully created {len(to_create)} teaching assignments."))
+        return redirect('adminhub:teaching_assignment')
+
+    # GET: build display rows for initial page render
+    display_rows = []
+    for idx, row in enumerate(original_rows):
+        row_num = row.get('row_num') or (idx + 1)
+        display_rows.append({
+            'row_num': row_num,
+            'index': idx,
+            'errors': [],
+            'removed': False,
+            'subject_code': row.get('subject_code') or '',
+            'subject_description': row.get('subject_description') or '',
+            'year_section': row.get('year_section') or '',
+            'day_of_week': row.get('day_of_week') or '',
+            'start_raw': row.get('start_time') or '',
+            'end_raw': row.get('end_time') or '',
+            'room': row.get('room') or '',
+            'faculty_uuid': row.get('default_faculty_uuid') or '',
+            'semester_id': row.get('semester_id') or (active_sem.id if active_sem else ''),
+            'faculty_choice': row.get('default_faculty_uuid') or '',
+            'semester_choice': row.get('semester_id') or (active_sem.id if active_sem else ''),
+        })
+
+    return render(
+        request,
+        'admin/admin_teaching_assignment_upload_confirm.html',
+        {
+            'rows': display_rows,
+            'faculty_list': faculty_list_norm,
+            'semester_list': semester_list_norm,
+            'faculty_list_json': faculty_list_json,
+            'semester_list_json': semester_list_json,
+            'has_errors': False,
+        }
+    )
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from faculty.models import FacultyProfile, TeachingAssignment
+from base.forms import TeachingAssignmentForm
+
 @admin_required
 def teaching_assignment_create(request, faculty_uuid):
     faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
     if request.method == 'POST':
-        form = TeachingAssignmentForm(request.POST)
+        form = TeachingAssignmentForm(request.POST, faculty=faculty)
         if form.is_valid():
             assignment = form.save(commit=False)
-            assignment.faculty = faculty
+            assignment.faculty = faculty  # reinforce
             assignment.save()
+            messages.success(request, "Teaching assignment created.")
             return redirect('adminhub:teaching_assignment_list', faculty_uuid=faculty.uuid)
     else:
-        form = TeachingAssignmentForm(initial={'faculty': faculty})
+        form = TeachingAssignmentForm(faculty=faculty)
     return render(request, 'admin/admin_teaching_assignment_create.html', {'form': form, 'faculty': faculty})
 
 
@@ -1511,57 +2051,61 @@ def teaching_assignment_create(request, faculty_uuid):
 def teaching_assignment_update(request, faculty_uuid, pk):
     assignment = get_object_or_404(TeachingAssignment, pk=pk, faculty__uuid=faculty_uuid)
     if request.method == 'POST':
-        form = TeachingAssignmentForm(request.POST, instance=assignment)
+        form = TeachingAssignmentForm(request.POST, instance=assignment, faculty=assignment.faculty)
         if form.is_valid():
             form.save()
+            messages.success(request, "Teaching assignment updated.")
             return redirect('adminhub:teaching_assignment_list', faculty_uuid=assignment.faculty.uuid)
     else:
-        form = TeachingAssignmentForm(instance=assignment)
+        form = TeachingAssignmentForm(instance=assignment, faculty=assignment.faculty)
     return render(request, 'admin/admin_teaching_assignment_create.html', {'form': form, 'faculty': assignment.faculty})
 
 
 @admin_required
-def teaching_assignment_delete(request, pk):
-    assignment = get_object_or_404(TeachingAssignment, pk=pk)
-    faculty_id = assignment.faculty.id
+def teaching_assignment_delete(request, faculty_uuid, pk):
+    faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
+    assignment = get_object_or_404(TeachingAssignment, pk=pk, faculty=faculty)
+
     if request.method == 'POST':
         assignment.delete()
-        return redirect('teaching_assignment_list', faculty_id=faculty_id)
-    return render(request, 'teaching_assignment/confirm_delete.html', {'assignment': assignment})
+        messages.success(request, f"Deleted assignment: {assignment.subject_code} – {assignment.subject_description}")
+        return redirect('adminhub:teaching_assignment_list', faculty_uuid=faculty.uuid)
+
+    messages.warning(request, "Deletion must be confirmed via modal.")
+    return redirect('adminhub:teaching_assignment_list', faculty_uuid=faculty.uuid)
 
 
 
+# import pandas as pd 
+# from django.contrib import messages
 
-import pandas as pd 
-from django.contrib import messages
-
-@admin_required
-def teaching_assignment_bulk_upload(request, faculty_id):
-    faculty = get_object_or_404(FacultyProfile, id=faculty_id)
-    if request.method == 'POST':
-        form = TeachingAssignmentBulkUploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            file = form.cleaned_data['file']
-            try:
-                df = pd.read_csv(file) if file.name.endswith('.csv') else pd.read_excel(file)
-                for _, row in df.iterrows():
-                    TeachingAssignment.objects.create(
-                        faculty=faculty,
-                        subject_code=row['subject_code'],
-                        subject_description=row['subject_description'],
-                        year_section=row['year_section'],
-                        day_of_week=row['day_of_week'].lower()[:3],  # expects 'mon', 'tue', etc.
-                        start_time=row['start_time'],
-                        end_time=row['end_time'],
-                        semester_id=row['semester_id'],  # assumes ID is provided
-                    )
-                messages.success(request, "Bulk upload successful.")
-            except Exception as e:
-                messages.error(request, f"Error: {e}")
-            return redirect('teaching_assignment_list', faculty_id=faculty.id)
-    else:
-        form = TeachingAssignmentBulkUploadForm()
-    return render(request, 'admin/admin_teaching_assignment/bulk_upload.html', {'form': form, 'faculty': faculty})
+# @admin_required
+# def teaching_assignment_bulk_upload(request, faculty_id):
+#     faculty = get_object_or_404(FacultyProfile, id=faculty_id)
+#     if request.method == 'POST':
+#         form = TeachingAssignmentBulkUploadForm(request.POST, request.FILES)
+#         if form.is_valid():
+#             file = form.cleaned_data['file']
+#             try:
+#                 df = pd.read_csv(file) if file.name.endswith('.csv') else pd.read_excel(file)
+#                 for _, row in df.iterrows():
+#                     TeachingAssignment.objects.create(
+#                         faculty=faculty,
+#                         subject_code=row['subject_code'],
+#                         subject_description=row['subject_description'],
+#                         year_section=row['year_section'],
+#                         day_of_week=row['day_of_week'].lower()[:3],  # expects 'mon', 'tue', etc.
+#                         start_time=row['start_time'],
+#                         end_time=row['end_time'],
+#                         semester_id=row['semester_id'],  # assumes ID is provided
+#                     )
+#                 messages.success(request, "Bulk upload successful.")
+#             except Exception as e:
+#                 messages.error(request, f"Error: {e}")
+#             return redirect('teaching_assignment_list', faculty_id=faculty.id)
+#     else:
+#         form = TeachingAssignmentBulkUploadForm()
+#     return render(request, 'admin/admin_teaching_assignment/bulk_upload.html', {'form': form, 'faculty': faculty})
 
 
 

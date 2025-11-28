@@ -230,6 +230,10 @@ class FacultyRequest(models.Model):
 
 
 
+import uuid
+from django.core.exceptions import ValidationError
+from django.db import models
+
 class TeachingAssignment(models.Model):
     DAYS_OF_WEEK = [
         ('mon', 'Monday'),
@@ -239,14 +243,58 @@ class TeachingAssignment(models.Model):
         ('fri', 'Friday'),
         ('sat', 'Saturday'),
     ]
-    faculty = models.ForeignKey(FacultyProfile, on_delete=models.CASCADE)
+
+    faculty = models.ForeignKey('faculty.FacultyProfile', on_delete=models.CASCADE)
     subject_code = models.CharField(max_length=20)
     subject_description = models.CharField(max_length=200)
-    year_section = models.CharField(max_length=20)      # e.g. BSIT 2-1
+    year_section = models.CharField(max_length=20)
     day_of_week = models.CharField(max_length=3, choices=DAYS_OF_WEEK)
     start_time = models.TimeField()
     end_time = models.TimeField()
-    semester = models.ForeignKey(Semester, on_delete=models.CASCADE)
+    semester = models.ForeignKey('Semester', on_delete=models.CASCADE)
+    room = models.CharField(max_length=50, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.faculty} - {self.subject_code} ({self.get_day_of_week_display()} {self.start_time}-{self.end_time})"
+        return f"{self.faculty} - {self.subject_code} ({self.get_day_of_week_display()} {self.start_time}-{self.end_time} @ {self.room})"
+
+    def clean(self):
+        errors = {}
+
+        # Basic time ordering
+        if self.start_time and self.end_time and self.start_time >= self.end_time:
+            errors['end_time'] = "End time must be after start time."
+
+        if not self.faculty:
+            errors['faculty'] = "Faculty is required."
+
+        # Overlap: same faculty + semester + day_of_week; touching endpoints allowed
+        if (
+            self.faculty and self.semester_id and self.day_of_week
+            and self.start_time and self.end_time
+        ):
+            qs = TeachingAssignment.objects.filter(
+                faculty=self.faculty,
+                semester=self.semester,
+                day_of_week=self.day_of_week,
+                start_time__lt=self.end_time,
+                end_time__gt=self.start_time
+            )
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+
+            if qs.exists():
+                conflict_msg = (
+                    "This time range overlaps another assignment for this faculty on this day in this semester."
+                )
+                # Direct assignment (NOT setdefault) to ensure message appears even if other errors exist.
+                errors['start_time'] = conflict_msg
+                errors['end_time'] = conflict_msg
+                # If you prefer a single top message instead:
+                # errors['__all__'] = conflict_msg
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # Ensures clean() always runs
+        return super().save(*args, **kwargs)

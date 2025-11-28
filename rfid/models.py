@@ -11,6 +11,8 @@ from django.utils import timezone
 class RFIDTag(models.Model):
     faculty = models.ForeignKey(FacultyProfile, on_delete=models.CASCADE, null=True, blank=True)
     uid = models.CharField(max_length=255, unique=True)
+    is_active = models.BooleanField(default=True)
+
 
 class AttendanceLog(models.Model):
     faculty = models.ForeignKey(FacultyProfile, on_delete=models.CASCADE)

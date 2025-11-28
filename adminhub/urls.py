@@ -57,9 +57,12 @@ urlpatterns = [
     path('admin/teaching-assignments', views.teaching_assignment_view, name='teaching_assignment'),
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/',views.teaching_assignment_list, name='teaching_assignment_list'),
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/create/',views.teaching_assignment_create, name='teaching_assignment_create'),
-    path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/bulk-upload/',views.teaching_assignment_bulk_upload, name='teaching_assignment_bulk_upload'),
+    # path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/bulk-upload/',views.teaching_assignment_bulk_upload, name='teaching_assignment_bulk_upload'),
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/<int:pk>/edit/',views.teaching_assignment_update, name='teaching_assignment_update'),
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/<int:pk>/delete/',views.teaching_assignment_delete, name='teaching_assignment_delete'),
+
+    path('admin/teaching-assignments/upload/', views.teaching_assignment_bulk_upload, name='teaching_assignment_bulk_upload'),
+    path('admin/teaching-assignments/confirm/', views.teaching_assignment_bulk_confirm, name='teaching_assignment_bulk_confirm'),
 
     path('admin/settings/', views.admin_settings, name='admin_settings'),
     path('admin/settings/academic-years/', views.academic_years_view, name='academic_years'),

@@ -1,111 +1,308 @@
 {% extends 'admin/admin_base.html' %}
 {% block content %}
-<div class="max-w-lg mx-auto my-10 bg-white rounded-lg shadow-xl border border-[#800505]/10 p-0 overflow-hidden">
+<div class="max-w-lg mx-auto my-10">
 
-  <!-- Header bar -->
-  <div class="flex items-center gap-2 px-4 py-3 bg-[#800505] border-b border-[#a80707]">
-    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white opacity-85" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-    </svg>
-    <h2 class="text-base font-semibold text-white tracking-wide flex-1">
-      Pair RFID to Faculty
-    </h2>
-    <a href="{% url 'adminhub:attendance_logs' %}"
-       class="p-1.5 rounded-md hover:bg-white/20 transition" title="Back to Attendance Logs">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
+  {# Modal: New Card Pairing Confirmation (matches existing modal style) #}
+  {% if show_confirm_modal and confirm_context %}
+  <div x-data="{ open: true }" x-cloak x-show="open" class="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
+    <div class="fixed inset-0 bg-black/40"
+         @click="open = false; window.location='{{ request.path }}'"></div>
+    <div x-ref="panel"
+         class="relative w-full max-w-lg bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
+         @keydown.escape.window="open = false; window.location='{{ request.path }}'" tabindex="-1">
+      <form method="post" action="{% url 'adminhub:pair_rfid' %}">
+        {% csrf_token %}
+        <input type="hidden" name="faculty_id" value="{{ confirm_context.faculty_id }}">
+        <input type="hidden" name="rfid_uid" value="{{ confirm_context.rfid_uid }}">
+        <input type="hidden" name="confirm_pair" value="1">
+        <div class="px-6 py-5 border-b bg-gray-50 flex items-start justify-between">
+          <h3 class="text-lg font-semibold text-gray-900">Confirm New Card Pairing</h3>
+          <button type="button" @click="open = false; window.location='{{ request.path }}'" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M6 18L18 6"/>
+            </svg>
+            <span class="sr-only">Close</span>
+          </button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <p class="text-sm text-gray-700">
+            You are about to assign <b>RFID {{ confirm_context.rfid_uid }}</b> as the <b>active card</b> for <b>{{ confirm_context.faculty_name }}</b>.
+          </p>
+          {% if confirm_context.has_previous %}
+          <div class="bg-[#fff5f5] border border-[#f4dada] text-[#800505] rounded-md px-4 py-3 text-xs">
+            This will mark the previous card (UID: <b>{{ confirm_context.prev_uid }}</b>) as inactive.
+          </div>
+          {% endif %}
+          <div class="text-xs text-gray-700">
+            Do you want to proceed?
+          </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t flex items-center justify-end gap-3">
+          <button type="button" @click="open = false; window.location='{{ request.path }}'"
+                  class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-100">Cancel</button>
+          <button type="submit"
+                  class="px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold flex items-center gap-2">
+            Confirm &amp; Pair
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="bg-white rounded-lg shadow-xl border border-[#800505]/10 p-0 overflow-hidden" x-data="pairingPage" x-init="init()">
+
+    <!-- Header bar -->
+    <div class="flex items-center gap-2 px-4 py-3 bg-[#800505] border-b border-[#a80707]">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white opacity-85" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
       </svg>
-    </a>
+      <h2 class="text-base font-semibold text-white tracking-wide flex-1">
+        Pair RFID to Faculty
+      </h2>
+      <a href="{% url 'adminhub:attendance_logs' %}"
+         class="p-1.5 rounded-md hover:bg-white/20 transition" title="Back to Attendance Logs">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
+        </svg>
+      </a>
+    </div>
+
+    <form id="pairRFIDForm"
+          class="px-4 py-6 space-y-8"
+          method="post"
+          action="{% url 'adminhub:pair_rfid' %}"
+          autocomplete="off"
+          @submit.prevent="openConfirm()">
+      {% csrf_token %}
+      <!-- Helper Guide -->
+      <div class="mb-8 bg-blue-50 border border-blue-200 rounded-lg px-5 py-4 leading-relaxed shadow-sm">
+        <div class="flex items-start gap-3">
+          <div>
+            <p class="font-semibold mb-1">How to pair an RFID card to a faculty:</p>
+            <ul class="text-sm space-y-1 list-disc pl-5">
+              <li><b>Select</b> a faculty member from the list.</li>
+              <li><b>Tap</b> or <b>enter</b> the faculty’s RFID card UID.<br>
+                <span class="italic text-xs">Tip: Enable polling if you want the system to detect and read the UID from the RFID scanner as a fallback.</span>
+              </li>
+              <li>Once you’re ready, <b>click “Pair”</b> to confirm the assignment.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {% if message %}
+        <div class="rounded-lg px-4 py-3 mb-4 text-sm {{ message_class }}">
+          {% autoescape off %}{{ message }}{% endautoescape %}
+        </div>
+      {% endif %}
+
+      <!-- Faculty Select (Alpine.js) -->
+      <div x-data="facultySelect" x-init="init()" class="relative">
+        <label class="block text-xs font-semibold text-[#800505] mb-1">Faculty</label>
+        <input type="hidden" name="faculty_id" id="faculty_id" x-model="selected">
+        <button type="button"
+          x-on:click="open = !open"
+          class="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-[#800505] focus:outline-none text-sm transition">
+          <span x-text="selectedName() || 'Select Faculty'"></span>
+          <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l4 4 4-4" />
+          </svg>
+        </button>
+        <div x-show="open" @click.away="open = false"
+             class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+          <div class="p-2">
+            <input type="text" x-model="search" placeholder="Search faculty..."
+                   class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-[#800505] focus:outline-none text-sm">
+          </div>
+          <ul>
+            <template x-for="f in options()" :key="f.uuid">
+              <li>
+                <button type="button"
+                  class="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 text-left text-sm"
+                  :class="{
+                    'font-semibold text-[#800505]': selected === f.uuid,
+                    'bg-yellow-50 border-l-4 border-yellow-400': f.is_new && f.is_unpaired,
+                    'bg-blue-50': !f.is_new && f.is_unpaired
+                  }"
+                  @click="select(f.uuid)">
+                  <span class="flex items-center gap-2">
+                    <span x-text="f.name"></span>
+                    <template x-if="f.is_new && f.is_unpaired">
+                      <span class="text-xs bg-yellow-400/90 text-white rounded px-1.5 py-0.5 ml-1">NEW</span>
+                    </template>
+                    <template x-if="!f.is_new && f.is_unpaired">
+                      <span class="text-xs bg-blue-300/80 text-white rounded px-1.5 py-0.5 ml-1">Unpaired</span>
+                    </template>
+                  </span>
+                  <template x-if="rfid_map[f.pk]">
+                    <span class="flex items-center gap-1 text-green-700 text-xs font-medium">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"
+                           viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round"
+                           d="M5 13l4 4L19 7"/></svg> RFID Paired
+                    </span>
+                  </template>
+                </button>
+              </li>
+            </template>
+            <template x-if="options().length === 0">
+              <li class="px-3 py-2 text-gray-400 text-sm">No faculty found.</li>
+            </template>
+          </ul>
+        </div>
+      </div>
+
+      <!-- RFID UID Field with duplicate scan prevention and clear button -->
+      <div class="relative">
+        <label for="rfid-uid" class="block text-xs font-semibold text-[#800505] mb-1">RFID UID</label>
+        <input
+          type="text"
+          id="rfid-uid"
+          name="rfid_uid"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800505] focus:outline-none text-sm transition pr-10"
+          required autofocus
+          @input="checkAndCorrectDuplicate()"
+          @keydown.enter.prevent="onEnterScan()"
+          x-model="rfidUid"
+          autocomplete="off"
+          spellcheck="false"
+          autocorrect="off"
+          autocapitalize="off"
+        >
+        <!-- Clear button -->
+        <button
+          type="button"
+          x-show="rfidUid.length"
+          @click="clearRfidUid()"
+          tabindex="-1"
+          title="Clear RFID UID"
+          class="absolute top-1/2 right-3 -translate-y-1/2 bg-gray-100 hover:bg-gray-200 rounded-full p-1 text-gray-500 hover:text-[#800505] transition focus:outline-none"
+          style="line-height:1"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 block" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          <span class="sr-only">Clear</span>
+        </button>
+        <div id="rfid-status" class="form-text text-sm flex items-center gap-2 min-h-[1.5em]">
+          <template x-if="pollingActive">
+            <svg class="w-4 h-4 animate-spin text-[#800505]" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+          </template>
+          <span :class="statusClass" x-text="statusText"></span>
+        </div>
+      </div>
+
+      <!-- Polling Switch Area (Stacked) -->
+      <div class="mt-4">
+        <label class="block text-xs font-semibold text-[#800505] mb-2" for="polling-toggle">
+          Enable polling
+        </label>
+        <div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              id="polling-toggle"
+              class="sr-only peer"
+              x-model="pollingActive"
+              @change="togglePolling()"
+            >
+            <div class="w-11 h-6 bg-gray-200 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#800505] peer-checked:bg-[#800505] transition duration-300"></div>
+            <div class="absolute left-1 top-1 bg-white w-4 h-4 rounded-full shadow transition duration-300 peer-checked:translate-x-5"></div>
+          </label>
+        </div>
+        <div class="mt-2 text-xs text-gray-500 italic">
+          When enabled, the system will utilize the RFID Scanner to read and fill the RFID UID automatically. This option is recommended as a fallback if the default USB reader is not functioning.
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-3">
+        <button type="submit"
+                class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
+          Pair
+        </button>
+      </div>
+    </form>
   </div>
 
-  <form id="pairRFIDForm"
-        class="px-4 py-6 space-y-8"
-        method="post"
-        action="{% url 'adminhub:pair_rfid' %}"
-        autocomplete="off">
-    {% csrf_token %}
-    {% if message %}
-      <div class="rounded-lg px-4 py-3 mb-4 text-sm {{ message_class }}">
-        {% autoescape off %}{{ message }}{% endautoescape %}
+  <!-- Confirmation Modal (unchanged) -->
+  <div x-data x-show="$store.pairConfirm.open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
+    <div class="fixed inset-0 bg-black/40" @click="$store.pairConfirm.close()"></div>
+    <div x-ref="panel" class="relative w-full max-w-lg bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden" @keydown.escape.window="$store.pairConfirm.close()" tabindex="-1">
+      <div class="px-6 py-5 border-b bg-gray-50 flex items-start justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Confirm Pairing</h3>
+        <button type="button" @click="$store.pairConfirm.close()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M6 18L18 6"/>
+          </svg>
+          <span class="sr-only">Close</span>
+        </button>
       </div>
-    {% endif %}
-
-    <!-- Faculty Select (Alpine.js) -->
-    <div x-data="facultySelect" x-init="init()" class="relative">
-      <label class="block text-xs font-semibold text-[#800505] mb-1">Faculty</label>
-      <input type="hidden" name="faculty_id" id="faculty_id" x-model="selected">
-      <button type="button"
-        x-on:click="open = !open"
-        class="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-[#800505] focus:outline-none text-sm transition">
-        <span x-text="selectedName() || 'Select Faculty'"></span>
-        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 20 20">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l4 4 4-4" />
-        </svg>
-      </button>
-      <div x-show="open" @click.away="open = false"
-           class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-        <div class="p-2">
-          <input type="text" x-model="search" placeholder="Search faculty..."
-                 class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-[#800505] focus:outline-none text-sm">
+      <div class="px-6 py-5 space-y-4">
+        <p class="text-sm text-gray-700">
+          You are about to pair the RFID UID to the selected faculty. Please confirm the details below.
+        </p>
+        <div class="bg-gray-50 border border-gray-200 rounded-md px-4 py-3 text-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-gray-600">Faculty</span>
+            <span class="font-semibold text-gray-900" x-text="$store.pairConfirm.facultyName || '—'"></span>
+          </div>
+          <div class="flex items-center justify-between mt-2">
+            <span class="text-gray-600">RFID UID</span>
+            <span class="font-mono font-semibold text-gray-900" x-text="$store.pairConfirm.uid || '—'"></span>
+          </div>
         </div>
-        <ul>
-          <template x-for="f in options()" :key="f.uuid">
-            <li>
-              <button type="button"
-                class="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 text-left text-sm"
-                :class="{
-                  'font-semibold text-[#800505]': selected === f.uuid,
-                  'bg-yellow-50 border-l-4 border-yellow-400': f.is_new,
-                  'bg-blue-50': !f.is_new && f.is_unpaired
-                }"
-                @click="select(f.uuid)">
-                <span class="flex items-center gap-2">
-                  <span x-text="f.name"></span>
-                  <template x-if="f.is_new">
-                    <span class="text-xs bg-yellow-400/90 text-white rounded px-1.5 py-0.5 ml-1">NEW</span>
-                  </template>
-                  <template x-if="!f.is_new && f.is_unpaired">
-                    <span class="text-xs bg-blue-300/80 text-white rounded px-1.5 py-0.5 ml-1">Unpaired</span>
-                  </template>
-                </span>
-                <template x-if="rfid_map[f.pk]">
-                  <span class="flex items-center gap-1 text-green-700 text-xs font-medium">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"
-                         viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round"
-                         d="M5 13l4 4L19 7"/></svg> RFID Paired
-                  </span>
-                </template>
-              </button>
-            </li>
-          </template>
-          <template x-if="options().length === 0">
-            <li class="px-3 py-2 text-gray-400 text-sm">No faculty found.</li>
-          </template>
-        </ul>
+        <div class="bg-[#fff5f5] border border-[#f4dada] text-[#800505] rounded-md px-4 py-3 text-xs" x-show="$store.pairConfirm.alreadyPairedWarning">
+          Warning: This UID appears to be already paired. Proceed only if you intend to reassign it.
+        </div>
+      </div>
+      <div class="px-6 py-4 bg-gray-50 border-t flex items-center justify-end gap-3">
+        <button type="button" @click="$store.pairConfirm.close()" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-100">Go Back</button>
+        <button type="button" @click="$store.pairConfirm.confirmSubmit()" class="px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold flex items-center gap-2">
+          <svg x-show="!$store.pairConfirm.submitting" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+          <svg x-show="$store.pairConfirm.submitting" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9" stroke-opacity="0.25"></circle>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v6"/>
+          </svg>
+          <span x-text="$store.pairConfirm.submitting ? 'Submitting...' : 'Confirm & Submit'"></span>
+        </button>
       </div>
     </div>
-
-    <div>
-      <label for="rfid-uid" class="block text-xs font-semibold text-[#800505] mb-1">RFID UID</label>
-      <input type="text" id="rfid-uid" name="rfid_uid"
-             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800505] focus:outline-none text-sm transition" required>
-      <div id="rfid-status" class="form-text text-sm"></div>
-    </div>
-    <div class="flex justify-end pt-3">
-      <button type="submit"
-              class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
-        Pair
-      </button>
-    </div>
-  </form>
+  </div>
 </div>
 
-<!-- Alpine.js for dropdown logic -->
+<!-- Alpine.js -->
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 {{ faculties|json_script:"faculties-data" }}
 {{ rfid_map|json_script:"rfid-map" }}
 <script>
 document.addEventListener('alpine:init', () => {
+  Alpine.store('pairConfirm', {
+    open: false,
+    submitting: false,
+    facultyName: '',
+    uid: '',
+    alreadyPairedWarning: false,
+    openWith(facultyName, uid, alreadyPairedWarning=false) {
+      this.facultyName = facultyName;
+      this.uid = uid;
+      this.alreadyPairedWarning = alreadyPairedWarning;
+      this.open = true;
+    },
+    close() {
+      this.open = false;
+      this.submitting = false;
+    },
+    confirmSubmit() {
+      this.submitting = true;
+      document.getElementById('pairRFIDForm').submit();
+    }
+  });
+
   Alpine.data('facultySelect', () => ({
     search: '',
     selected: '',
@@ -118,7 +315,11 @@ document.addEventListener('alpine:init', () => {
     },
     options() {
       let q = this.search.toLowerCase();
-      return this.faculties.filter(f =>
+      // Only mark as "NEW" if unpaired
+      return this.faculties.map(f => {
+        f.is_new_and_unpaired = f.is_new && f.is_unpaired;
+        return f;
+      }).filter(f =>
         f.name.toLowerCase().includes(q)
       );
     },
@@ -131,39 +332,148 @@ document.addEventListener('alpine:init', () => {
       let obj = this.faculties.find(f => f.uuid === this.selected);
       return obj ? obj.name : '';
     }
-  }))
-})
-</script>
+  }));
 
-<!-- RFID UID polling script -->
-<script>
-let pollingInterval = null;
-let lastSeenUid = null;
+  Alpine.data('pairingPage', () => ({
+    statusText: '',
+    statusClass: 'text-sm',
+    faculties: [],
+    rfidMap: {},
+    rfidUid: '',
+    pollingActive: false,
+    pollingInterval: null,
+    lastSeenUid: null,
+    pollingError: false,
+    duplicateScanCorrection: false,
+    clearRfidUid() {
+      this.rfidUid = '';
+      this.statusText = '';
+      this.statusClass = 'text-sm';
+      this.duplicateScanCorrection = false;
+      queueMicrotask(() => {
+        document.getElementById('rfid-uid')?.focus({ preventScroll: true });
+      });
+    },
+    checkAndCorrectDuplicate() {
+      this.duplicateScanCorrection = false;
+      let val = this.rfidUid || '';
+      if (!val.length) return;
+      let len = val.length;
+      for (let n = 1; n <= Math.floor(len / 2); ++n) {
+        let substr = val.slice(0, n);
+        if (substr.repeat(Math.floor(len / n)) === val && len % n === 0 && Math.floor(len / n) > 1) {
+          this.rfidUid = substr;
+          this.duplicateScanCorrection = true;
+          this.statusText = "Detected repeated card scan. Only one scan kept.";
+          this.statusClass = "form-text text-sm text-yellow-700";
+          return;
+        }
+      }
+      if (this.duplicateScanCorrection) {
+        this.statusText = '';
+        this.statusClass = 'text-sm';
+        this.duplicateScanCorrection = false;
+      }
+    },
+    init() {
+      this.faculties = JSON.parse(document.getElementById('faculties-data').textContent);
+      this.rfidMap = JSON.parse(document.getElementById('rfid-map').textContent);
+      queueMicrotask(() => {
+        const input = document.getElementById('rfid-uid');
+        input && input.focus({ preventScroll: true });
+      });
 
-function startUidPolling() {
-    pollingInterval = setInterval(function() {
+      document.addEventListener('keydown', (e) => {
+        const el = document.activeElement;
+        const tag = el?.tagName?.toLowerCase();
+        const isTypingField = tag === 'input' || tag === 'textarea' || el?.isContentEditable;
+        if (!isTypingField) {
+          const input = document.getElementById('rfid-uid');
+          input && input.focus({ preventScroll: true });
+        }
+      }, true);
+    },
+    onEnterScan() {
+      const facultyUuid = document.getElementById('faculty_id').value;
+      const uid = this.sanitize(this.rfidUid);
+
+      if (!facultyUuid) {
+        this.statusText = 'Select a faculty first, then scan the card.';
+        this.statusClass = 'form-text text-red-700';
+        return;
+      }
+      if (!uid) {
+        this.statusText = 'No UID captured. Please scan again.';
+        this.statusClass = 'form-text text-red-700';
+        return;
+      }
+      this.statusText = 'Card read. Review and click Pair to confirm.';
+      this.statusClass = 'form-text text-blue-700';
+    },
+    openConfirm() {
+      const facultyUuid = document.getElementById('faculty_id').value;
+      const uid = this.sanitize(this.rfidUid);
+
+      if (!facultyUuid) {
+        this.statusText = 'Please select a faculty before pairing.';
+        this.statusClass = 'form-text text-red-700';
+        return;
+      }
+      if (!uid) {
+        this.statusText = 'Please scan an RFID card to get a UID.';
+        this.statusClass = 'form-text text-red-700';
+        return;
+      }
+      const faculty = this.faculties.find(f => f.uuid === facultyUuid);
+      const facultyName = faculty ? faculty.name : '(unknown)';
+      const alreadyPaired = Object.values(this.rfidMap).some(mappedUid => String(mappedUid) === String(uid));
+      Alpine.store('pairConfirm').openWith(facultyName, uid, alreadyPaired);
+    },
+    sanitize(uid) {
+      return (uid || '').replace(/[^A-Za-z0-9]/g, '').trim();
+    },
+    togglePolling() {
+      if (this.pollingActive) {
+        this.statusText = "Waiting for card tap...";
+        this.statusClass = 'form-text text-sm text-gray-600';
+        this.startPolling();
+      } else {
+        this.stopPolling();
+        this.statusText = '';
+        this.statusClass = 'form-text text-sm';
+      }
+    },
+    startPolling() {
+      if (this.pollingInterval) clearInterval(this.pollingInterval);
+      this.pollingInterval = setInterval(() => {
         fetch("{% url 'adminhub:rfid_pairing_tap_api' %}")
-        .then(r => r.json())
+        .then(r => {
+          if (!r.ok) throw new Error('Network error');
+          return r.json();
+        })
         .then(data => {
-            if (data.uid && data.uid !== lastSeenUid) {
-                lastSeenUid = data.uid;
-                document.getElementById("rfid-uid").value = data.uid;
-                document.getElementById("rfid-status").innerText = "Auto-filled from RFID tap!";
-                document.getElementById("rfid-status").className = "form-text text-success";
-            }
+          this.pollingError = false;
+          if (data && data.uid && data.uid !== this.lastSeenUid) {
+            this.lastSeenUid = data.uid;
+            this.rfidUid = data.uid;
+            this.checkAndCorrectDuplicate();
+            this.statusText = "Auto-filled from RFID tap!";
+            this.statusClass = 'form-text text-success text-green-700';
+          }
+        })
+        .catch(() => {
+          this.statusText = "Polling failed. Check connection or try again.";
+          this.statusClass = 'form-text text-sm text-red-700';
+          this.pollingError = true;
         });
-    }, 1000);
-}
-function stopUidPolling() {
-    if (pollingInterval) clearInterval(pollingInterval);
-    pollingInterval = null;
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    startUidPolling();
-});
-document.getElementById('pairRFIDForm').addEventListener('submit', function(){
-    stopUidPolling();
+      }, 1000);
+    },
+    stopPolling() {
+      if (this.pollingInterval) clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+      this.pollingError = false;
+    }
+  }));
 });
 </script>
 {% endblock %}

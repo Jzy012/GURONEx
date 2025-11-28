@@ -1,0 +1,8 @@
+Subject Code,Subject Description,Year/Section,Day of Week,Start Time,End Time,Room,Faculty Name
+IT101,Introduction to Information Technology,BSIT 1-1,Monday,8:00,9:30,LAB-1,John Doe
+,,,,,,,
+MTH201,Calculus II,BSIT 2-1,Tuesday,10:00,11:30,RM 203,Jane Smith 
+,,,,,,,
+ENG150,English Composition,BSIT 1-2,Wednesday,13:00,14:30,,
+,,,,,,,
+CS205,Data Structures,BSIT 3-1,Thursday,9:00,10:30,ED101,Albert Tan

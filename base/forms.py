@@ -691,12 +691,16 @@ class ApplicantDocumentUploadForm(forms.ModelForm):
 from django import forms
 from faculty.models import TeachingAssignment
 
+CONFLICT_MESSAGE = (
+    "This time range overlaps another assignment for this faculty on this day in this semester."
+)
+
 class TeachingAssignmentForm(forms.ModelForm):
     class Meta:
         model = TeachingAssignment
         fields = [
             'subject_code', 'subject_description', 'year_section',
-            'day_of_week', 'start_time', 'end_time', 'semester'
+            'day_of_week', 'start_time', 'end_time', 'room', 'semester'
         ]
         widgets = {
             'start_time': forms.TimeInput(format='%H:%M', attrs={'type': 'time'}),
@@ -704,15 +708,69 @@ class TeachingAssignmentForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.faculty = kwargs.pop('faculty', None)
         super().__init__(*args, **kwargs)
+
+        # Base classes
         for name, field in self.fields.items():
-            old = field.widget.attrs.get('class', '')
+            base = field.widget.attrs.get('class', '')
             field.widget.attrs['class'] = (
-                old + ' block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm '
+                base + ' block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm '
                 'focus:outline-none focus:ring-2 focus:ring-[#800505] focus:border-[#800505] text-sm'
             ).strip()
 
+        if 'room' in self.fields:
+            self.fields['room'].widget.attrs.setdefault('placeholder', 'e.g. LAB-3 or RM 201')
 
+    def clean(self):
+        cleaned = super().clean()
+
+        # Ensure faculty is attached early
+        if self.faculty and not self.instance.faculty_id:
+            self.instance.faculty = self.faculty
+
+        start = cleaned.get('start_time')
+        end = cleaned.get('end_time')
+        day = cleaned.get('day_of_week')
+        semester = cleaned.get('semester')
+        faculty = self.instance.faculty
+
+        # Time ordering
+        if start and end and start >= end:
+            self.add_error('end_time', "End time must be after start time.")
+
+        # Overlap check only if all pieces valid so far
+        if faculty and semester and day and start and end:
+            qs = TeachingAssignment.objects.filter(
+                faculty=faculty,
+                semester=semester,
+                day_of_week=day,
+                start_time__lt=end,
+                end_time__gt=start
+            )
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+
+            if qs.exists():
+                self.add_error('start_time', CONFLICT_MESSAGE)
+                self.add_error('end_time', CONFLICT_MESSAGE)
+                # Or self.add_error(None, CONFLICT_MESSAGE) for a top-only message
+
+        return cleaned
+
+    def full_clean(self):
+        """
+        Override to append error styling classes automatically after validation.
+        """
+        super().full_clean()
+        if self.errors:
+            for field_name in self.errors:
+                if field_name in self.fields:
+                    cls = self.fields[field_name].widget.attrs.get('class', '')
+                    if 'border-red-500' not in cls:
+                        self.fields[field_name].widget.attrs['class'] = (
+                            cls + ' border-red-500 focus:border-red-600 focus:ring-red-600'
+                        ).strip()
 class TeachingAssignmentBulkUploadForm(forms.Form):
     file = forms.FileField(help_text="Upload CSV or Excel file")
 
@@ -754,3 +812,43 @@ class ManualAttendanceLogForm(forms.ModelForm):
             raise ValidationError("Time out must be after time in.")
 
         return cleaned_data
+
+
+
+
+
+from django import forms
+
+
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class TeachingAssignmentBulkUploadForm(forms.Form):
+    files = forms.FileField(
+        label="Select one or more files to upload",
+        widget=MultipleFileInput(attrs={
+            'class': 'form-control',
+        }),
+        help_text=(
+            "Upload one or more CSV or Excel files (.csv, .xls, .xlsx). "
+            "Required columns (case-insensitive): "
+            "'Subject Code', 'Subject Description', 'Year/Section', 'Room', 'Day of Week', "
+            "'Start Time', 'End Time', 'Semester'. Optional column: 'Faculty Name' "
+            "(used to preselect a faculty on the preview page). "
+            "Time formats accepted: 24-hour (e.g. 08:00) "
+            "(e.g. 10:00 AM). For Excel files times may be Excel time values. "
+            "Semester may be provided as:"
+            "  • a numeric Semester id (preferred), or"
+            "  • a text value describing semester_type and academic year, e.g. '1st 2025-2026' or '1st Semester 2025–2026'."
+            "Room may be free text (e.g. 'LAB-3', 'RM 201')."
+
+        )
+    )
+
+    def clean_files(self):
+        # When using multiple files the view should call request.FILES.getlist('files').
+        files = self.files.getlist('files') if hasattr(self, 'files') else None
+        if not files:
+            raise forms.ValidationError("Please select at least one file.")
+        return files

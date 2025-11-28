@@ -1,0 +1,1022 @@
+{% extends "admin/admin_base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  [x-cloak] { display: none !important; }
+  .row-error-border { border-color: #dc2626 !important; }
+  .row-error-bg { background-color: #fef2f2 !important; }
+  /* Dim removed rows but keep pointer events so Restore button remains clickable */
+  .row-removed { opacity: 0.45; }
+
+  /* More visible remove button styling */
+  .remove-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: transform .06s ease, box-shadow .12s ease;
+  }
+  .remove-btn:active { transform: translateY(1px); }
+  .remove-btn-removed { box-shadow: none; opacity: 0.95; }
+
+  /* small helper class to avoid hash/bracket expressions in bindings */
+  .applied-bg { background-color: #fff5f5; }
+</style>
+
+<div class="max-w-5xl mx-auto space-y-6" x-data="confirmModal()" data-row-count="{{ rows|length }}">
+
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <h2 class="text-3xl font-bold text-gray-900">Confirm Upload</h2>
+    <a href="{% url 'adminhub:teaching_assignment' %}"
+       class="flex items-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-150 text-sm font-semibold">
+      Back to Faculty List
+    </a>
+  </div>
+
+  {% if general_error %}
+    <div class="px-4 py-3 rounded border bg-red-50 text-red-700 border-red-300 text-sm">
+      <strong class="font-semibold">Error:</strong> {{ general_error }}
+    </div>
+  {% endif %}
+
+  {% if messages %}
+    <ul class="space-y-2">
+      {% for message in messages %}
+        <li class="px-4 py-2 rounded border
+          {% if message.tags == 'error' %}bg-red-50 text-red-700 border-red-200
+          {% elif message.tags == 'success' %}bg-green-50 text-green-700 border-green-200
+          {% else %}bg-gray-50 text-gray-700 border-gray-200
+          {% endif %}">
+          {{ message }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <div id="validation-alert"
+       class="hidden px-4 py-3 rounded-lg border border-red-300 bg-red-50 text-red-700 text-sm relative"
+       role="alert">
+    <div class="font-semibold mb-1">Missing required selections</div>
+    <div id="validation-alert-text" class="leading-snug">
+      Please complete all faculty and semester selections before confirming.
+    </div>
+    <button type="button"
+            class="absolute top-2 right-2 text-red-500 hover:text-red-700"
+            onclick="document.getElementById('validation-alert').classList.add('hidden');">
+      <span class="sr-only">Dismiss</span>
+      &times;
+    </button>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <form method="post" id="ta-confirm-form" class="space-y-6" novalidate>
+      {% csrf_token %}
+      <p class="text-sm text-gray-600">
+        Edit any fields below. Faculty & Semester are required. No assignments will be created until every included row is error‑free.
+      </p>
+
+      <!-- Apply faculty and semester global UI -->
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-gray-50 border rounded-lg">
+        <div class="text-xs font-semibold text-gray-700 shrink-0">Apply faculty to all:</div>
+        <div x-data="applyFacultyGlobal()" x-init="init()" class="w-full sm:w-auto">
+          <div class="flex flex-col sm:flex-row sm:items-stretch gap-2">
+            <div class="relative w-full sm:w-64">
+              <button type="button"
+                      @click="open = !open"
+                      class="flex items-center justify-between w-full px-3 py-2 border border-gray-300 rounded-lg sm:rounded-l-lg sm:rounded-r-none bg-white text-sm shadow-sm focus:ring-2 focus:ring-[#800505]"
+                      :aria-expanded="open.toString()">
+                <span class="truncate" x-text="selectedDisplay || 'Select faculty to apply'"></span>
+                <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l4 4 4-4"/>
+                </svg>
+              </button>
+              <div x-show="open" x-cloak @click.away="open = false"
+                   class="absolute inset-x-0 sm:right-auto sm:w-64 mt-1 z-30 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                <div class="p-2">
+                  <input type="text" x-model="search" placeholder="Search faculty..."
+                         class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-[#800505]" />
+                </div>
+                <ul class="py-1">
+                  <template x-for="f in filtered()" :key="f.uuid">
+                    <li>
+                      <button type="button"
+                              @click="pick(f.uuid, f.display)"
+                              class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
+                        <span class="truncate" x-text="f.display"></span>
+                      </button>
+                    </li>
+                  </template>
+                  <template x-if="filtered().length === 0">
+                    <li class="px-3 py-2 text-gray-400 text-sm">No matches.</li>
+                  </template>
+                </ul>
+              </div>
+            </div>
+            <button type="button"
+                    @click="applyAll()"
+                    class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg text-sm font-semibold shadow-sm">
+              Apply
+            </button>
+          </div>
+        </div>
+
+        <!-- Apply Semester to all -->
+        <div class="text-xs font-semibold text-gray-700 shrink-0">Apply semester to all:</div>
+        <div x-data="applySemesterGlobal()" x-init="init()" class="w-full sm:w-auto">
+          <div class="flex flex-col sm:flex-row sm:items-stretch gap-2">
+            <div class="relative w-full sm:w-64">
+              <button type="button"
+                      @click="open = !open"
+                      class="flex items-center justify-between w-full px-3 py-2 border border-gray-300 rounded-lg sm:rounded-l-lg sm:rounded-r-none bg-white text-sm shadow-sm focus:ring-2 focus:ring-[#800505]"
+                      :aria-expanded="open.toString()">
+                <span class="truncate" x-text="selectedDisplay || 'Select semester to apply'"></span>
+                <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l4 4 4-4"/>
+                </svg>
+              </button>
+              <div x-show="open" x-cloak @click.away="open = false"
+                   class="absolute inset-x-0 sm:right-auto sm:w-64 mt-1 z-30 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                <ul class="py-1">
+                  <template x-for="s in filtered()" :key="s.id">
+                    <li>
+                      <button type="button"
+                              @click="pick(s.id, s.display)"
+                              class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
+                        <span class="truncate" x-text="s.display"></span>
+                      </button>
+                    </li>
+                  </template>
+                  <template x-if="filtered().length === 0">
+                    <li class="px-3 py-2 text-gray-400 text-sm">No semesters found</li>
+                  </template>
+                </ul>
+              </div>
+            </div>
+            <button type="button"
+                    @click="applyAll()"
+                    class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg text-sm font-semibold shadow-sm">
+              Apply
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rows -->
+      <div id="rows-container" class="space-y-5">
+        {% for row in rows %}
+          {% with has_row_errors=row.errors|length %}
+          <div id="row-wrapper-{{ row.index }}"
+               class="row-wrapper border rounded-lg p-5 {% if has_row_errors %}row-error-border row-error-bg{% else %}bg-gray-50 border-gray-200{% endif %} {% if row.removed %}row-removed{% endif %}"
+               data-row-index="{{ row.index }}" data-row-idx="{{ row.index|escapejs }}">
+            <div class="space-y-4">
+              <div class="flex items-center justify-end">
+
+                <div class="flex items-center gap-3">
+                  <!-- Persist removed state in hidden include input -->
+                  <input type="hidden" name="include_{{ row.index }}" id="include_{{ row.index }}" value="{% if row.removed %}0{% else %}1{% endif %}" />
+
+                  {% if row.removed %}
+                  <button
+                    type="button"
+                    id="remove_btn_{{ row.index }}"
+                    data-row-idx="{{ row.index|escapejs }}"
+                    onclick="toggleRowInclude(this.dataset.rowIdx)"
+                    class="remove-btn bg-gray-300 text-gray-700 remove-btn-removed"
+                    title="Restore row">
+                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862A2 2 0 015.867 19.142L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                    </svg>
+                    <span>Restore</span>
+                  </button>
+                  {% else %}
+                  <button
+                    type="button"
+                    id="remove_btn_{{ row.index }}"
+                    data-row-idx="{{ row.index|escapejs }}"
+                    onclick="toggleRowInclude(this.dataset.rowIdx)"
+                    class="remove-btn bg-red-600 hover:bg-red-700 text-white border border-red-700"
+                    title="Remove row">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862A2 2 0 015.867 19.142L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                    </svg>
+                    <span>Remove</span>
+                  </button>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="flex flex-col">
+                  <label class="text-xs font-semibold text-gray-700 mb-1">Faculty</label>
+
+                  <div x-data="facultySelect"
+                       x-init="init()"
+                       data-row-index="{{ row.index|escapejs }}"
+                       data-initial-faculty="{{ row.faculty_uuid|default:row.faculty_choice|default:''|escapejs }}"
+                       class="relative w-full">
+                    <input type="hidden" name="assign_{{ row.index }}" id="assign_{{ row.index }}" x-model="selected">
+                    <button type="button"
+                            @click="open = !open"
+                            class="faculty-trigger flex items-center justify-between w-full px-3 py-2 border rounded-lg bg-white text-sm shadow-sm focus:ring-2 focus:ring-[#800505]
+                                   {% if has_row_errors and not row.faculty_uuid and not row.faculty_choice %}border-red-500{% else %}border-gray-300{% endif %}"
+                            {% if row.removed %}disabled{% endif %}>
+                      <span class="truncate" x-text="selectedName() || 'Select faculty'"></span>
+                      <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l4 4 4-4"/>
+                      </svg>
+                    </button>
+
+                    <div x-show="open" x-cloak @click.away="open = false"
+                         class="absolute inset-x-0 mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                      <div class="p-2">
+                        <input type="text" x-model="search" placeholder="Search faculty..."
+                               class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-[#800505]" />
+                      </div>
+                      <ul class="py-1">
+                        <template x-for="f in options()" :key="f.uuid">
+                          <li>
+                            <button type="button"
+                                    @click="select(f.uuid)"
+                                    :class="selected === f.uuid ? 'applied-bg' : ''"
+                                    class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
+                              <span class="truncate" x-text="f.display"></span>
+                            </button>
+                          </li>
+                        </template>
+                        <template x-if="options().length === 0">
+                          <li class="px-3 py-2 text-gray-400 text-sm">No faculty found</li>
+                        </template>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex flex-col">
+                  <label class="text-xs font-semibold text-gray-700 mb-1">Semester</label>
+
+                  <div x-data="semesterSelect"
+                       x-init="init()"
+                       data-row-index="{{ row.index|escapejs }}"
+                       data-initial-semester="{{ row.semester_id|default:row.semester_choice|default:''|escapejs }}"
+                       class="relative w-full">
+                    <input type="hidden" name="semester_{{ row.index }}" id="semester_{{ row.index }}" x-model="selected">
+                    <button type="button"
+                            @click="open = !open"
+                            class="semester-trigger flex items-center justify-between w-full px-3 py-2 border rounded-lg bg-white text-sm shadow-sm focus:ring-2 focus:ring-[#800505]
+                                   {% if has_row_errors and not row.semester_id and not row.semester_choice %}border-red-500{% else %}border-gray-300{% endif %}"
+                            {% if row.removed %}disabled{% endif %}>
+                      <span class="truncate" x-text="selectedName() || 'Select semester'"></span>
+                      <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l4 4 4-4"/>
+                      </svg>
+                    </button>
+
+                    <div x-show="open" x-cloak @click.away="open = false"
+                         class="absolute inset-x-0 mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                      <ul class="py-1">
+                        <template x-for="s in options()" :key="s.id">
+                          <li>
+                            <button type="button"
+                                    @click="select(s.id)"
+                                    :class="selected === s.id ? 'applied-bg' : ''"
+                                    class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
+                              <span class="truncate" x-text="s.display"></span>
+                            </button>
+                          </li>
+                        </template>
+                        <template x-if="options().length === 0">
+                          <li class="px-3 py-2 text-gray-400 text-sm">No semesters found</li>
+                        </template>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-white border rounded-md p-4 {% if has_row_errors %}border-red-300{% else %}border-gray-200{% endif %}">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div class="flex flex-col">
+                    <label for="subject_code_{{ row.index }}" class="text-[11px] uppercase text-gray-500">Subject Code</label>
+                    <input type="text" id="subject_code_{{ row.index }}" name="subject_code_{{ row.index }}"
+                           value="{{ row.subject_code }}"
+                           {% if row.removed %}disabled{% endif %}
+                           class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505]
+                                  {% if has_row_errors and not row.subject_code %}border-red-500{% else %}border-gray-300{% endif %}">
+                  </div>
+
+                  <div class="flex flex-col md:col-span-2">
+                    <label for="subject_description_{{ row.index }}" class="text-[11px] uppercase text-gray-500">Subject Description</label>
+                    <input type="text" id="subject_description_{{ row.index }}" name="subject_description_{{ row.index }}"
+                           value="{{ row.subject_description }}"
+                           {% if row.removed %}disabled{% endif %}
+                           class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505]
+                                  {% if has_row_errors and not row.subject_description %}border-red-500{% else %}border-gray-300{% endif %}">
+                  </div>
+
+                  <div class="flex flex-col">
+                    <label for="year_section_{{ row.index }}" class="text-[11px] uppercase text-gray-500">Year / Section</label>
+                    <input type="text" id="year_section_{{ row.index }}" name="year_section_{{ row.index }}"
+                           value="{{ row.year_section }}"
+                           {% if row.removed %}disabled{% endif %}
+                           class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505]
+                                  {% if has_row_errors and not row.year_section %}border-red-500{% else %}border-gray-300{% endif %}">
+                  </div>
+
+                  <div class="flex flex-col">
+                    <label for="day_{{ row.index }}" class="text-[11px] uppercase text-gray-500">Day of Week</label>
+                    <select id="day_{{ row.index }}" name="day_{{ row.index }}"
+                            {% if row.removed %}disabled{% endif %}
+                            class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505]
+                                   {% if has_row_errors and not row.day_of_week %}border-red-500{% else %}border-gray-300{% endif %}">
+                      <option value="">--</option>
+                      <option value="mon" {% if row.day_of_week == 'mon' %}selected{% endif %}>Monday</option>
+                      <option value="tue" {% if row.day_of_week == 'tue' %}selected{% endif %}>Tuesday</option>
+                      <option value="wed" {% if row.day_of_week == 'wed' %}selected{% endif %}>Wednesday</option>
+                      <option value="thu" {% if row.day_of_week == 'thu' %}selected{% endif %}>Thursday</option>
+                      <option value="fri" {% if row.day_of_week == 'fri' %}selected{% endif %}>Friday</option>
+                      <option value="sat" {% if row.day_of_week == 'sat' %}selected{% endif %}>Saturday</option>
+                    </select>
+                  </div>
+
+                  <div class="flex flex-col">
+                    <label for="start_time_{{ row.index }}" class="text-[11px] uppercase text-gray-500">Start Time</label>
+                    <input type="time" id="start_time_{{ row.index }}" name="start_time_{{ row.index }}"
+                           value="{{ row.start_raw }}"
+                           {% if row.removed %}disabled{% endif %}
+                           class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505]
+                                  {% if has_row_errors %}border-red-500{% else %}border-gray-300{% endif %}">
+                  </div>
+
+                  <div class="flex flex-col">
+                    <label for="end_time_{{ row.index }}" class="text-[11px] uppercase text-gray-500">End Time</label>
+                    <input type="time" id="end_time_{{ row.index }}" name="end_time_{{ row.index }}"
+                           value="{{ row.end_raw }}"
+                           {% if row.removed %}disabled{% endif %}
+                           class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505]
+                                  {% if has_row_errors %}border-red-500{% else %}border-gray-300{% endif %}">
+                  </div>
+
+                  <div class="flex flex-col">
+                    <label for="room_{{ row.index }}" class="text-[11px] uppercase text-gray-500">Room (Optional)</label>
+                    <input type="text" id="room_{{ row.index }}" name="room_{{ row.index }}"
+                           value="{{ row.room }}"
+                           {% if row.removed %}disabled{% endif %}
+                           placeholder="e.g. LAB-3"
+                           class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505] border-gray-300">
+                  </div>
+                </div>
+
+                {% if has_row_errors %}
+                  <div class="mt-4 rounded-md border border-red-300 bg-red-50 p-3">
+                    <ul class="text-xs text-red-700 space-y-1">
+                      {% for err in row.errors %}
+                        <li>• {{ err }}</li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endwith %}
+        {% endfor %}
+      </div>
+
+      <div class="flex items-center justify-between gap-3 pt-2">
+        <!-- Add Field button on the LEFT as requested -->
+        <div>
+          <button type="button" id="add-row-btn" onclick="addRow()"
+                  class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+            <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            Add field
+          </button>
+        </div>
+
+        <div class="flex items-center justify-end gap-3">
+          <a href="{% url 'adminhub:teaching_assignment_bulk_upload' %}"
+             class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+            Cancel / Upload different files
+          </a>
+
+          <button type="button"
+                  @click="attemptOpen()"
+                  id="confirm-submit"
+                  class="flex items-center gap-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold">
+            Confirm and Create Assignments
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Modal (rendered in-place; not teleported) -->
+  <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
+    <div class="fixed inset-0 bg-black/40" @click="close()"></div>
+    <div x-ref="panel" class="relative w-full max-w-lg bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden" @keydown.escape.window="close()" tabindex="-1">
+      <div class="px-6 py-5 border-b bg-gray-50 flex items-start justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Confirm Creation</h3>
+        <button type="button" @click="close()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M6 18L18 6"/>
+          </svg>
+          <span class="sr-only">Close</span>
+        </button>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <p class="text-sm text-gray-700">
+          You are about to create teaching assignment records for
+          <span class="font-semibold" x-text="rowCount"></span> row(s).
+        </p>
+        <div class="bg-[#fff5f5] border border-[#f4dada] text-[#800505] rounded-md px-4 py-3 text-sm">
+          Ensure all edited fields are correct. This action cannot be undone automatically.
+        </div>
+      </div>
+      <div class="px-6 py-4 bg-gray-50 border-t flex items-center justify-end gap-3">
+        <button type="button" @click="close()" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-100">Go Back</button>
+        <button type="button" @click="confirmSubmit()" class="px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold flex items-center gap-2">
+          <svg x-show="!submitting" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+          <svg x-show="submitting" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9" stroke-opacity="0.25"></circle>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v6"/>
+          </svg>
+          <span x-text="submitting ? 'Submitting...' : 'Confirm & Submit'"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# Inject JSON data from the view #}
+<script id="faculties-data" type="application/json">{{ faculty_list_json|safe }}</script>
+<script id="semesters-data" type="application/json">{{ semester_list_json|safe }}</script>
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script>
+  // Global next-index counter (computed on DOM ready)
+  let __nextRowIndex = null;
+
+  function computeNextIndex() {
+    if (__nextRowIndex !== null) return __nextRowIndex;
+    const rows = Array.from(document.querySelectorAll('.row-wrapper'));
+    let max = -1;
+    rows.forEach(r => {
+      const idx = parseInt(r.dataset.rowIndex || r.dataset.rowIdx || '-1', 10);
+      if (!Number.isNaN(idx) && idx > max) max = idx;
+    });
+    __nextRowIndex = max + 1;
+    if (__nextRowIndex < 0) __nextRowIndex = 0;
+    return __nextRowIndex;
+  }
+
+  function getNextIndex() {
+    const val = computeNextIndex();
+    __nextRowIndex = val + 1;
+    return val;
+  }
+
+  // compute number of included (not removed) rows by reading include_<idx> hidden inputs
+  function computeIncludedCount() {
+    const rows = Array.from(document.querySelectorAll('.row-wrapper'));
+    let count = 0;
+    rows.forEach(wrapper => {
+      const idx = wrapper.dataset.rowIdx || wrapper.dataset.rowIndex;
+      const inc = document.getElementById('include_' + idx);
+      if (inc && inc.value === '1') count++;
+    });
+    return count;
+  }
+
+  function updateRowCountUI() {
+    const countEl = document.querySelector('[data-row-count]');
+    const included = computeIncludedCount();
+    if (countEl) countEl.setAttribute('data-row-count', String(included));
+    // if Alpine has initialised the container, update its reactive data
+    const container = document.querySelector('[x-data="confirmModal()"]');
+    if (container && container.__x && container.__x.$data) {
+      container.__x.$data.rowCount = included;
+    }
+  }
+
+  // add a new blank row (client-side only) — uses %%IDX%% placeholder
+  function addRow() {
+    const idx = getNextIndex();
+    const tmpl = document.getElementById('row-template');
+    if (!tmpl) {
+      console.error('Row template not found');
+      return;
+    }
+    let html = tmpl.innerHTML;
+    // replace placeholder %%IDX%% with actual index
+    html = html.replace(/%%IDX%%/g, String(idx));
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html.trim();
+    const newRow = wrapper.firstElementChild;
+    if (!newRow) return;
+    document.getElementById('rows-container').appendChild(newRow);
+
+    // Initialize Alpine inside new node if available
+    if (window.Alpine && typeof window.Alpine.initTree === 'function') {
+      window.Alpine.initTree(newRow);
+    } else if (window.Alpine && typeof window.Alpine.discover === 'function') {
+      // fallback: let Alpine discover the new node
+      try { window.Alpine.discover(); } catch (e) {}
+    }
+
+    // Ensure initial removed states are applied if include value is 0
+    applyInitialRemovedStates();
+    updateRowCountUI();
+
+    // Focus subject code for UX
+    const subjectInput = newRow.querySelector(`#subject_code_${idx}`);
+    if (subjectInput) subjectInput.focus();
+  }
+
+  // Helper to initialize any rows that were removed server-side so their controls are disabled
+  function applyInitialRemovedStates() {
+    document.querySelectorAll('.row-wrapper').forEach(wrapper => {
+      const idx = wrapper.dataset.rowIdx || wrapper.dataset.rowIndex;
+      const includeInput = document.getElementById('include_' + idx);
+      const btn = document.getElementById('remove_btn_' + idx);
+      if (!includeInput || !btn) return;
+      if (includeInput.value === '0') {
+        wrapper.classList.add('row-removed');
+        const allControls = Array.from(wrapper.querySelectorAll('input:not([type="hidden"]), select, textarea, button'));
+        const controls = allControls.filter(el => el.id !== ('remove_btn_' + idx));
+        controls.forEach(el => {
+          el.dataset._wasDisabled = el.disabled ? '1' : '0';
+          el.disabled = true;
+        });
+        btn.style.pointerEvents = 'auto';
+      } else {
+        wrapper.classList.remove('row-removed');
+      }
+    });
+    updateRowCountUI();
+  }
+
+  // Toggle include flag for a row (Remove / Restore)
+  function toggleRowInclude(idx) {
+    if (typeof idx === 'string' && /^\d+$/.test(idx)) idx = parseInt(idx, 10);
+    const input = document.getElementById('include_' + idx);
+    const wrapper = document.getElementById('row-wrapper-' + idx);
+    const btn = document.getElementById('remove_btn_' + idx);
+    if (!input || !wrapper || !btn) return;
+
+    const allControls = Array.from(wrapper.querySelectorAll('input:not([type="hidden"]), select, textarea, button'));
+    const controls = allControls.filter(el => el.id !== ('remove_btn_' + idx));
+
+    if (input.value === '1') {
+      input.value = '0';
+      wrapper.classList.add('row-removed');
+      controls.forEach(el => {
+        el.dataset._wasDisabled = el.disabled ? '1' : '0';
+        el.disabled = true;
+      });
+      btn.classList.remove('bg-red-600', 'hover:bg-red-700', 'text-white', 'border-red-700');
+      btn.classList.add('bg-gray-300', 'text-gray-700', 'remove-btn-removed');
+      const label = btn.querySelector('span');
+      if (label) label.textContent = 'Restore';
+      btn.style.pointerEvents = 'auto';
+    } else {
+      input.value = '1';
+      wrapper.classList.remove('row-removed');
+      controls.forEach(el => {
+        if (el.dataset._wasDisabled === '1') {
+          el.disabled = true;
+        } else {
+          el.disabled = false;
+        }
+        delete el.dataset._wasDisabled;
+      });
+      btn.classList.remove('bg-gray-300', 'text-gray-700', 'remove-btn-removed');
+      btn.classList.add('bg-red-600', 'hover:bg-red-700', 'text-white', 'border-red-700');
+      const label = btn.querySelector('span');
+      if (label) label.textContent = 'Remove';
+      btn.style.pointerEvents = 'auto';
+    }
+
+    // keep row count UI in sync
+    updateRowCountUI();
+  }
+
+  document.addEventListener('alpine:init', () => {
+    window.facultyComponents = window.facultyComponents || {};
+    window.semesterComponents = window.semesterComponents || {};
+
+    Alpine.data('facultySelect', () => ({
+      search: '',
+      selected: '',
+      open: false,
+      faculties: [],
+      rowIndex: '',
+      init() {
+        this.rowIndex = this.$el.dataset.rowIndex || this.$el.dataset.rowIdx || '';
+        this.selected = this.$el.dataset.initialFaculty || '';
+        try { this.faculties = JSON.parse(document.getElementById('faculties-data').textContent || '[]'); }
+        catch(e) { console.error('Failed to parse faculties-data', e); this.faculties = []; }
+        this.faculties = this.faculties.map(f => ({ uuid: f.uuid, display: f.display || f.name || '' }));
+        window.facultyComponents[this.rowIndex] = this;
+        if (this.selected) {
+          const h = document.getElementById('assign_' + this.rowIndex);
+          if (h) h.value = this.selected;
+        }
+      },
+      options() {
+        const q = this.search.trim().toLowerCase();
+        if (!q) return this.faculties;
+        return this.faculties.filter(f => (f.display || '').toLowerCase().includes(q));
+      },
+      select(val) {
+        this.selected = val;
+        const h = document.getElementById('assign_' + this.rowIndex);
+        if (h) h.value = val;
+        this.open = false;
+      },
+      setFromApply(val) {
+        this.selected = val;
+        const h = document.getElementById('assign_' + this.rowIndex);
+        if (h) h.value = val;
+        this.open = false;
+      },
+      selectedName() {
+        const obj = this.faculties.find(f => f.uuid === this.selected);
+        return obj ? obj.display : '';
+      }
+    }));
+
+    Alpine.data('semesterSelect', () => ({
+      selected: '',
+      open: false,
+      semesters: [],
+      rowIndex: '',
+      init() {
+        this.rowIndex = this.$el.dataset.rowIndex || this.$el.dataset.rowIdx || '';
+        this.selected = this.$el.dataset.initialSemester || '';
+        try { this.semesters = JSON.parse(document.getElementById('semesters-data').textContent || '[]'); }
+        catch(e) { console.error('Failed to parse semesters-data', e); this.semesters = []; }
+        this.semesters = this.semesters.map(s => ({ id: String(s.id), display: s.display || s.name || '' }));
+        window.semesterComponents[this.rowIndex] = this;
+        if (this.selected) {
+          const h = document.getElementById('semester_' + this.rowIndex);
+          if (h) h.value = this.selected;
+        }
+      },
+      options() { return this.semesters; },
+      select(val) {
+        this.selected = String(val);
+        const h = document.getElementById('semester_' + this.rowIndex);
+        if (h) h.value = this.selected;
+        this.open = false;
+      },
+      setFromApply(val) {
+        this.selected = String(val);
+        const h = document.getElementById('semester_' + this.rowIndex);
+        if (h) h.value = this.selected;
+        this.open = false;
+      },
+      selectedName() {
+        const obj = this.semesters.find(s => s.id === this.selected);
+        return obj ? obj.display : '';
+      }
+    }));
+
+    Alpine.data('applyFacultyGlobal', () => ({
+      search: '',
+      selectedUuid: '',
+      selectedDisplay: '',
+      open: false,
+      faculties: [],
+      init() {
+        try { this.faculties = JSON.parse(document.getElementById('faculties-data').textContent || '[]'); }
+        catch(e) { console.error('Failed to parse faculties-data', e); this.faculties = []; }
+        this.faculties = this.faculties.map(f => ({ uuid: f.uuid, display: f.display || f.name || '' }));
+      },
+      filtered() {
+        const q = this.search.trim().toLowerCase();
+        if (!q) return this.faculties;
+        return this.faculties.filter(f => (f.display || '').toLowerCase().includes(q));
+      },
+      pick(uuid, display) {
+        this.selectedUuid = uuid;
+        this.selectedDisplay = display;
+        this.open = false;
+      },
+      applyAll() {
+        if (!this.selectedUuid) {
+          alert('Please pick a faculty to apply to all rows.');
+          return;
+        }
+        Object.keys(window.facultyComponents || {}).forEach(k => {
+          const comp = window.facultyComponents[k];
+          if (comp && typeof comp.setFromApply === 'function') {
+            comp.setFromApply(this.selectedUuid);
+          }
+        });
+        const orig = this.selectedDisplay;
+        this.selectedDisplay = orig + ' (Applied)';
+        setTimeout(() => this.selectedDisplay = orig, 1200);
+      }
+    }));
+
+    Alpine.data('applySemesterGlobal', () => ({
+      search: '',
+      selectedId: '',
+      selectedDisplay: '',
+      open: false,
+      semesters: [],
+      init() {
+        try { this.semesters = JSON.parse(document.getElementById('semesters-data').textContent || '[]'); }
+        catch(e) { console.error('Failed to parse semesters-data', e); this.semesters = []; }
+        this.semesters = this.semesters.map(s => ({ id: String(s.id), display: s.display || s.name || '' }));
+      },
+      filtered() {
+        const q = String(this.search || '').trim().toLowerCase();
+        if (!q) return this.semesters;
+        return this.semesters.filter(s => (s.display || '').toLowerCase().includes(q));
+      },
+      pick(id, display) {
+        this.selectedId = String(id);
+        this.selectedDisplay = display;
+        this.open = false;
+      },
+      applyAll() {
+        if (!this.selectedId) {
+          alert('Please pick a semester to apply to all rows.');
+          return;
+        }
+        Object.keys(window.semesterComponents || {}).forEach(k => {
+          const comp = window.semesterComponents[k];
+          if (comp && typeof comp.setFromApply === 'function') {
+            comp.setFromApply(this.selectedId);
+          }
+        });
+        const orig = this.selectedDisplay;
+        this.selectedDisplay = orig + ' (Applied)';
+        setTimeout(() => this.selectedDisplay = orig, 1200);
+      }
+    }));
+
+    Alpine.data('confirmModal', () => ({
+      open: false,
+      submitting: false,
+      rowCount: computeIncludedCount(),
+      attemptOpen() {
+        const missing = this.collectMissing();
+        if (missing.length) {
+          this.showMissingAlert();
+          return;
+        }
+
+        // server-side errors: only consider included rows
+        const serverErrors = Array.from(document.querySelectorAll('.row-wrapper.row-error-border'))
+          .filter(w => {
+            const idx = w.dataset.rowIdx || w.dataset.rowIndex;
+            const inc = document.getElementById('include_' + idx);
+            return !(inc && inc.value === '0');
+          });
+
+        if (serverErrors.length) {
+          const alertBox = document.getElementById('validation-alert');
+          const alertText = document.getElementById('validation-alert-text');
+          if (alertBox && alertText) {
+            alertText.textContent = 'Please fix all row errors before confirming.';
+            alertBox.classList.remove('hidden');
+          }
+          const firstErrorRow = document.querySelector('.row-wrapper.row-error-border');
+          if (firstErrorRow) firstErrorRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+
+        // Recompute included rows (only rows with include === '1')
+        updateRowCountUI();
+        this.open = true;
+        this.$nextTick(() => {
+          const panel = this.$refs.panel;
+          if (panel) panel.focus();
+        });
+      },
+
+      // Collect missing values but IGNORE removed rows by checking include_<idx> per wrapper
+      collectMissing() {
+        this.clearRowHighlights();
+        const missing = [];
+
+        const wrappers = Array.from(document.querySelectorAll('.row-wrapper'));
+        wrappers.forEach(wrapper => {
+          const idx = wrapper.dataset.rowIdx || wrapper.dataset.rowIndex;
+          const inc = document.getElementById('include_' + idx);
+          if (inc && inc.value !== '1') {
+            // skip removed rows
+            return;
+          }
+
+          // within this wrapper check the hidden assign_ and semester_ inputs
+          const assign = wrapper.querySelector('#assign_' + idx);
+          const semester = wrapper.querySelector('#semester_' + idx);
+
+          if (!assign || !String(assign.value || '').trim()) {
+            missing.push(assign ? assign.id : ('assign_' + idx));
+            this.markRowMissing(assign ? assign.id : ('assign_' + idx));
+          }
+          if (!semester || !String(semester.value || '').trim()) {
+            missing.push(semester ? semester.id : ('semester_' + idx));
+            this.markRowMissing(semester ? semester.id : ('semester_' + idx));
+          }
+        });
+
+        return missing;
+      },
+
+      markRowMissing(fieldId) {
+        const idx = fieldId.split('_').pop();
+        const wrapper = document.querySelector('.row-wrapper[data-row-index="' + idx + '"]');
+        if (wrapper) {
+          wrapper.classList.add('row-error-border', 'row-error-bg');
+        }
+      },
+
+      clearRowHighlights() {
+        document.querySelectorAll('.row-wrapper').forEach(el => {
+          el.classList.remove('row-error-border', 'row-error-bg');
+        });
+      },
+
+      showMissingAlert() {
+        const alertBox = document.getElementById('validation-alert');
+        const alertText = document.getElementById('validation-alert-text');
+        if (alertBox && alertText) {
+          alertText.textContent = 'Please complete all faculty and semester selections before confirming.';
+          alertBox.classList.remove('hidden');
+          const firstMissing = document.querySelector('.row-wrapper.row-error-border');
+          if (firstMissing) {
+            firstMissing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      },
+
+      close() {
+        if (this.submitting) return;
+        this.open = false;
+      },
+
+      confirmSubmit() {
+        if (this.submitting) return;
+        this.submitting = true;
+        const form = document.getElementById('ta-confirm-form');
+        if (form) {
+          let h = form.querySelector('input[name="confirmed_modal"]');
+          if (!h) {
+            h = document.createElement('input');
+            h.type = 'hidden';
+            h.name = 'confirmed_modal';
+            h.value = '1';
+            form.appendChild(h);
+          }
+          form.submit();
+        }
+      }
+    }));
+  });
+
+  // apply initial removed state on DOM ready and compute next index
+  document.addEventListener('DOMContentLoaded', () => {
+    applyInitialRemovedStates();
+    computeNextIndex();
+    updateRowCountUI();
+  });
+</script>
+
+{# Hidden client-side row template for Add field (use %%IDX%% as placeholder) #}
+<template id="row-template">
+  <div id="row-wrapper-%%IDX%%" class="row-wrapper border rounded-lg p-5 bg-gray-50 border-gray-200" data-row-index="%%IDX%%" data-row-idx="%%IDX%%">
+    <div class="space-y-4">
+      <div class="flex items-center justify-end">
+        <div class="flex items-center gap-3">
+          <input type="hidden" name="include_%%IDX%%" id="include_%%IDX%%" value="1" />
+          <button type="button" id="remove_btn_%%IDX%%" data-row-idx="%%IDX%%" onclick="toggleRowInclude(this.dataset.rowIdx)" class="remove-btn bg-red-600 hover:bg-red-700 text-white border border-red-700" title="Remove row">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862A2 2 0 015.867 19.142L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+            </svg>
+            <span>Remove</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="flex flex-col">
+          <label class="text-xs font-semibold text-gray-700 mb-1">Faculty</label>
+
+          <div x-data="facultySelect" x-init="init()" data-row-index="%%IDX%%" data-initial-faculty="" class="relative w-full">
+            <input type="hidden" name="assign_%%IDX%%" id="assign_%%IDX%%" x-model="selected">
+            <button type="button" @click="open = !open" class="faculty-trigger flex items-center justify-between w-full px-3 py-2 border rounded-lg bg-white text-sm shadow-sm focus:ring-2 focus:ring-[#800505] border-gray-300">
+              <span class="truncate" x-text="selectedName() || 'Select faculty'"></span>
+              <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l4 4 4-4"/>
+              </svg>
+            </button>
+
+            <div x-show="open" x-cloak @click.away="open = false" class="absolute inset-x-0 mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+              <div class="p-2">
+                <input type="text" x-model="search" placeholder="Search faculty..." class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-[#800505]" />
+              </div>
+              <ul class="py-1">
+                <template x-for="f in options()" :key="f.uuid">
+                  <li>
+                    <button type="button" @click="select(f.uuid)" :class="selected === f.uuid ? 'applied-bg' : ''" class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
+                      <span class="truncate" x-text="f.display"></span>
+                    </button>
+                  </li>
+                </template>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col">
+          <label class="text-xs font-semibold text-gray-700 mb-1">Semester</label>
+
+          <div x-data="semesterSelect" x-init="init()" data-row-index="%%IDX%%" data-initial-semester="" class="relative w-full">
+            <input type="hidden" name="semester_%%IDX%%" id="semester_%%IDX%%" x-model="selected">
+            <button type="button" @click="open = !open" class="semester-trigger flex items-center justify-between w-full px-3 py-2 border rounded-lg bg-white text-sm shadow-sm focus:ring-2 focus:ring-[#800505] border-gray-300">
+              <span class="truncate" x-text="selectedName() || 'Select semester'"></span>
+              <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l4 4 4-4"/>
+              </svg>
+            </button>
+
+            <div x-show="open" x-cloak @click.away="open = false" class="absolute inset-x-0 mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+              <ul class="py-1">
+                <template x-for="s in options()" :key="s.id">
+                  <li>
+                    <button type="button" @click="select(s.id)" :class="selected === s.id ? 'applied-bg' : ''" class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm">
+                      <span class="truncate" x-text="s.display"></span>
+                    </button>
+                  </li>
+                </template>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white border rounded-md p-4 border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div class="flex flex-col">
+            <label for="subject_code_%%IDX%%" class="text-[11px] uppercase text-gray-500">Subject Code</label>
+            <input type="text" id="subject_code_%%IDX%%" name="subject_code_%%IDX%%" value="" class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505] border-gray-300">
+          </div>
+
+          <div class="flex flex-col md:col-span-2">
+            <label for="subject_description_%%IDX%%" class="text-[11px] uppercase text-gray-500">Subject Description</label>
+            <input type="text" id="subject_description_%%IDX%%" name="subject_description_%%IDX%%" value="" class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505] border-gray-300">
+          </div>
+
+          <div class="flex flex-col">
+            <label for="year_section_%%IDX%%" class="text-[11px] uppercase text-gray-500">Year / Section</label>
+            <input type="text" id="year_section_%%IDX%%" name="year_section_%%IDX%%" value="" class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505] border-gray-300">
+          </div>
+
+          <div class="flex flex-col">
+            <label for="day_%%IDX%%" class="text-[11px] uppercase text-gray-500">Day of Week</label>
+            <select id="day_%%IDX%%" name="day_%%IDX%%" class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505] border-gray-300">
+              <option value="">--</option>
+              <option value="mon">Monday</option>
+              <option value="tue">Tuesday</option>
+              <option value="wed">Wednesday</option>
+              <option value="thu">Thursday</option>
+              <option value="fri">Friday</option>
+              <option value="sat">Saturday</option>
+            </select>
+          </div>
+
+          <div class="flex flex-col">
+            <label for="start_time_%%IDX%%" class="text-[11px] uppercase text-gray-500">Start Time</label>
+            <input type="time" id="start_time_%%IDX%%" name="start_time_%%IDX%%" value="" class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505] border-gray-300">
+          </div>
+
+          <div class="flex flex-col">
+            <label for="end_time_%%IDX%%" class="text-[11px] uppercase text-gray-500">End Time</label>
+            <input type="time" id="end_time_%%IDX%%" name="end_time_%%IDX%%" value="" class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505] border-gray-300">
+          </div>
+
+          <div class="flex flex-col">
+            <label for="room_%%IDX%%" class="text-[11px] uppercase text-gray-500">Room (Optional)</label>
+            <input type="text" id="room_%%IDX%%" name="room_%%IDX%%" value="" placeholder="e.g. LAB-3" class="px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#800505] border-gray-300">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+{% endblock %}

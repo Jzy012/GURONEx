@@ -1,9 +1,10 @@
 {% extends 'admin/admin_base.html' %}
+{% load static %}
 {% block content %}
-<div class="space-y-8">
+<div class="space-y-8" x-data="deleteAssignmentModal()">
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <h2 class="text-3xl font-bold text-gray-900">📚 Teaching Assignments for {{ faculty.name }}</h2>
-    <a href="{% url 'adminhub:teaching_assignment'  %}"
+    <a href="{% url 'adminhub:teaching_assignment' %}"
        class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
            stroke-width="1.5" stroke="currentColor" class="w-5 h-4">
@@ -21,14 +22,21 @@
       </svg>
       Add Assignment
     </a>
-    <a href="{% url 'adminhub:teaching_assignment_bulk_upload' faculty.uuid %}"
-       class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-      </svg>
-      Upload Assignment
-    </a>
   </div>
+
+  {% if messages %}
+    <ul class="space-y-2">
+      {% for message in messages %}
+        <li class="px-4 py-2 rounded border
+          {% if message.tags == 'error' %}bg-red-50 text-red-700 border-red-200
+          {% elif message.tags == 'success' %}bg-green-50 text-green-700 border-green-200
+          {% else %}bg-gray-50 text-gray-700 border-gray-200
+          {% endif %}">
+          {{ message }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
 
   <div class="bg-white rounded-lg shadow-md overflow-x-auto">
     <table class="min-w-full border-collapse text-sm">
@@ -37,6 +45,7 @@
           <th class="px-5 py-4 border-b">Subject Code</th>
           <th class="px-5 py-4 border-b">Description</th>
           <th class="px-5 py-4 border-b">Year/Section</th>
+          <th class="px-5 py-4 border-b">Room</th>  
           <th class="px-5 py-4 border-b">Day</th>
           <th class="px-5 py-4 border-b">Time</th>
           <th class="px-5 py-4 border-b">Semester</th>
@@ -49,19 +58,37 @@
           <td class="px-5 py-4 border-b">{{ assignment.subject_code }}</td>
           <td class="px-5 py-4 border-b">{{ assignment.subject_description }}</td>
           <td class="px-5 py-4 border-b">{{ assignment.year_section }}</td>
+            <td class="px-5 py-4 border-b">{{ assignment.room|default:"—" }}</td>
           <td class="px-5 py-4 border-b">{{ assignment.get_day_of_week_display }}</td>
-          <td class="px-5 py-4 border-b">{{ assignment.start_time|time:"H:i" }} - {{ assignment.end_time|time:"H:i" }}</td>
+          <td class="px-5 py-4 border-b">
+            {{ assignment.start_time|time:"g:i A" }} - {{ assignment.end_time|time:"g:i A" }}
+          </td>
           <td class="px-5 py-4 border-b">{{ assignment.semester }}</td>
-          <td class="px-5 py-4 border-b flex gap-2">
-            <a href="{% url 'adminhub:teaching_assignment_update' faculty.uuid assignment.pk %}"
-               class="text-blue-600 hover:underline font-medium">Edit</a>
-            <a href="{% url 'adminhub:teaching_assignment_delete' faculty.uuid assignment.pk %}"
-               class="text-red-600 hover:underline font-medium">Delete</a>
+          <td class="px-5 py-4 border-b">
+            <div class="flex gap-3">
+              <a href="{% url 'adminhub:teaching_assignment_update' faculty.uuid assignment.pk %}"
+                 class="text-blue-600 hover:underline font-medium">Edit</a>
+              <button type="button"
+                      @click="openFor({
+                        pk: {{ assignment.pk }},
+                        code: '{{ assignment.subject_code|escapejs }}',
+                        desc: '{{ assignment.subject_description|escapejs }}',
+                        year_section: '{{ assignment.year_section|escapejs }}',
+                        day: '{{ assignment.get_day_of_week_display|escapejs }}',
+                        start: '{{ assignment.start_time|time:"g:i A"|escapejs }}',
+                        end: '{{ assignment.end_time|time:"g:i A"|escapejs }}',
+                        room: '{{ assignment.room|default:"—"|escapejs }}',
+                        semester: '{{ assignment.semester|stringformat:"s"|escapejs }}'
+                      })"
+                      class="text-red-600 hover:underline font-medium">
+                Delete
+              </button>
+            </div>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" class="px-5 py-10 text-center text-gray-500 font-semibold">
+          <td colspan="8" class="px-5 py-10 text-center text-gray-500 font-semibold">
             No teaching assignments found.
           </td>
         </tr>
@@ -69,5 +96,93 @@
       </tbody>
     </table>
   </div>
+
+  <!-- Hidden form to submit deletion -->
+  <form x-ref="deleteForm" method="post" :action="actionUrl" class="hidden">
+    {% csrf_token %}
+  </form>
+
+  <!-- Modal -->
+  <template x-teleport="body">
+    <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
+      <div class="fixed inset-0 bg-black/40" @click="close()"></div>
+      <div x-ref="panel"
+           class="relative w-full max-w-lg bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
+           @keydown.escape.window="close()" tabindex="-1">
+        <div class="px-6 py-5 border-b bg-gray-50 flex items-start justify-between">
+          <h3 class="text-lg font-semibold text-gray-900">Confirm Deletion</h3>
+          <button type="button" @click="close()" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M6 18L18 6"/>
+            </svg>
+            <span class="sr-only">Close</span>
+          </button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <p class="text-sm text-gray-700">
+            You are about to delete this teaching assignment:
+          </p>
+          <div class="text-sm bg-gray-50 border border-gray-200 rounded-md p-4 space-y-1">
+            <div><span class="font-semibold">Subject:</span> <span x-text="assignment.code"></span> – <span x-text="assignment.desc"></span></div>
+            <div><span class="font-semibold">Year/Section:</span> <span x-text="assignment.year_section"></span></div>
+            <div><span class="font-semibold">Day:</span> <span x-text="assignment.day"></span></div>
+            <div><span class="font-semibold">Time:</span> <span x-text="assignment.start + ' - ' + assignment.end"></span></div>
+            <div><span class="font-semibold">Room:</span> <span x-text="assignment.room"></span></div>
+            <div><span class="font-semibold">Semester:</span> <span x-text="assignment.semester"></span></div>
+          </div>
+          <div class="bg-[#fff5f5] border border-[#f4dada] text-[#800505] rounded-md px-4 py-3 text-xs">
+            This action cannot be undone. The record will be permanently removed.
+          </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t flex items-center justify-end gap-3">
+          <button type="button"
+                  @click="close()"
+                  class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-100">
+            Cancel
+          </button>
+          <button type="button"
+                  @click="submitDelete()"
+                  class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md text-sm font-semibold flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+            </svg>
+            Confirm Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script>
+document.addEventListener('alpine:init', () => {
+  Alpine.data('deleteAssignmentModal', () => ({
+    open: false,
+    assignment: {},
+    actionUrl: '',
+    openFor(data) {
+      this.assignment = data;
+      // Build delete URL: /admin/faculty/<uuid>/teaching-assignments/<pk>/delete/
+      this.actionUrl = `/admin/faculty/{{ faculty.uuid }}/teaching-assignments/${data.pk}/delete/`;
+      this.open = true;
+      this.$nextTick(() => {
+        const panel = this.$refs.panel;
+        if (panel) panel.focus();
+      });
+    },
+    close() {
+      this.open = false;
+      this.assignment = {};
+      this.actionUrl = '';
+    },
+    submitDelete() {
+      if (!this.actionUrl) return;
+      const form = this.$refs.deleteForm;
+      form.setAttribute('action', this.actionUrl);
+      form.submit();
+    }
+  }));
+});
+</script>
 {% endblock %}
