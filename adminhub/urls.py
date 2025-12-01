@@ -54,10 +54,11 @@ urlpatterns = [
     path('admin/pair-rfid/', views.pair_rfid, name='pair_rfid'),
     path('api/rfid_pairing_tap/', views.rfid_pairing_tap_api, name='rfid_pairing_tap_api'),
     path('admin/faculty/<uuid:faculty_uuid>/dtr/',views.dtr_tab_view,name='dtr_tab'),
-    path('admin/teaching-assignments', views.teaching_assignment_view, name='teaching_assignment'),
+    path('admin/faculty/<uuid:faculty_uuid>/dtr-export-preview/', views.admin_dtr_export_preview, name='admin_dtr_export_preview'),
+    path('admin/faculty/<uuid:faculty_uuid>/dtr-export/', views.admin_dtr_export_view, name='admin_dtr_export'),
+    path('admin/teaching-assignments-dtr/', views.teaching_assignment_view, name='teaching_assignment'),
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/',views.teaching_assignment_list, name='teaching_assignment_list'),
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/create/',views.teaching_assignment_create, name='teaching_assignment_create'),
-    # path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/bulk-upload/',views.teaching_assignment_bulk_upload, name='teaching_assignment_bulk_upload'),
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/<int:pk>/edit/',views.teaching_assignment_update, name='teaching_assignment_update'),
     path('admin/faculty/<uuid:faculty_uuid>/teaching-assignments/<int:pk>/delete/',views.teaching_assignment_delete, name='teaching_assignment_delete'),
 

@@ -1427,7 +1427,8 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib import messages
 from base.forms import ManualAttendanceLogForm
-from rfid.models import FacultyProfile, RFIDTag, AttendanceLog
+from rfid.models import FacultyProfile, RFIDTag
+from faculty.models import TeachingAssignment, Semester
 from django.utils import timezone
 import datetime
 
@@ -1442,56 +1443,86 @@ def manual_attendance_log_view(request):
 
     message = ""
     message_class = ""
-    initial = {}
+    initial = {
+        'date': timezone.localdate()
+    }
 
     if request.method == "POST":
-        form = ManualAttendanceLogForm(request.POST)
+        faculty_id = request.POST.get('faculty', None)
+        faculty_obj = FacultyProfile.objects.filter(pk=faculty_id).first() if faculty_id else None
+        form = ManualAttendanceLogForm(request.POST, faculty=faculty_obj)
         if form.is_valid():
-            faculty = form.cleaned_data['faculty']
-            uid = form.cleaned_data['uid']
-            date = form.cleaned_data['date']
-            time_in = form.cleaned_data['time_in']
-            time_out = form.cleaned_data['time_out']
-
-            # Store datetimes in the default Django way
+            cleaned = form.cleaned_data
+            attendance = form.save(commit=False)
+            date = cleaned['date']
+            time_in = cleaned['time_in']
+            time_out = cleaned['time_out']
             tz = timezone.get_current_timezone()
-            time_in_dt = datetime.datetime.combine(date, time_in, tzinfo=tz)
-            time_out_dt = datetime.datetime.combine(date, time_out, tzinfo=tz)
-
-            AttendanceLog.objects.create(
-                faculty=faculty,
-                uid=uid,
-                date=date,
-                time_in=time_in_dt,
-                time_out=time_out_dt
-            )
+            attendance.time_in = datetime.datetime.combine(date, time_in, tzinfo=tz)
+            attendance.time_out = datetime.datetime.combine(date, time_out, tzinfo=tz)
+            attendance.uid = request.POST.get('uid', '')  # capture UID if present (adjust as needed)
+            attendance.is_manual = True                   # <-- SET MANUAL FLAG
+            attendance.save()
+            form.save_m2m()
             messages.success(request, "Attendance log created successfully.")
             return redirect(reverse('adminhub:attendance_logs'))
         else:
-            # Show first error as the message
-            message = form.errors.as_text().replace("* ", "").replace("\n", "<br>")
+            # --- Error formatting: no '__all__' or keys, clear user output ---
+            error_msgs = []
+            # Non-field errors
+            for error in form.non_field_errors():
+                error_msgs.append(f"{error}")
+            # Field errors
+            for field in form:
+                for error in field.errors:
+                    error_msgs.append(f"{field.label}: {error}")
+            message = "<br>".join(error_msgs)
             message_class = "bg-red-100 text-red-800"
-            initial = {
+            initial.update({
                 'faculty': request.POST.get('faculty', ''),
                 'uid': request.POST.get('uid', ''),
                 'date': request.POST.get('date', ''),
                 'time_in': request.POST.get('time_in', ''),
                 'time_out': request.POST.get('time_out', ''),
-            }
+            })
     else:
-        form = ManualAttendanceLogForm()
-        initial = {
-            'date': timezone.localdate()
-        }
+        form = ManualAttendanceLogForm(initial={'date': timezone.localdate()})
+
+    # Get all assignments for all faculties for the active semester
+    active_sem = Semester.objects.filter(is_active=True).first()
+    teaching_assignments = []
+    if active_sem:
+        tas = TeachingAssignment.objects.filter(semester=active_sem).select_related("faculty")
+        for ta in tas:
+            start_12 = ta.start_time.strftime('%I:%M %p').lstrip('0')
+            end_12 = ta.end_time.strftime('%I:%M %p').lstrip('0')
+            display = (
+                f"{ta.faculty} - {ta.subject_code} ({ta.get_day_of_week_display()} {start_12} - {end_12}"
+            )
+            if ta.room:
+                display += f" - {ta.room}"
+            display += ")"
+            teaching_assignments.append({
+                'id': ta.id,
+                'faculty_pk': str(ta.faculty.pk),
+                'subject_code': ta.subject_code,
+                'subject_description': ta.subject_description,
+                'year_section': ta.year_section,
+                'start_time': ta.start_time.strftime('%H:%M'),
+                'end_time': ta.end_time.strftime('%H:%M'),
+                'day_of_week': ta.day_of_week,
+                'room': ta.room,
+                'display': display,
+            })
 
     return render(request, 'admin/admin_manual_attendance_log.html', {
         'faculties': faculties,
         'rfid_map': rfid_map,
+        'teaching_assignments': teaching_assignments,
         'message': message,
         'message_class': message_class,
         **initial,
     })
-
 
 
 
@@ -2076,47 +2107,15 @@ def teaching_assignment_delete(request, faculty_uuid, pk):
 
 
 
-# import pandas as pd 
-# from django.contrib import messages
-
-# @admin_required
-# def teaching_assignment_bulk_upload(request, faculty_id):
-#     faculty = get_object_or_404(FacultyProfile, id=faculty_id)
-#     if request.method == 'POST':
-#         form = TeachingAssignmentBulkUploadForm(request.POST, request.FILES)
-#         if form.is_valid():
-#             file = form.cleaned_data['file']
-#             try:
-#                 df = pd.read_csv(file) if file.name.endswith('.csv') else pd.read_excel(file)
-#                 for _, row in df.iterrows():
-#                     TeachingAssignment.objects.create(
-#                         faculty=faculty,
-#                         subject_code=row['subject_code'],
-#                         subject_description=row['subject_description'],
-#                         year_section=row['year_section'],
-#                         day_of_week=row['day_of_week'].lower()[:3],  # expects 'mon', 'tue', etc.
-#                         start_time=row['start_time'],
-#                         end_time=row['end_time'],
-#                         semester_id=row['semester_id'],  # assumes ID is provided
-#                     )
-#                 messages.success(request, "Bulk upload successful.")
-#             except Exception as e:
-#                 messages.error(request, f"Error: {e}")
-#             return redirect('teaching_assignment_list', faculty_id=faculty.id)
-#     else:
-#         form = TeachingAssignmentBulkUploadForm()
-#     return render(request, 'admin/admin_teaching_assignment/bulk_upload.html', {'form': form, 'faculty': faculty})
 
 
-
-
-
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from datetime import date
 import calendar
 from faculty.models import FacultyProfile
 from rfid.models import AttendanceLog
 from services.dtr_service import DTRCalculator
+from base.forms import DTRLogEditForm
 
 @admin_required
 def dtr_tab_view(request, faculty_uuid):
@@ -2124,6 +2123,7 @@ def dtr_tab_view(request, faculty_uuid):
     today = date.today()
     year = int(request.GET.get('year', today.year))
     month = int(request.GET.get('month', today.month))
+    day_of_week = request.GET.get('day', '')  # '' means show all
 
     # Get DTR data (per assignment per day)
     dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
@@ -2170,9 +2170,48 @@ def dtr_tab_view(request, faculty_uuid):
                 'status': 'no assignment',
             })
 
+    # ==== Handle Filtering ====
+    if day_of_week:
+        dtr = [
+            row for row in dtr
+            if row['date'].strftime('%a').lower()[:3] == day_of_week
+        ]
+
     # For year dropdown, show last 3 years and next year
     year_choices = [today.year-1, today.year, today.year+1]
     months = [(i, calendar.month_name[i]) for i in range(1, 13)]
+    day_choices = [
+        ('', 'All Days'), ('mon', 'Monday'), ('tue', 'Tuesday'), ('wed', 'Wednesday'),
+        ('thu', 'Thursday'), ('fri', 'Friday'), ('sat', 'Saturday')
+    ]
+
+    # --- Modal form handling for edit and delete ---
+    edit_errors = {}
+    edit_old = {}
+
+    if request.method == "POST":
+        if 'edit_log_id' in request.POST:
+            log_id = request.POST['edit_log_id']
+            log = get_object_or_404(AttendanceLog, pk=log_id, faculty=faculty)
+            form = DTRLogEditForm(request.POST, instance=log)
+            if form.is_valid():
+                form.save()
+                from django.contrib import messages
+                messages.success(request, "Attendance log updated.")
+                return redirect(request.path + '?' + request.GET.urlencode())
+            else:
+                edit_errors[log_id] = {field: '; '.join([e for e in errs]) for field, errs in form.errors.items()}
+                edit_old[log_id] = {
+                    'time_in': request.POST.get('time_in', ''),
+                    'time_out': request.POST.get('time_out', '')
+                }
+        elif 'delete_log_id' in request.POST:
+            log_id = request.POST['delete_log_id']
+            log = get_object_or_404(AttendanceLog, pk=log_id, faculty=faculty)
+            log.delete()
+            from django.contrib import messages
+            messages.success(request, "Attendance log deleted.")
+            return redirect(request.path + '?' + request.GET.urlencode())
 
     context = {
         'faculty': faculty,
@@ -2181,5 +2220,352 @@ def dtr_tab_view(request, faculty_uuid):
         'year': year,
         'year_choices': year_choices,
         'months': months,
+        'day_of_week': day_of_week,
+        'day_choices': day_choices,
+        'edit_errors': edit_errors,
+        'edit_old': edit_old,
     }
     return render(request, 'admin/admin_dtr.html', context)
+
+
+
+# from django.shortcuts import render, get_object_or_404
+# from datetime import date
+# import calendar
+# from faculty.models import FacultyProfile
+# from rfid.models import AttendanceLog
+# from services.dtr_service import DTRCalculator
+# from django.http import HttpResponse
+# from django.template.loader import render_to_string
+# import weasyprint
+
+# from base.decorators import admin_required
+
+# @admin_required
+# def admin_dtr_export_view(request, faculty_uuid):
+#     faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
+#     today = date.today()
+#     year = int(request.GET.get('year', today.year))
+#     month = int(request.GET.get('month', today.month))
+#     month_label = calendar.month_name[month]
+#     days_in_month = calendar.monthrange(year, month)[1]
+
+#     dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
+#     # Build DTR table (1-based days)
+#     table_rows = []
+#     for day_num in range(1, days_in_month+1):
+#         am_in = am_out = pm_in = pm_out = ""
+#         logs = [status['attendance_log'] for status in dtr[day_num-1]['statuses'] if status['attendance_log']]
+#         if logs:
+#             log = logs[0]
+#             if log.time_in:
+#                 if log.time_in.hour < 12:
+#                     am_in = log.time_in.strftime('%I:%M %p').lstrip('0')
+#                 else:
+#                     pm_in = log.time_in.strftime('%I:%M %p').lstrip('0')
+#             if log.time_out:
+#                 if log.time_out.hour < 12:
+#                     am_out = log.time_out.strftime('%I:%M %p').lstrip('0')
+#                 else:
+#                     pm_out = log.time_out.strftime('%I:%M %p').lstrip('0')
+#         table_rows.append({
+#             'day': day_num,
+#             'am_in': am_in,
+#             'am_out': am_out,
+#             'pm_in': pm_in,
+#             'pm_out': pm_out
+#         })
+
+#     # For preview and for PDF download
+#     context = {
+#         'faculty': faculty,
+#         'month': month,
+#         'year': year,
+#         'month_label': month_label,
+#         'rows': table_rows,
+#         'days': days_in_month,
+#         'is_pdf': request.GET.get('format') == 'pdf',
+#     }
+#     # PDF generation
+#     if request.GET.get('format') == 'pdf':
+#         html = render_to_string('admin/admin_dtr_export.html', context)
+#         pdf = weasyprint.HTML(string=html).write_pdf(stylesheets=[weasyprint.CSS(string='''
+#             @page { size: A4; margin: 1cm; }
+#         ''')])
+#         response = HttpResponse(pdf, content_type='application/pdf')
+#         response['Content-Disposition'] = f'attachment; filename="{faculty.name}_dtr_{month}_{year}.pdf"'
+#         return response
+
+#     return render(request, 'admin/admin_dtr_export.html', context) 
+
+
+
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse
+from datetime import date
+import calendar
+from django.utils.timezone import localtime
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import cm
+
+from faculty.models import FacultyProfile
+from services.dtr_service import DTRCalculator
+from base.decorators import admin_required
+from base.utils.dtr_workinghours import calculate_total_working_hours
+
+@admin_required
+def admin_dtr_export_preview(request, faculty_uuid):
+    faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
+    today = date.today()
+    months = [(i, calendar.month_name[i]) for i in range(1, 13)]
+    year_choices = [today.year-1, today.year, today.year+1]
+
+    # Get selected or current month/year
+    month = int(request.GET.get('month', today.month))
+    year = int(request.GET.get('year', today.year))
+    days_in_month = calendar.monthrange(year, month)[1]
+    month_label = calendar.month_name[month]
+
+    dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
+    # Build rows: [{day, am_in, am_out, pm_in, pm_out}]
+    rows = []
+    for day_num in range(1, days_in_month + 1):
+        am_in = am_out = pm_in = pm_out = ""
+        logs = [status['attendance_log'] for status in dtr[day_num-1]['statuses'] if status['attendance_log']]
+        if logs:
+            log = logs[0]
+            if log.time_in:
+                t_in = localtime(log.time_in)
+                if t_in.hour < 12:
+                    am_in = t_in.strftime('%I:%M %p').lstrip('0')
+                else:
+                    pm_in = t_in.strftime('%I:%M %p').lstrip('0')
+            if log.time_out:
+                t_out = localtime(log.time_out)
+                if t_out.hour < 12:
+                    am_out = t_out.strftime('%I:%M %p').lstrip('0')
+                else:
+                    pm_out = t_out.strftime('%I:%M %p').lstrip('0')
+        rows.append({
+            'day': day_num,
+            'am_in': am_in,
+            'am_out': am_out,
+            'pm_in': pm_in,
+            'pm_out': pm_out,
+        })
+
+    total_working_hours = calculate_total_working_hours(rows)
+
+    context = {
+        'faculty': faculty,
+        'month': month,
+        'year': year,
+        'month_label': month_label,
+        'rows': rows,
+        'months': months,
+        'year_choices': year_choices,
+        'status_label': faculty.status.name.upper() if getattr(faculty, "status", None) and getattr(faculty.status, "name", None) else "---",
+        'total_working_hours': total_working_hours,
+    }
+    return render(request, 'admin/admin_dtr_export_preview.html', context)
+
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+import calendar
+from datetime import date
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from django.utils.timezone import localtime
+
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+import calendar
+from datetime import date
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from django.utils.timezone import localtime
+
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+import calendar
+from datetime import date
+from io import BytesIO
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.lib import colors
+from django.utils.timezone import localtime
+
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+import calendar
+from datetime import date
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from django.utils.timezone import localtime
+
+@admin_required
+def admin_dtr_export_view(request, faculty_uuid):
+    faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
+    today = date.today()
+    month = int(request.GET.get('month', today.month))
+    year = int(request.GET.get('year', today.year))
+    days_in_month = calendar.monthrange(year, month)[1]
+    month_label = calendar.month_name[month]
+
+    dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
+    rows = []
+    for day_num in range(1, days_in_month + 1):
+        am_in = am_out = pm_in = pm_out = ""
+        logs = [status['attendance_log'] for status in dtr[day_num-1]['statuses'] if status['attendance_log']]
+        if logs:
+            log = logs[0]
+            if log.time_in:
+                t_in = localtime(log.time_in)
+                if t_in.hour < 12:
+                    am_in = t_in.strftime('%I:%M %p').lstrip('0')
+                else:
+                    pm_in = t_in.strftime('%I:%M %p').lstrip('0')
+            if log.time_out:
+                t_out = localtime(log.time_out)
+                if t_out.hour < 12:
+                    am_out = t_out.strftime('%I:%M %p').lstrip('0')
+                else:
+                    pm_out = t_out.strftime('%I:%M %p').lstrip('0')
+        rows.append([str(day_num), am_in, am_out, pm_in, pm_out])
+
+    rows_dicts = [{'am_in': am_in, 'am_out': am_out, 'pm_in': pm_in, 'pm_out': pm_out}
+                  for (_, am_in, am_out, pm_in, pm_out) in rows]
+    total_working_hours = calculate_total_working_hours(rows_dicts)
+    status_label = faculty.status.name.upper() if getattr(faculty, "status", None) and getattr(faculty.status, "name", None) else "---"
+
+    buffer = BytesIO()
+    # MINIMUM margins (to maximize printable area)
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        leftMargin=0.7*cm, rightMargin=0.7*cm, topMargin=0.7*cm, bottomMargin=0.7*cm
+    )
+    width, height = A4
+    styles = getSampleStyleSheet()
+    # Used for table cells and header text (small, Arial/Helvetica, centered)
+    cell_style = ParagraphStyle('cell', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, alignment=1, spaceAfter=0, spaceBefore=0)
+    head_style = ParagraphStyle('head', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8.3, alignment=1, spaceAfter=0, spaceBefore=0)
+    document_title_style = ParagraphStyle('documenttitle',parent=styles['Normal'],fontName='Helvetica-Bold',fontSize=12,alignment=1,spaceAfter=0,spaceBefore=0,)
+    bold_style = ParagraphStyle('boldcell', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7.7, alignment=1, spaceAfter=0, spaceBefore=0)
+    note_style = ParagraphStyle('note', parent=styles['Normal'], fontName='Helvetica', fontSize=7.3, alignment=1, textColor=colors.HexColor('#222'), leading=8.5)
+    sign_style = ParagraphStyle('sign', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, alignment=1)
+    small_left = ParagraphStyle('small_left', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=6.8, alignment=0, textColor=colors.HexColor('#888888'))
+
+    # Table width calculation (uses nearly the full page, with small left col for "Day")
+    avail_width = width - doc.leftMargin - doc.rightMargin
+    w_day = 1.18*cm
+    w_other = (avail_width-w_day)/4
+    col_widths = [w_day, w_other, w_other, w_other, w_other]
+
+    # Table data; HEADERS
+    data = [
+        [
+            Paragraph('Civil Service Form No. 48', ParagraphStyle('left', fontName='Helvetica-Oblique', fontSize=9, alignment=0)),
+            '', '', '', 
+            Paragraph(status_label, ParagraphStyle('right', fontName='Helvetica-Oblique', fontSize=10, alignment=2))
+        ],
+        [
+            Paragraph('<b>DAILY TIME RECORD</b>', document_title_style), '', '', '', ''
+        ],
+        [
+            Paragraph(f"<b>{faculty.name.upper()}</b>", head_style), '', '', '', ''
+        ],
+        [
+            Paragraph(f'For the month of <b>{month_label.upper()} {year}</b>', cell_style), '', '', '', ''
+        ],
+        [
+            Paragraph(f'Official Hours Of: <b>{total_working_hours}</b>', cell_style), '', '', '', ''
+        ],
+        # Table top 2-row headers:
+        [
+            Paragraph('<b>Day</b>', head_style),
+            Paragraph('<b>A.M.</b>', head_style), '',
+            Paragraph('<b>P.M.</b>', head_style), ''
+        ],
+        [
+            '', 
+            Paragraph('<b>Arrival</b>', head_style), Paragraph('<b>Departure</b>', head_style),
+            Paragraph('<b>Arrival</b>', head_style), Paragraph('<b>Departure</b>', head_style)
+        ]
+    ]
+    # Add day rows:
+    for row in rows:
+        data.append([Paragraph(row[0], bold_style)] + [Paragraph(cell, cell_style) for cell in row[1:]])
+    # Add total row:
+    data.append([
+        Paragraph('<b>TOTAL — Working Hours:</b>', bold_style), '', '', '',
+        Paragraph(f"<b>{total_working_hours}</b>", bold_style)
+    ])
+    # Certification row, signature, verified (all placed inside table to prevent breaking)
+    data.append([Paragraph(
+        "I certify on my honor that the above is true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure from office.",
+        note_style), '', '', '', ''])
+    data.append([Paragraph(f'<b>{faculty.name.upper()}</b>', sign_style), '', '', '', ''])
+    data.append([Paragraph('VERIFIED as to the prescribed office hours', small_left), '', '', '', ''])
+
+    # Table and style
+    t = Table(data, colWidths=col_widths, repeatRows=0)
+    t.setStyle(TableStyle([
+        # HEADER ROW SPANS!
+        ('SPAN', (0,0), (3,0)),  # left header
+        ('SPAN', (4,0), (4,0)),  # right header
+        ('SPAN', (0,1), (4,1)),  # Title full row
+        ('SPAN', (0,2), (4,2)),  # Name full row
+        ('SPAN', (0,3), (4,3)),  # Month full row
+        ('SPAN', (0,4), (4,4)),  # Official hours full row
+        # Table col/row header spans
+        ('SPAN', (0,5), (0,6)),  # Day header, rowspan=2
+        ('SPAN', (1,5), (2,5)),  # AM header, colspan=2
+        ('SPAN', (3,5), (4,5)),  # PM header, colspan=2
+        # Data rows: no span
+        ('SPAN', (0, -4), (3, -4)), # Total label+cells span for "TOTAL — Working Hours"
+        ('SPAN', (0, -3), (4, -3)), # Cert text full row
+        ('SPAN', (0, -2), (4, -2)), # Signature full row
+        ('SPAN', (0, -1), (4, -1)), # Verified full row
+        # Borders
+        ('GRID', (0,5), (-1,-5), 0.5, colors.HexColor('#444444')),  # table grid only (skips headers above)
+        ('BOX', (0,5), (-1,-5), 1, colors.HexColor('#444444')),     # outline
+        ('BOX', (0, -4), (-1, -4), 1, colors.HexColor('#444444')),  # <-- ADDED LINE
+        # Background on 2-row table header and total row
+        ('BACKGROUND', (0,5), (-1,6), colors.HexColor('#f3f4f6')), # table 2-row header
+        ('BACKGROUND', (0,-4), (-1,-4), colors.HexColor('#f3f4f6')), # total row
+        # Center all data
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        # BOLD day col in data
+        ('FONTNAME', (0,7), (0,-5), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,7), (-1,-5), 7.6),
+        # Certification, signature, verified text bottom: no border, added padding
+        ('BOTTOMPADDING', (0,-3), (0,-1), 5),
+        ('TOPPADDING', (0,-3), (0,-3), 3),
+        ('TOPPADDING', (0,-2), (0,-2), 2),
+        ('TOPPADDING', (0,-1), (0,-1), 0),
+        # Remove borders from header/signature rows
+        ('LINEBELOW', (0,2), (4,2), 0.7, colors.HexColor("#111")), # underline for signature row
+        ('LINEBELOW', (0,-2), (4,-2), 0.7, colors.HexColor("#111")), # underline for signature
+    ]))
+
+    doc.build([t])
+    pdf_data = buffer.getvalue()
+    buffer.close()
+    filename = f"{faculty.name}_{status_label}_{month_label}_{year}.pdf"
+    response = HttpResponse(pdf_data, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response

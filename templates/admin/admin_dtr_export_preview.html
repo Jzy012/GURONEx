@@ -1,0 +1,135 @@
+{% extends 'admin/admin_base.html' %}
+{% block content %}
+<div class="max-w-2xl mx-auto py-8">
+
+  <!-- Header & Actions -->
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+  <!-- Heading on its own line -->
+  <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+    Export Daily Time Record
+  </h2>
+  <!-- Both buttons always side by side, don't stack -->
+  <div class="flex flex-row gap-3">
+    <a href="{% url 'adminhub:admin_dtr_export' faculty.uuid %}?month={{ month }}&year={{ year }}" target="_blank"
+       class="inline-flex items-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white font-semibold rounded-lg shadow transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5v-9m0 9 3-3m-3 3-3-3M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      Download PDF
+    </a>
+    <a href="{% url 'adminhub:dtr_tab' faculty.uuid %}?month={{month}}&year={{year}}"
+       class="inline-flex items-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white font-semibold rounded-lg shadow transition whitespace-nowrap">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
+      </svg>
+      Back to DTR
+    </a>
+  </div>
+</div>
+  <!-- Filter Form -->
+  <form method="get" class="flex flex-wrap gap-6 items-end bg-white p-4 rounded-lg shadow mb-6 border">
+    <div>
+      <label class="block text-sm font-medium text-gray-600 mb-1">Month</label>
+      <select name="month" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#800505] bg-white">
+        {% for value, label in months %}
+          <option value="{{ value }}" {% if month == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-600 mb-1">Year</label>
+      <select name="year" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#800505] bg-white">
+        {% for y in year_choices %}
+          <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="ml-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
+      Preview
+    </button>
+  </form>
+
+  <!-- DTR Grid Form (Document) -->
+  <div class="rounded-lg shadow p-3 sm:p-6 bg-white border border-gray-200 mb-2">
+    <div class="flex flex-wrap justify-between items-center mb-2 gap-2">
+      <div class="text-xs text-gray-700 tracking-wide font-semibold italic">
+        Civil Service Form No. 48
+      </div>
+      <div class="text-xs font-bold text-gray-700 tracking-wide italic">
+        {{ status_label }}
+      </div>
+    </div>
+    <div class="text-lg font-bold text-center text-gray-900">DAILY TIME RECORD</div>
+    <div class="font-bold text-center text-gray-800 mt-2 mb-1" style="letter-spacing:1px;">
+      <span style="border-bottom:2px solid #222; padding:2px 14px;">{{ faculty.name|upper }}</span>
+    </div>
+    <div class="text-center text-xs text-gray-800 mb-3 mt-1">
+      for the month of <span class="font-semibold">{{ month_label|upper }}</span>
+      <span class="font-semibold">{{ year }}</span>
+    </div>
+
+    <div class="overflow-x-auto mt-2 mb-3">
+      <div class="mb-2 text-xs font-bold text-center">
+        Official Hours Of: {{ total_working_hours }}
+      </div>
+      <table class="min-w-full text-xs bg-white rounded-lg border border-gray-300" style="border-collapse:collapse;">
+        <thead>
+          <tr class="bg-gray-100 text-gray-900 uppercase">
+            <th class="border border-gray-300 p-2" rowspan="2" style="width:36px;">Day</th>
+            <th class="border border-gray-300 p-2" colspan="2">A.M.</th>
+            <th class="border border-gray-300 p-2" colspan="2">P.M.</th>
+          </tr>
+          <tr class="bg-gray-100 text-gray-900">
+            <th class="border border-gray-300 p-2">Arrival</th>
+            <th class="border border-gray-300 p-2">Departure</th>
+            <th class="border border-gray-300 p-2">Arrival</th>
+            <th class="border border-gray-300 p-2">Departure</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr class="{{ forloop.counter0|divisibleby:2|yesno:'bg-gray-50;bg-white' }}">
+              <td class="border border-gray-300 p-2 font-bold text-center">{{ row.day }}</td>
+              <td class="border border-gray-300 p-2 text-center">{{ row.am_in }}</td>
+              <td class="border border-gray-300 p-2 text-center">{{ row.am_out }}</td>
+              <td class="border border-gray-300 p-2 text-center">{{ row.pm_in }}</td>
+              <td class="border border-gray-300 p-2 text-center">{{ row.pm_out }}</td>
+            </tr>
+          {% endfor %}
+          <tr>
+            <td colspan="5"
+                class="border border-gray-300 p-2 font-bold text-center"
+                style="letter-spacing:1px;">
+              TOTAL — Working Hours: {{ total_working_hours }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="text-xs text-center text-gray-700 mt-5 mb-1">
+      I certify on my honor that the above is true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure from office.
+    </div>
+    <div class="text-center font-bold tracking-wider text-gray-800 mt-7 mb-2 text-base">
+  <div class="mx-auto w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl">
+    <span
+      class="block border-b-2 border-gray-800 pb-1 text-center whitespace-nowrap w-full overflow-hidden text-ellipsis"
+      style="font-size:inherit;"
+    >
+      {{ faculty.name|upper }}
+    </span>
+  </div>
+</div>
+    <div class="text-xs text-left text-gray-500 opacity-70 mt-3">
+      VERIFIED as to the prescribed office hours
+    </div>
+  </div>
+
+  <div class="text-center text-xs text-gray-500 mt-3">
+    <svg class="inline w-4 h-4 text-[#2563eb]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/>
+    </svg>
+    The PDF generated will match this preview exactly.
+  </div>
+</div>
+{% endblock %}

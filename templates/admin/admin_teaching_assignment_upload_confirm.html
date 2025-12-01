@@ -388,30 +388,32 @@
         {% endfor %}
       </div>
 
-      <div class="flex items-center justify-between gap-3 pt-2">
-        <!-- Add Field button on the LEFT as requested -->
-        <div>
-          <button type="button" id="add-row-btn" onclick="addRow()"
-                  class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
-            <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            Add field
-          </button>
-        </div>
+     <div class="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+  <!-- Add Field button -->
+  <div>
+    <button type="button" id="add-row-btn" onclick="addRow()"
+            class="w-full sm:w-auto px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+      <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+      </svg>
+      Add field
+    </button>
+  </div>
 
-        <div class="flex items-center justify-end gap-3">
-          <a href="{% url 'adminhub:teaching_assignment_bulk_upload' %}"
-             class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
-            Cancel / Upload different files
-          </a>
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+    <a href="{% url 'adminhub:teaching_assignment_bulk_upload' %}"
+       class="w-full sm:w-auto px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 text-center">
+      Cancel / Upload different files
+    </a>
 
-          <button type="button"
-                  @click="attemptOpen()"
-                  id="confirm-submit"
-                  class="flex items-center gap-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold">
-            Confirm and Create Assignments
-          </button>
-        </div>
-      </div>
+    <button type="button"
+            @click="attemptOpen()"
+            id="confirm-submit"
+            class="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold">
+      Confirm and Create Assignments
+    </button>
+  </div>
+</div>
     </form>
   </div>
 

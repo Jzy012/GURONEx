@@ -781,41 +781,105 @@ from django import forms
 from rfid.models import AttendanceLog, FacultyProfile
 from django.core.exceptions import ValidationError
 
+
+from django import forms
+from rfid.models import AttendanceLog
+from faculty.models import FacultyProfile, TeachingAssignment
+
 class ManualAttendanceLogForm(forms.ModelForm):
     faculty = forms.ModelChoiceField(queryset=FacultyProfile.objects.all(), widget=forms.HiddenInput())
     date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-input'}))
+    teaching_assignments = forms.ModelMultipleChoiceField(
+        queryset=TeachingAssignment.objects.none(),
+        widget=forms.SelectMultiple(attrs={'class': 'form-input', 'size': 5}),
+        required=False,
+        help_text="Select one or more teaching assignments."
+    )
     time_in = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time', 'class': 'form-input'}))
     time_out = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time', 'class': 'form-input'}))
-    uid = forms.CharField(widget=forms.HiddenInput())
 
     class Meta:
         model = AttendanceLog
-        fields = ['faculty', 'uid', 'date']  # Do NOT include time_in/time_out!
+        fields = ['faculty', 'date', 'teaching_assignments']  # DO NOT include time_in/time_out
+
+    def __init__(self, *args, **kwargs):
+        faculty = kwargs.pop('faculty', None)
+        super().__init__(*args, **kwargs)
+        if faculty:
+            self.fields['teaching_assignments'].queryset = TeachingAssignment.objects.filter(faculty=faculty)
+        else:
+            self.fields['teaching_assignments'].queryset = TeachingAssignment.objects.none()
 
     def clean(self):
         cleaned_data = super().clean()
-        faculty = cleaned_data.get('faculty')
-        date = cleaned_data.get('date')
-        time_in = cleaned_data.get('time_in')
-        time_out = cleaned_data.get('time_out')
+        faculty = cleaned_data.get("faculty")
+        date = cleaned_data.get("date")
+        teaching_assignments = cleaned_data.get("teaching_assignments")
+        time_in = cleaned_data.get("time_in")
+        time_out = cleaned_data.get("time_out")
 
-        # Only one log per faculty per date
-        if faculty and date:
-            qs = AttendanceLog.objects.filter(faculty=faculty, date=date)
-            if self.instance.pk:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
-                raise ValidationError("An attendance log for this faculty and date already exists.")
+        # Only one log per faculty per date allowed
+        exists = AttendanceLog.objects.filter(faculty=faculty, date=date)
+        if self.instance.pk:
+            exists = exists.exclude(pk=self.instance.pk)
+        if exists.exists():
+            raise forms.ValidationError("An attendance log for this faculty and date already exists.")
 
-        # Time out must be after time in
-        if time_in and time_out and time_out <= time_in:
-            raise ValidationError("Time out must be after time in.")
-
+        if teaching_assignments and len(teaching_assignments) > 0:
+            start_times = [ta.start_time for ta in teaching_assignments]
+            end_times = [ta.end_time for ta in teaching_assignments]
+            assignment_time_in = min(start_times)
+            assignment_time_out = max(end_times)
+            if time_in != assignment_time_in or time_out != assignment_time_out:
+                raise forms.ValidationError("Time in/out must match selected assignments.")
+        else:
+            if time_in and time_out and time_out <= time_in:
+                raise forms.ValidationError("Time out must be after time in.")
         return cleaned_data
 
 
 
 
+
+from django import forms
+from rfid.models import AttendanceLog
+
+class DTRLogEditForm(forms.ModelForm):
+    time_in = forms.DateTimeField(
+        required=True,
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        label="Time In"
+    )
+    time_out = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        label="Time Out"
+    )
+
+    class Meta:
+        model = AttendanceLog
+        fields = ['time_in', 'time_out']
+
+    def clean(self):
+        cleaned = super().clean()
+        time_in = cleaned.get('time_in')
+        time_out = cleaned.get('time_out')
+
+        # End time must be after start time (allow time_out blank)
+        if time_in and time_out and time_out <= time_in:
+            self.add_error('time_out', "Time Out must be after Time In.")
+
+        # Only one log per faculty per day allowed (except this instance)
+        if time_in:
+            faculty = self.instance.faculty
+            date = time_in.date()
+            qs = AttendanceLog.objects.filter(faculty=faculty, date=date)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError("There is already an attendance log for this faculty on this date.")
+
+        return cleaned
 
 from django import forms
 
