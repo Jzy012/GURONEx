@@ -506,6 +506,19 @@ from base.utils.faculty_data import get_faculty_data
 from django.shortcuts import render
 from base.decorators import faculty_required
 
+from django.utils import timezone
+from django.shortcuts import render
+from base.decorators import faculty_required
+from base.utils.faculty_data import get_faculty_data
+
+from faculty.models import (
+    Deliverable,
+    FacultyDocument,
+    Semester,
+    TeachingAssignment,
+)
+
+
 @faculty_required
 def faculty_deliverables_view(request):
     data = get_faculty_data(request)
@@ -516,47 +529,79 @@ def faculty_deliverables_view(request):
         is_active=True,
         start_date__lte=today,
         end_date__gte=today
-    ).first()
+    ).select_related('academic_year').first()
 
-    if semester is None:
-        data['semester'] = None
-        data['deliverables_status'] = []
-        data['can_request_clearance'] = False
+    if not semester:
+        data.update({
+            'semester': None,
+            'academic_year_str': '',
+            'semester_str': '',
+            'assignment_rows': [],
+            'can_request_clearance': False,
+        })
         return render(request, 'faculty/faculty_deliverables.html', data)
 
+    # Teaching assignments for this faculty in the active semester
+    assignments = TeachingAssignment.objects.filter(
+        faculty=faculty,
+        semester=semester
+    ).order_by('day_of_week', 'start_time')
+
+    # Deliverables defined for this semester
     deliverables = Deliverable.objects.filter(
         semester=semester
     ).select_related('document_category')
 
-    uploaded_docs = FacultyDocument.objects.filter(
-        faculty=faculty,
-        semester=semester,
-    )
+    total_required_per_assignment = deliverables.count()
 
-    deliverables_status = []
-    all_approved = True
+    assignment_rows = []
+    all_assignments_complete = True  # for clearance
 
-    for d in deliverables:
-        doc = uploaded_docs.filter(deliverable=d).first()
+    for ta in assignments:
+        docs_qs = FacultyDocument.objects.filter(
+            faculty=faculty,
+            semester=semester,
+            teaching_assignment=ta,
+            deliverable__in=deliverables,
+        ).select_related('deliverable', 'document_category')
 
-        # Fallback if deliverable isn't linked in old uploads
-        if not doc:
-            doc = uploaded_docs.filter(document_category=d.document_category).first()
+        approved_count = docs_qs.filter(status='Approved').count()
 
-        # Checklist tracking
-        if not doc or doc.status != "Approved":
-            all_approved = False
+        deliverable_rows = []
+        for d in deliverables:
+            # latest document for this assignment+deliverable
+            doc = docs_qs.filter(deliverable=d).order_by('-uploaded_at').first()
+            deliverable_rows.append({
+                'deliverable': d,
+                'doc': doc,
+            })
 
-        deliverables_status.append({
-            'deliverable': d,
-            'document': doc,
-            'status': doc.status if doc else "Not Uploaded"
+        # Decide if this assignment is "complete" (all required approved)
+        if total_required_per_assignment > 0:
+            assignment_complete = (approved_count == total_required_per_assignment)
+        else:
+            assignment_complete = True  # no deliverables defined = trivially complete
+
+        if not assignment_complete:
+            all_assignments_complete = False
+
+        assignment_rows.append({
+            'ta': ta,
+            'approved_count': approved_count,
+            'total_required': total_required_per_assignment,
+            'deliverable_rows': deliverable_rows,
+            'is_complete': assignment_complete,
         })
 
+    academic_year_str = str(semester.academic_year)
+    semester_str = semester.get_semester_type_display()
+
     data.update({
-        "semester": semester,
-        "deliverables_status": deliverables_status,
-        "can_request_clearance": all_approved and deliverables.exists()
+        'semester': semester,
+        'academic_year_str': academic_year_str,
+        'semester_str': semester_str,
+        'assignment_rows': assignment_rows,
+        'can_request_clearance': all_assignments_complete and assignments.exists() and deliverables.exists(),
     })
 
     return render(request, 'faculty/faculty_deliverables.html', data)
@@ -568,17 +613,34 @@ def faculty_deliverables_view(request):
 
 
 
-from django.forms import formset_factory
-from django.shortcuts import render, redirect
-from django.contrib import messages
 from base.forms import FacultyDeliverableUploadForm
 from .models import FacultyDocument, Deliverable
 from services.google_drive_service import CentralGoogleDriveService
-from base.utils.faculty_data import get_faculty_data
-import io
-from googleapiclient.http import MediaIoBaseUpload
 from base.forms import FacultyDeliverableUploadForm, IndexedFormSet
 
+
+
+from django.forms import formset_factory
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.utils import timezone
+
+from django.forms import formset_factory
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.utils import timezone
+
+from base.decorators import faculty_required
+from base.utils.faculty_data import get_faculty_data
+
+from base.forms import IndexedFormSet, FacultyDeliverableUploadForm
+from .models import FacultyDocument, Deliverable, Semester, TeachingAssignment
+from services.google_drive_service import CentralGoogleDriveService
+
+import io
+from googleapiclient.http import MediaIoBaseUpload
+import json
+from django.core.serializers.json import DjangoJSONEncoder
 
 
 @faculty_required
@@ -592,70 +654,189 @@ def faculty_deliverable_upload(request):
         formset=IndexedFormSet,
         extra=1,
         max_num=10,
-        validate_max=True
+        validate_max=True,
     )
 
+    form_kwargs = {
+        "faculty": faculty,
+        "request": request,
+    }
+
+    # Build allowed-deliverables-per-TA map and deliverables_catalog for JS
+    allowed_deliverables_map = {}
+    deliverables_catalog = {}  # id -> display label
+    active_semester = Semester.objects.filter(is_active=True).first()
+    if active_semester and faculty:
+        assignments = TeachingAssignment.objects.filter(
+            faculty=faculty,
+            semester=active_semester,
+        )
+        deliverables = Deliverable.objects.filter(
+            semester=active_semester,
+        ).select_related("document_category")
+
+        # Use str(d) so JS labels match server-rendered labels (including semester)
+        for d in deliverables:
+            deliverables_catalog[d.id] = str(d)
+
+        for ta in assignments:
+            allowed_ids = []
+            for d in deliverables:
+                doc = (
+                    FacultyDocument.objects.filter(
+                        faculty=faculty,
+                        semester=active_semester,
+                        teaching_assignment=ta,
+                        deliverable=d,
+                    )
+                    .order_by("-uploaded_at")
+                    .first()
+                )
+                if not doc or doc.status != "Approved":
+                    allowed_ids.append(d.id)
+            allowed_deliverables_map[ta.id] = allowed_ids
+
     if request.method == "POST":
-        formset = DocumentFormSet(request.POST, request.FILES, form_kwargs={'faculty': faculty})
+        formset = DocumentFormSet(request.POST, request.FILES, form_kwargs=form_kwargs)
+
         if formset.is_valid():
+            # Enforce "at least one upload card" here (view-level check)
+            non_empty_count = 0
+            for form in formset:
+                cd = form.cleaned_data
+                ta = cd.get("teaching_assignment")
+                d = cd.get("deliverable")
+                f = cd.get("file")
+                if ta or d or f:
+                    non_empty_count += 1
+
+            if non_empty_count == 0:
+                # Add a non-form error and re-render
+                formset._non_form_errors = formset.error_class(
+                    ["Please fill out at least one upload card before submitting."]
+                )
+                messages.error(
+                    request, "Please fill out at least one upload card before submitting."
+                )
+                data["formset"] = formset
+                data["allowed_deliverables_json"] = json.dumps(
+                    allowed_deliverables_map, cls=DjangoJSONEncoder
+                )
+                data["deliverables_catalog_json"] = json.dumps(
+                    deliverables_catalog, cls=DjangoJSONEncoder
+                )
+                return render(request, "faculty/faculty_deliverables_upload.html", data)
+
             service = CentralGoogleDriveService()
             success_count = 0
 
             for form in formset:
-                if not form.cleaned_data:
-                    continue
+                cd = form.cleaned_data
+                teaching_assignment = cd.get("teaching_assignment")
+                deliverable = cd.get("deliverable")
+                file = cd.get("file")
 
-                deliverable = form.cleaned_data["deliverable"]
-                file = form.cleaned_data["file"]
+                # Skip rows that are completely empty (per form.clean())
+                if not teaching_assignment and not deliverable and not file:
+                    continue
 
                 try:
                     category = deliverable.document_category
+
+                    # Upload new file to Drive
                     media = MediaIoBaseUpload(
                         io.BytesIO(file.read()),
                         mimetype=file.content_type,
-                        resumable=False
+                        resumable=False,
                     )
-                    upload = service.service.files().create(
-                        body={
-                            "name": file.name,
-                            "parents": [faculty.gdrive_folder_id],
-                        },
-                        media_body=media,
-                        fields="id,webViewLink"
-                    ).execute()
+                    upload = (
+                        service.service.files()
+                        .create(
+                            body={
+                                "name": file.name,
+                                "parents": [faculty.gdrive_folder_id],
+                            },
+                            media_body=media,
+                            fields="id,webViewLink",
+                        )
+                        .execute()
+                    )
 
-                    FacultyDocument.objects.create(
-                        faculty=faculty,
-                        uploaded_by=account,
-                        document_name=category.name,
-                        document_category=category,
-                        file_path=upload["webViewLink"],
-                        google_drive_id=upload["id"],
-                        file_size=file.size,
-                        expiry_date=None,
-                        status="Pending",
-                        semester=deliverable.semester,
-                        deliverable=deliverable
+                    # Find existing non-approved document for this TA+deliverable
+                    existing_doc = (
+                        FacultyDocument.objects.filter(
+                            faculty=faculty,
+                            semester=deliverable.semester,
+                            teaching_assignment=teaching_assignment,
+                            deliverable=deliverable,
+                        )
+                        .exclude(status="Approved")
+                        .order_by("-uploaded_at")
+                        .first()
                     )
+
+                    if existing_doc:
+                        # OPTIONAL: delete old file in Drive
+                        try:
+                            service.service.files().delete(fileId=existing_doc.google_drive_id).execute()
+                        except Exception as e:
+                            print("Error deleting old Drive file:", e)
+
+                        # Update existing record
+                        existing_doc.document_name = category.name
+                        existing_doc.document_category = category
+                        existing_doc.file_path = upload["webViewLink"]
+                        existing_doc.google_drive_id = upload["id"]
+                        existing_doc.file_size = file.size
+                        existing_doc.status = "Pending"
+                        existing_doc.admin_remarks = ""
+                        existing_doc.uploaded_at = timezone.now()
+                        existing_doc.save()
+                    else:
+                        # Create new record
+                        FacultyDocument.objects.create(
+                            faculty=faculty,
+                            uploaded_by=account,
+                            document_name=category.name,
+                            document_category=category,
+                            file_path=upload["webViewLink"],
+                            google_drive_id=upload["id"],
+                            file_size=file.size,
+                            expiry_date=None,
+                            status="Pending",
+                            semester=deliverable.semester,
+                            deliverable=deliverable,
+                            teaching_assignment=teaching_assignment,
+                        )
+
                     success_count += 1
 
                 except Exception as e:
                     print("Upload error:", e)
-                    messages.error(request, f"Failed to upload file for {deliverable}.")
-            
+                    messages.error(
+                        request,
+                        f"Failed to upload file for {deliverable} ({teaching_assignment}).",
+                    )
+
             if success_count:
-                messages.success(request, f"{success_count} deliverable(s) uploaded successfully.")
+                messages.success(
+                    request, f"{success_count} deliverable(s) uploaded successfully."
+                )
             return redirect("faculty:faculty_deliverables")
 
         else:
-            messages.error(request, "Please fix errors before uploading.")
-
+            messages.error(request, "Please fix the errors in the form before uploading.")
     else:
-        formset = DocumentFormSet(form_kwargs={'faculty': faculty})
+        formset = DocumentFormSet(form_kwargs=form_kwargs)
 
     data["formset"] = formset
+    data["allowed_deliverables_json"] = json.dumps(
+        allowed_deliverables_map, cls=DjangoJSONEncoder
+    )
+    data["deliverables_catalog_json"] = json.dumps(
+        deliverables_catalog, cls=DjangoJSONEncoder
+    )
     return render(request, "faculty/faculty_deliverables_upload.html", data)
-
 
 
 

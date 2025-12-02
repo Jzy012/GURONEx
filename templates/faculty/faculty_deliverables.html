@@ -2,13 +2,16 @@
 {% block content %}
 <div class="space-y-8">
 
-  <!-- Page Title and Button Row -->
+  <!-- Header -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-[#800505]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6 1A9 9 0 1 1 3 12a9 9 0 0 1 18 0Z"/>
       </svg>
-      Deliverables <span class="text-lg font-semibold text-[#800505] ml-2">— {{ semester }}</span>
+      Teaching Assignments &amp; Deliverables
+      {% if semester %}
+        <span class="text-lg font-semibold text-[#800505] ml-2">— {{ semester_str }} {{ academic_year_str }}</span>
+      {% endif %}
     </h2>
     <div class="flex gap-2">
       <a href="{% url 'faculty:faculty_deliverables_upload' %}"
@@ -29,74 +32,204 @@
     </div>
   </div>
 
-  <!-- Deliverables Table Card -->
-  <div class="bg-white shadow rounded-lg overflow-x-auto">
-    <table class="min-w-full text-sm border-collapse">
-      <thead class="bg-gray-100 border-t border-gray-200 text-gray-700 font-semibold">
-        <tr>
-          <th class="px-6 py-4 text-left">Document</th>
-          <th class="px-6 py-4 text-left">Deadline</th>
-          <th class="px-6 py-4 text-left">Status</th>
-          <th class="px-6 py-4 text-left">Action</th>
-        </tr>
-      </thead>
-      <tbody class="text-gray-900">
-        {% for item in deliverables_status %}
-        <tr class="hover:bg-gray-50 transition border-t">
-          <td class="px-6 py-4 font-medium">{{ item.deliverable.document_category.name }}</td>
-          <td class="px-6 py-4">
-            <span class="text-gray-700">{{ item.deliverable.deadline|date:"M d, Y" }}</span>
-          </td>
-          <td class="px-6 py-4">
-            {% if item.status == "Approved" %}
-              <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-700 font-semibold">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
-                Approved
-              </span>
-            {% elif item.status == "Pending" %}
-              <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-yellow-100 text-yellow-800 font-semibold">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3" /></svg>
-                Pending
-              </span>
-            {% elif item.status == "Rejected" %}
-              <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-100 text-red-700 font-semibold">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                Rejected
-              </span>
-            {% else %}
-              <span class="inline-flex items-center gap-2 px-2 py-1 rounded bg-gray-200 text-gray-700 font-semibold">
-                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                Not Uploaded
-              </span>
-            {% endif %}
-          </td>
-          <td class="px-6 py-4">
-            {% if item.document %}
-              <a href="{{ item.document.file_path }}" target="_blank"
-                 class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded font-semibold transition text-xs">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m6 0a6 6 0 1 0-6 6 6 6 0 0 0 6-6Z" /></svg>
-                View
-              </a>
-            {% else %}
-              <a href="{% url 'faculty:faculty_deliverables_upload' %}"
-                 class="inline-flex items-center gap-1 px-3 py-1 bg-[#800505]/10 hover:bg-[#800505]/20 text-[#800505] rounded font-semibold transition text-xs">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-8m-4 4h8" /></svg>
-                Upload
-              </a>
-            {% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="4" class="px-6 py-10 text-center text-gray-500 font-semibold">
-            No deliverables assigned this semester.
-          </td>
-        </tr>
+  {% if not semester %}
+    <div class="bg-yellow-50 border border-yellow-200 rounded px-4 py-3 text-sm text-yellow-900">
+      There is no active semester at the moment. Deliverables will appear here once a semester is active.
+    </div>
+  {% endif %}
+
+  <!-- Teaching Assignments and Deliverables -->
+  <div class="bg-white rounded-lg shadow-md overflow-hidden mt-2">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <h3 class="text-lg font-semibold text-gray-800">
+        Your Teaching Assignments {% if semester %}– {{ semester_str }} {{ academic_year_str }}{% endif %}
+      </h3>
+    </div>
+
+    {% if assignment_rows %}
+      <div class="divide-y divide-gray-200">
+        {% for row in assignment_rows %}
+          {% with ta=row.ta %}
+          <div class="p-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <!-- Summary line -->
+              <div class="space-y-1">
+                <div class="font-semibold text-gray-900">
+                  {{ ta.subject_code }} – {{ ta.subject_description }}
+                </div>
+                <div class="text-sm text-gray-600">
+                  <span class="mr-2">
+                    <span class="font-semibold">Year/Section:</span> {{ ta.year_section }}
+                  </span>
+                  <span class="mr-2">
+                    <span class="font-semibold">Day:</span> {{ ta.get_day_of_week_display }}
+                  </span>
+                  <span class="mr-2">
+                    <span class="font-semibold">Time:</span> {{ ta.start_time }} – {{ ta.end_time }}
+                  </span>
+                  {% if ta.room %}
+                    <span class="mr-2">
+                      <span class="font-semibold">Room:</span> {{ ta.room }}
+                    </span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- Progress + toggle button -->
+              <div class="flex items-center gap-3">
+                {% if row.total_required > 0 %}
+                  <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-900 rounded">
+                    {{ row.approved_count }} / {{ row.total_required }} Approved
+                  </span>
+                  {% if row.is_complete %}
+                    <span class="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded">
+                      Complete
+                    </span>
+                  {% else %}
+                    <span class="inline-block px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded">
+                      Incomplete
+                    </span>
+                  {% endif %}
+                {% else %}
+                  <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-500 rounded">
+                    No Deliverables Configured
+                  </span>
+                {% endif %}
+
+                <button type="button"
+                        class="toggle-details px-3 py-1 text-xs font-semibold border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition"
+                        data-target="#details-{{ ta.id }}">
+                  Details
+                </button>
+              </div>
+            </div>
+
+            <!-- Details: deliverables and documents -->
+            <div id="details-{{ ta.id }}" class="mt-4 hidden">
+              {% if row.deliverable_rows %}
+                <div class="overflow-x-auto">
+                  <table class="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+                    <thead class="bg-gray-100">
+                      <tr class="text-left text-gray-700">
+                        <th class="px-4 py-2 border-b">Deliverable</th>
+                        <th class="px-4 py-2 border-b">Deadline</th>
+                        <th class="px-4 py-2 border-b">Status</th>
+                        <th class="px-4 py-2 border-b">File</th>
+                        <th class="px-4 py-2 border-b">Uploaded At</th>
+                        <th class="px-4 py-2 border-b">Remarks</th>
+                        <th class="px-4 py-2 border-b">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                      {% for dr in row.deliverable_rows %}
+                        {% with d=dr.deliverable doc=dr.doc %}
+                        <tr>
+                          <td class="px-4 py-2">
+                            {{ d.document_category.name }}
+                          </td>
+                          <td class="px-4 py-2">
+                            {{ d.deadline|date:"M d, Y" }}
+                          </td>
+                          <td class="px-4 py-2">
+                            {% if doc %}
+                              {% if doc.status == 'Approved' %}
+                                <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded">
+                                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Approved
+                                </span>
+                              {% elif doc.status == 'Rejected' %}
+                                <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-red-100 text-red-700 rounded">
+                                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                  Rejected
+                                </span>
+                              {% else %}
+                                <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded">
+                                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3" />
+                                  </svg>
+                                  Pending
+                                </span>
+                              {% endif %}
+                            {% else %}
+                              <span class="inline-flex items-center gap-2 px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-700 rounded">
+                                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                </svg>
+                                Not Uploaded
+                              </span>
+                            {% endif %}
+                          </td>
+                          <td class="px-4 py-2">
+                            {% if doc %}
+                              <a href="{% url 'adminhub:download_document' doc.uid %}?inline=1"
+                                 target="_blank" rel="noopener noreferrer"
+                                 class="inline-flex items-center gap-1 text-[#800505] hover:underline text-xs font-semibold">
+                                View File
+                              </a>
+                            {% else %}
+                              <span class="text-gray-400 text-xs">—</span>
+                            {% endif %}
+                          </td>
+                          <td class="px-4 py-2">
+                            {% if doc %}
+                              {{ doc.uploaded_at|date:"M d, Y" }}
+                            {% else %}
+                              <span class="text-gray-400 text-xs">—</span>
+                            {% endif %}
+                          </td>
+                          <td class="px-4 py-2 max-w-xs">
+                            {% if doc and doc.admin_remarks %}
+                              <button type="button"
+                                      class="text-xs text-[#800505] hover:underline font-semibold view-remarks-btn"
+                                      data-remarks="{{ doc.admin_remarks|escapejs }}"
+                                      data-ta="{{ ta.subject_code }} – {{ ta.subject_description }} ({{ ta.year_section }})"
+                                      data-deliverable="{{ d.document_category.name }}"
+                                      data-status="{{ doc.status }}"
+                                      data-uploaded="{{ doc.uploaded_at|date:'M d, Y' }}">
+                                View Remarks
+                              </button>
+                            {% else %}
+                              <span class="text-gray-400 text-xs">—</span>
+                            {% endif %}
+                          </td>
+                          <td class="px-4 py-2">
+                            {% if doc and doc.status == 'Approved' %}
+                              <span class="text-xs text-gray-500">Approved – cannot reupload</span>
+                            {% else %}
+                              <a href="{% url 'faculty:faculty_deliverables_upload' %}?ta={{ ta.id }}&deliverable={{ d.id }}"
+                                 class="inline-flex items-center gap-1 px-3 py-1 bg-[#800505]/10 hover:bg-[#800505]/20 text-[#800505] rounded font-semibold transition text-xs">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-8m-4 4h8" />
+                                </svg>
+                                {% if doc %}Reupload{% else %}Upload{% endif %}
+                              </a>
+                            {% endif %}
+                          </td>
+                        </tr>
+                        {% endwith %}
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p class="text-sm text-gray-500">
+                  No deliverables configured for this semester.
+                </p>
+              {% endif %}
+            </div>
+          </div>
+          {% endwith %}
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+    {% else %}
+      <div class="p-6 text-center text-gray-500">
+        You have no teaching assignments for the active semester.
+      </div>
+    {% endif %}
   </div>
 
   <!-- Request Clearance -->
@@ -105,17 +238,168 @@
       <form method="post" action="#" class="flex justify-end">
         {% csrf_token %}
         <button class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow transition">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
           Request Clearance
         </button>
       </form>
     {% else %}
       <div class="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded px-4 py-3 mt-2 text-yellow-900 text-sm">
-        <svg class="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-        You can request clearance once all deliverables are uploaded and approved.
+        <svg class="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
+        You can request clearance once all deliverables for all teaching assignments are uploaded and approved.
       </div>
     {% endif %}
   </div>
 
 </div>
+
+<!-- Remarks Modal -->
+<div id="remarks-modal"
+     class="fixed inset-0 z-40 hidden items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+    <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+      <div>
+        <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
+          <svg class="w-4 h-4 text-[#800505]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+          Admin Remarks
+        </h3>
+        <p id="remarks-modal-subtitle" class="text-[11px] text-gray-500 mt-0.5"></p>
+      </div>
+      <button type="button" id="remarks-modal-close"
+              class="text-gray-400 hover:text-gray-600 rounded-full p-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
+             viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="px-4 pt-3 pb-1">
+      <div id="remarks-modal-meta" class="flex flex-wrap gap-2 text-[11px] mb-2"></div>
+      <div class="max-h-64 overflow-y-auto border-t border-gray-100 pt-2">
+        <p id="remarks-modal-content" class="text-sm text-gray-800 whitespace-pre-line"></p>
+      </div>
+    </div>
+    <div class="px-4 py-2 border-t border-gray-200 flex justify-end">
+      <button type="button" id="remarks-modal-ok"
+              class="px-4 py-1.5 text-sm font-semibold bg-[#800505] hover:bg-[#a80707] text-white rounded-lg">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Toggle assignment details
+    document.querySelectorAll('.toggle-details').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const targetSelector = btn.getAttribute('data-target');
+        const target = document.querySelector(targetSelector);
+        if (target) {
+          target.classList.toggle('hidden');
+        }
+      });
+    });
+
+    // Remarks modal elements
+    const modal = document.getElementById('remarks-modal');
+    const modalContent = document.getElementById('remarks-modal-content');
+    const modalSubtitle = document.getElementById('remarks-modal-subtitle');
+    const modalMeta = document.getElementById('remarks-modal-meta');
+    const closeBtn = document.getElementById('remarks-modal-close');
+    const okBtn = document.getElementById('remarks-modal-ok');
+
+    function pill(text, colorClasses) {
+      const span = document.createElement('span');
+      span.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ' + colorClasses;
+      span.textContent = text;
+      return span;
+    }
+
+    function openRemarksModal({ remarks, taText, deliverableText, status, uploaded }) {
+      modalContent.textContent = remarks || '';
+
+      const subtitleBits = [];
+      if (taText) subtitleBits.push(taText);
+      if (deliverableText) subtitleBits.push(deliverableText);
+      modalSubtitle.textContent = subtitleBits.join(' • ');
+
+      // Meta chips: status + uploaded date
+      while (modalMeta.firstChild) {
+        modalMeta.removeChild(modalMeta.firstChild);
+      }
+
+      if (status) {
+        let statusLabel = status;
+        let statusClasses = 'bg-gray-100 text-gray-700';
+        if (status === 'Approved') {
+          statusLabel = 'Approved';
+          statusClasses = 'bg-green-100 text-green-700';
+        } else if (status === 'Rejected') {
+          statusLabel = 'Rejected';
+          statusClasses = 'bg-red-100 text-red-700';
+        } else if (status === 'Pending') {
+          statusLabel = 'Pending';
+          statusClasses = 'bg-yellow-100 text-yellow-800';
+        }
+        modalMeta.appendChild(pill('Status: ' + statusLabel, statusClasses));
+      }
+
+      if (uploaded) {
+        modalMeta.appendChild(pill('Uploaded: ' + uploaded, 'bg-blue-50 text-blue-700'));
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeRemarksModal() {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // Bind "View Remarks" buttons
+    document.querySelectorAll('.view-remarks-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const payload = {
+          remarks: btn.getAttribute('data-remarks') || '',
+          taText: btn.getAttribute('data-ta') || '',
+          deliverableText: btn.getAttribute('data-deliverable') || '',
+          status: btn.getAttribute('data-status') || '',
+          uploaded: btn.getAttribute('data-uploaded') || '',
+        };
+        openRemarksModal(payload);
+      });
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeRemarksModal);
+    }
+    if (okBtn) {
+      okBtn.addEventListener('click', closeRemarksModal);
+    }
+
+    // Close when clicking outside the modal content
+    if (modal) {
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) {
+          closeRemarksModal();
+        }
+      });
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+        closeRemarksModal();
+      }
+    });
+  });
+</script>
 {% endblock %}

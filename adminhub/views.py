@@ -600,27 +600,31 @@ from django.contrib import messages
 from base.forms import AssignDeliverablesForm
 from faculty.models import Deliverable, DeliverableTemplate
 from django.utils import timezone
-
-
-from django.db.models import Q
-from faculty.models import FacultyProfile, FacultyDocument, Deliverable, Semester
-
-from django.utils import timezone
-from faculty.models import FacultyProfile, FacultyDocument, Deliverable, Semester
-
-from django.utils import timezone
 from django.db.models import Q
 from django.core.paginator import Paginator
-from faculty.models import FacultyProfile, FacultyDocument, Deliverable, Semester
+from faculty.models import FacultyProfile, FacultyDocument, Deliverable, Semester, TeachingAssignment
 
 @admin_required
 def deliverables_view(request):
-    today = timezone.now().date()
-    semester = Semester.objects.filter(is_active=True, start_date__lte=today, end_date__gte=today).select_related('academic_year').first()
+    today = timezone.localdate()
+
+    # Grab the active semester (by flag)
+    semester = Semester.objects.filter(
+        is_active=True
+    ).select_related('academic_year').first()
+
+    semester_date_mismatch = False
+    if semester:
+        # Extra rule: ensure the active semester contains today's date
+        if not (semester.start_date <= today <= semester.end_date):
+            semester_date_mismatch = True
+    else:
+        semester = None
+
     total_faculty = FacultyProfile.objects.count()
 
-    completed_submissions = 0
-    pending_submissions = 0
+    completed_submissions = 0          # number of fully-complete faculty
+    pending_submissions = 0            # total number of pending document slots
     deliverables_list = []
     academic_year_str = ""
     semester_str = ""
@@ -629,7 +633,7 @@ def deliverables_view(request):
     search = request.GET.get("search", "").strip()
     status_filter = request.GET.get("status", "")
     page_number = request.GET.get("page")
-    page_size = 10  # You can adjust this
+    page_size = 10
 
     faculty_statuses_raw = []
 
@@ -638,9 +642,15 @@ def deliverables_view(request):
         academic_year_str = str(academic_year)
         semester_str = semester.get_semester_type_display()
 
-        deliverables = Deliverable.objects.filter(semester=semester).select_related('document_category')
+        # All deliverables for this semester
+        deliverables = Deliverable.objects.filter(
+            semester=semester
+        ).select_related('document_category')
+
         deliverable_ids = list(deliverables.values_list('id', flat=True))
         deliverable_count = len(deliverable_ids)
+
+        # For the "Active Deliverables" list
         deliverables_list = [
             {
                 "name": d.document_category.name,
@@ -648,49 +658,78 @@ def deliverables_view(request):
             } for d in deliverables
         ]
 
-        faculty_qs = FacultyProfile.objects.select_related('account').all()
+        # Faculty base queryset, with status preloaded
+        faculty_qs = FacultyProfile.objects.select_related('account', 'status').all()
         if search:
             faculty_qs = faculty_qs.filter(
                 Q(name__icontains=search) | Q(account__email__icontains=search)
             )
 
+        total_pending_docs_global = 0
+
         for faculty in faculty_qs:
-            approved_count = 0
-            for d_id in deliverable_ids:
-                doc = FacultyDocument.objects.filter(
+            # How many teaching assignments this faculty has in this semester
+            ta_count = TeachingAssignment.objects.filter(
+                faculty=faculty,
+                semester=semester,
+            ).count()
+
+            # Total required documents = (#deliverables * #teaching_assignments)
+            total_required = deliverable_count * ta_count
+
+            # How many documents are already approved for this faculty in this semester
+            if total_required > 0:
+                approved_count = FacultyDocument.objects.filter(
                     faculty=faculty,
                     semester=semester,
-                    deliverable_id=d_id,
-                    status="Approved"
-                ).first()
-                if doc:
-                    approved_count += 1
+                    deliverable_id__in=deliverable_ids,
+                    status="Approved",
+                ).count()
+            else:
+                approved_count = 0
+
+            # Pending docs for this faculty (document-level)
+            faculty_pending_docs = max(total_required - approved_count, 0)
+            total_pending_docs_global += faculty_pending_docs
 
             faculty_status = {
                 "name": faculty.name,
                 "email": faculty.account.email,
                 "approved_count": approved_count,
-                "total_required": deliverable_count,
+                "total_required": total_required,
+                "pending_docs": faculty_pending_docs,  
                 "faculty_uuid": faculty.uuid,
+                # Employment status info
+                "status_label": faculty.status.name if faculty.status else None,
+                "status_id": faculty.status_id,
             }
 
-            # Filter by status if specified
-            if status_filter == "completed" and (approved_count != deliverable_count or deliverable_count == 0):
+            # Filter by faculty-level completion if requested
+            if status_filter == "completed" and (
+                approved_count != total_required or total_required == 0
+            ):
                 continue
-            if status_filter == "pending" and (approved_count == deliverable_count and deliverable_count > 0):
+            if status_filter == "pending" and (
+                approved_count == total_required and total_required > 0
+            ):
                 continue
 
             faculty_statuses_raw.append(faculty_status)
 
+        # completed_submissions: number of fully complete faculty
+        completed_submissions = sum(
+            1 for f in faculty_statuses_raw
+            if f["approved_count"] == f["total_required"] and f["total_required"] > 0
+        )
+        # pending_submissions: total pending docs across all faculty
+        pending_submissions = total_pending_docs_global
+    else:
+        completed_submissions = 0
+        pending_submissions = 0
+
     # Pagination of faculty_statuses_raw
     paginator = Paginator(faculty_statuses_raw, page_size)
     page_obj = paginator.get_page(page_number)
-
-    # Recompute completed/pending based on the unpaginated filtered queryset
-    completed_submissions = sum(
-        1 for f in faculty_statuses_raw if f["approved_count"] == f["total_required"] and f["total_required"] > 0
-    )
-    pending_submissions = len(faculty_statuses_raw) - completed_submissions
 
     # Preserve other GET params for pagination links
     get_params = request.GET.copy()
@@ -701,7 +740,7 @@ def deliverables_view(request):
     context = {
         'total_faculty': total_faculty,
         'completed_submissions': completed_submissions,
-        'pending_submissions': pending_submissions,
+        'pending_submissions': pending_submissions,  # now doc-level count
         'page_obj': page_obj,
         'paginator': paginator,
         'deliverables_list': deliverables_list,
@@ -710,6 +749,7 @@ def deliverables_view(request):
         'search': search,
         'status_filter': status_filter,
         'querystring': querystring,
+        'semester_date_mismatch': semester_date_mismatch,
     }
     return render(request, 'admin/admin_deliverables.html', context)
 
@@ -773,9 +813,93 @@ def create_deliverable_template_view(request):
 
 
 
+# in your admin views module
+from django.shortcuts import render, get_object_or_404
+from django.utils import timezone
+from faculty.models import FacultyProfile,TeachingAssignment,Deliverable,FacultyDocument,Semester
+
+
+@admin_required
+def faculty_deliverables(request, faculty_uuid):
+    today = timezone.localdate()
+
+    # Active semester by flag, with date check
+    semester = Semester.objects.filter(
+        is_active=True
+    ).select_related('academic_year').first()
+
+    semester_date_mismatch = False
+    if semester and not (semester.start_date <= today <= semester.end_date):
+        semester_date_mismatch = True
+
+    faculty = get_object_or_404(
+        FacultyProfile.objects.select_related('account'),
+        uuid=faculty_uuid
+    )
+
+    # Teaching assignments for this faculty in this semester
+    assignments = TeachingAssignment.objects.filter(
+        faculty=faculty,
+        semester=semester
+    ).order_by('day_of_week', 'start_time')
+
+    # Deliverables for this semester
+    deliverables = Deliverable.objects.filter(
+        semester=semester
+    ).select_related('document_category')
+
+    total_required_per_assignment = deliverables.count()
+
+    assignment_rows = []
+    for ta in assignments:
+        docs_qs = FacultyDocument.objects.filter(
+            faculty=faculty,
+            semester=semester,
+            teaching_assignment=ta,
+            deliverable__in=deliverables,
+        ).select_related('deliverable', 'document_category')
+
+        approved_count = docs_qs.filter(status='Approved').count()
+        submitted_count = docs_qs.exclude(status='Rejected').count()  # tweak if needed
+
+        # Build a list of (deliverable, doc) pairs for the template
+        deliverable_rows = []
+        for d in deliverables:
+            doc = docs_qs.filter(deliverable=d).order_by('-uploaded_at').first()
+            deliverable_rows.append({
+                'deliverable': d,
+                'doc': doc,
+            })
+
+        assignment_rows.append({
+            'ta': ta,
+            'approved_count': approved_count,
+            'submitted_count': submitted_count,
+            'total_required': total_required_per_assignment,
+            'deliverable_rows': deliverable_rows,
+        })
+
+    academic_year_str = semester.academic_year if semester else ""
+    semester_str = semester.get_semester_type_display() if semester else ""
+
+    context = {
+        'faculty': faculty,
+        'semester': semester,
+        'academic_year_str': academic_year_str,
+        'semester_str': semester_str,
+        'semester_date_mismatch': semester_date_mismatch,
+        'assignment_rows': assignment_rows,
+        'deliverables': deliverables,  # still useful for headers, counts, etc.
+    }
+    return render(request, 'admin/admin_faculty_deliverables.html', context)
+
+
+
+
+
 # views.py
 from django.forms import modelformset_factory
-from base.forms import AcademicYearForm, SemesterForm
+from base.forms import AcademicYearForm, SemesterForm, BaseSemesterFormSet
 from faculty.models import AcademicYear, Semester
 
 @admin_required
@@ -788,31 +912,48 @@ def academic_years_view(request):
 
 @admin_required
 def create_academic_year_view(request):
-    SemesterFormSet = modelformset_factory(Semester, form=SemesterForm, extra=3, can_delete=False)
+    SemesterFormSet = modelformset_factory(
+        Semester,
+        form=SemesterForm,
+        formset=BaseSemesterFormSet,
+        extra=3,
+        can_delete=False
+    )
 
     if request.method == 'POST':
         year_form = AcademicYearForm(request.POST)
-        formset = SemesterFormSet(request.POST)
+        formset = SemesterFormSet(request.POST, queryset=Semester.objects.none())
 
         if year_form.is_valid() and formset.is_valid():
+            # 1) Save academic year
             academic_year = year_form.save()
 
-            # Save all semester forms with this academic_year
+            # 2) Save semesters attached to this academic year
             for form in formset:
+                if not hasattr(form, "cleaned_data") or form.errors:
+                    continue
                 semester = form.save(commit=False)
                 semester.academic_year = academic_year
                 semester.save()
+
+            # 3) After saving, update active year & semester based on today's date
+            today = timezone.localdate()
+            AcademicYear.update_active_years(ref_date=today)
+            Semester.update_active_semesters(ref_date=today)
 
             messages.success(request, "Academic year and semesters created.")
             return redirect('adminhub:create_academic_year')
 
     else:
         year_form = AcademicYearForm()
-        formset = SemesterFormSet(queryset=Semester.objects.none(), initial=[
-            {'semester_type': '1st'},
-            {'semester_type': '2nd'},
-            {'semester_type': 'summer'},
-        ])
+        formset = SemesterFormSet(
+            queryset=Semester.objects.none(),
+            initial=[
+                {'semester_type': '1st'},
+                {'semester_type': '2nd'},
+                {'semester_type': 'summer'},
+            ]
+        )
 
     return render(request, 'admin/admin_create_academic_year.html', {
         'year_form': year_form,
@@ -2229,74 +2370,7 @@ def dtr_tab_view(request, faculty_uuid):
 
 
 
-# from django.shortcuts import render, get_object_or_404
-# from datetime import date
-# import calendar
-# from faculty.models import FacultyProfile
-# from rfid.models import AttendanceLog
-# from services.dtr_service import DTRCalculator
-# from django.http import HttpResponse
-# from django.template.loader import render_to_string
-# import weasyprint
 
-# from base.decorators import admin_required
-
-# @admin_required
-# def admin_dtr_export_view(request, faculty_uuid):
-#     faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
-#     today = date.today()
-#     year = int(request.GET.get('year', today.year))
-#     month = int(request.GET.get('month', today.month))
-#     month_label = calendar.month_name[month]
-#     days_in_month = calendar.monthrange(year, month)[1]
-
-#     dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
-#     # Build DTR table (1-based days)
-#     table_rows = []
-#     for day_num in range(1, days_in_month+1):
-#         am_in = am_out = pm_in = pm_out = ""
-#         logs = [status['attendance_log'] for status in dtr[day_num-1]['statuses'] if status['attendance_log']]
-#         if logs:
-#             log = logs[0]
-#             if log.time_in:
-#                 if log.time_in.hour < 12:
-#                     am_in = log.time_in.strftime('%I:%M %p').lstrip('0')
-#                 else:
-#                     pm_in = log.time_in.strftime('%I:%M %p').lstrip('0')
-#             if log.time_out:
-#                 if log.time_out.hour < 12:
-#                     am_out = log.time_out.strftime('%I:%M %p').lstrip('0')
-#                 else:
-#                     pm_out = log.time_out.strftime('%I:%M %p').lstrip('0')
-#         table_rows.append({
-#             'day': day_num,
-#             'am_in': am_in,
-#             'am_out': am_out,
-#             'pm_in': pm_in,
-#             'pm_out': pm_out
-#         })
-
-#     # For preview and for PDF download
-#     context = {
-#         'faculty': faculty,
-#         'month': month,
-#         'year': year,
-#         'month_label': month_label,
-#         'rows': table_rows,
-#         'days': days_in_month,
-#         'is_pdf': request.GET.get('format') == 'pdf',
-#     }
-#     # PDF generation
-#     if request.GET.get('format') == 'pdf':
-#         html = render_to_string('admin/admin_dtr_export.html', context)
-#         pdf = weasyprint.HTML(string=html).write_pdf(stylesheets=[weasyprint.CSS(string='''
-#             @page { size: A4; margin: 1cm; }
-#         ''')])
-#         response = HttpResponse(pdf, content_type='application/pdf')
-#         response['Content-Disposition'] = f'attachment; filename="{faculty.name}_dtr_{month}_{year}.pdf"'
-#         return response
-
-#     return render(request, 'admin/admin_dtr_export.html', context) 
 
 
 

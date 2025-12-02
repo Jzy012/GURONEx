@@ -26,33 +26,45 @@
         {% for field in year_form.hidden_fields %}
           {{ field }}
         {% endfor %}
+
         {% for field in year_form.visible_fields %}
           {% if field.name == "is_active" %}
             <div class="flex items-center gap-2">
               {{ field }}
-              <label for="{{ field.id_for_label }}" class="text-xs font-semibold text-[#800505] mb-0">{{ field.label }}</label>
+              <label for="{{ field.id_for_label }}" class="text-xs font-semibold text-[#800505] mb-0">
+                {{ field.label }}
+              </label>
               {% if field.help_text %}
                 <p class="text-xs text-gray-500 ml-2 mt-1">{{ field.help_text }}</p>
               {% endif %}
               {% if field.errors %}
-                <p class="text-red-500 text-xs ml-2 mt-1">{{ field.errors.0 }}</p>
+                {% for error in field.errors %}
+                  <p class="text-red-500 text-xs ml-2 mt-1">{{ error }}</p>
+                {% endfor %}
               {% endif %}
             </div>
           {% else %}
             <div>
-              <label class="block text-xs font-semibold text-[#800505] mb-1">{{ field.label }}</label>
+              <label class="block text-xs font-semibold text-[#800505] mb-1">
+                {{ field.label }}
+              </label>
               {{ field }}
               {% if field.help_text %}
                 <p class="text-xs text-gray-500 mt-1">{{ field.help_text }}</p>
               {% endif %}
               {% if field.errors %}
-                <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
+                {% for error in field.errors %}
+                  <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                {% endfor %}
               {% endif %}
             </div>
           {% endif %}
         {% endfor %}
+
         {% if year_form.non_field_errors %}
-          <p class="text-red-500 text-xs mt-1">{{ year_form.non_field_errors }}</p>
+          {% for error in year_form.non_field_errors %}
+            <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+          {% endfor %}
         {% endif %}
       </div>
     </div>
@@ -60,30 +72,56 @@
     <!-- Semesters Section -->
     <div>
       <h3 class="text-lg font-bold text-gray-900 mb-4">Semesters</h3>
+
       {{ formset.management_form }}
+
+      {# Show formset-level errors (from BaseSemesterFormSet.clean) #}
+      {% if formset.non_form_errors %}
+        <div class="mb-3">
+          {% for error in formset.non_form_errors %}
+            <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% if formset.non_field_errors %}
+        <div class="mb-3">
+          {% for error in formset.non_field_errors %}
+            <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
       <div class="flex flex-col gap-5">
         {% for form in formset %}
           <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-            {# Render hidden fields (like id) silently #}
+            {# Hidden fields, e.g. id #}
             {% for hidden in form.hidden_fields %}
               {{ hidden }}
             {% endfor %}
+
             <div class="grid grid-cols-1 gap-4">
               {% for field in form.visible_fields %}
                 <div>
-                  <label class="block text-xs font-semibold text-[#800505] mb-1">{{ field.label }}</label>
+                  <label class="block text-xs font-semibold text-[#800505] mb-1">
+                    {{ field.label }}
+                  </label>
                   {{ field }}
                   {% if field.help_text %}
                     <p class="text-xs text-gray-500 mt-1">{{ field.help_text }}</p>
                   {% endif %}
                   {% if field.errors %}
-                    <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
+                    {% for error in field.errors %}
+                      <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+                    {% endfor %}
                   {% endif %}
                 </div>
               {% endfor %}
             </div>
+
             {% if form.non_field_errors %}
-              <p class="text-red-500 text-xs mt-1">{{ form.non_field_errors }}</p>
+              {% for error in form.non_field_errors %}
+                <p class="text-red-500 text-xs mt-1">{{ error }}</p>
+              {% endfor %}
             {% endif %}
           </div>
         {% endfor %}

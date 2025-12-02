@@ -1,18 +1,24 @@
 {% extends "faculty/faculty_base.html" %}
 {% block content %}
-<div class="max-w-2xl mx-auto space-y-8">
+<div class="max-w-3xl mx-auto space-y-8">
 
   <!-- Title & Back -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
-      <svg class="w-7 h-7 text-[#800505]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-      </svg>
-      Upload Deliverables
-    </h2>
+    <div>
+      <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
+        <svg class="w-7 h-7 text-[#800505]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        Upload Deliverables
+      </h2>
+      <p class="mt-1 text-sm text-gray-600">
+        Select a teaching assignment, then choose the required deliverable and upload the file.
+      </p>
+    </div>
     <a href="{% url 'faculty:faculty_deliverables' %}"
-        class="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-[#800505] rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+       class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
       </svg>
       <span>Back to Deliverables</span>
@@ -23,10 +29,10 @@
   {% if messages %}
     <ul class="space-y-2">
       {% for message in messages %}
-        <li class="px-4 py-2 rounded 
-          {% if message.tags == 'error' %}bg-red-100 text-red-700 border border-red-300
-          {% elif message.tags == 'success' %}bg-green-100 text-green-700 border border-green-300
-          {% else %}bg-gray-100 text-gray-800 border border-gray-300
+        <li class="px-4 py-2 rounded text-sm
+          {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
+          {% elif message.tags == 'success' %}bg-green-50 text-green-700 border border-green-200
+          {% else %}bg-gray-50 text-gray-800 border border-gray-200
           {% endif %}">
           {{ message }}
         </li>
@@ -35,8 +41,8 @@
   {% endif %}
 
   {% if formset.non_form_errors %}
-    <div class="bg-red-50 border border-red-200 rounded p-3 mb-4">
-      <ul class="list-disc pl-5 text-red-700">
+    <div class="bg-red-50 border border-red-200 rounded p-3 mb-4 text-sm text-red-700">
+      <ul class="list-disc pl-5">
         {% for error in formset.non_form_errors %}
           <li>{{ error }}</li>
         {% endfor %}
@@ -48,76 +54,147 @@
     {% csrf_token %}
     {{ formset.management_form }}
 
-    <div id="formset-cards" class="space-y-6">
+    <div id="formset-cards" class="space-y-5">
       {% for form in formset %}
-      <div class="relative bg-white rounded-xl shadow-lg px-6 py-7 border-2 border-gray-300 card-row">
-        {% if not forloop.first %}
-        <button type="button" class="remove-row absolute top-3 right-3 text-red-500 hover:text-red-700 bg-transparent rounded-full p-1" title="Remove this upload card">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-        </button>
-        {% endif %}
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">Deliverable</label>
-            {{ form.deliverable }}
-            {% if form.deliverable.errors %}
-              <div class="text-xs text-red-600 mt-1">{{ form.deliverable.errors.0 }}</div>
-            {% endif %}
+      <div class="relative bg-white rounded-xl shadow-sm px-5 py-5 border border-gray-200 card-row">
+        <!-- Card header -->
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#800505]/10 text-[#800505] text-xs font-semibold">
+              {{ forloop.counter }}
+            </span>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">Upload #{{ forloop.counter }}</p>
+              <p class="text-xs text-gray-500">Select a teaching assignment and its corresponding deliverable.</p>
+            </div>
           </div>
+          {% if not forloop.first %}
+          <button type="button"
+                  class="remove-row inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-full"
+                  title="Remove this upload card">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            Remove
+          </button>
+          {% endif %}
+        </div>
+
+        <!-- Fields -->
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">Teaching Assignment</label>
+              {{ form.teaching_assignment }}
+              <p class="mt-1 text-[11px] text-gray-500">
+                Subject code, description, and year/section.
+              </p>
+              {% if form.teaching_assignment.errors %}
+                <div class="text-xs text-red-600 mt-1">{{ form.teaching_assignment.errors.0 }}</div>
+              {% endif %}
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">Deliverable</label>
+              {{ form.deliverable }}
+              <p class="mt-1 text-[11px] text-gray-500">
+                List is filtered by the selected teaching assignment and excludes already approved items.
+              </p>
+              {% if form.deliverable.errors %}
+                <div class="text-xs text-red-600 mt-1">{{ form.deliverable.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">File</label>
+            <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">File</label>
             <div class="flex w-full items-center">
               <label for="file_input_{{ forloop.counter0 }}"
-                      class="inline-flex items-center cursor-pointer px-3 py-2 h-10 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg text-sm rounded-r-none shadow font-semibold transition duration-200">
-                  Choose File
+                     class="inline-flex items-center cursor-pointer px-3 py-2 h-10 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg text-xs sm:text-sm rounded-r-none shadow font-semibold transition duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/>
+                </svg>
+                Choose File
               </label>
               <span id="file-chosen-{{ forloop.counter0 }}"
-                      class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-5 py-2 h-10 text-gray-700 text-sm bg-gray-50 flex-1 min-w-0 truncate">
-                  {% if form.file.value %}{{ form.file.value.name|default:"" }}{% else %}No file chosen{% endif %}
+                    class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-3 sm:px-5 py-2 h-10 text-gray-700 text-xs sm:text-sm bg-gray-50 flex-1 min-w-0 truncate">
+                {% if form.file.value %}{{ form.file.value.name|default:"" }}{% else %}No file chosen{% endif %}
               </span>
               {{ form.file }}
             </div>
+            <p class="mt-1 text-[11px] text-gray-500">
+              Accepted formats and size limits depend on your institution’s policy.
+            </p>
             {% if form.file.errors %}
               <div class="text-xs text-red-600 mt-1">{{ form.file.errors.0 }}</div>
             {% endif %}
           </div>
+
+          {% if form.non_field_errors %}
+            <div class="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
+              {% for err in form.non_field_errors %}
+                <p>{{ err }}</p>
+              {% endfor %}
+            </div>
+          {% endif %}
         </div>
-        {% if form.non_field_errors %}
-          <div class="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
-            {% for err in form.non_field_errors %}
-              <p>{{ err }}</p>
-            {% endfor %}
-          </div>
-        {% endif %}
       </div>
       {% endfor %}
     </div>
 
     <!-- Hidden card template for JS cloning -->
     <div id="empty-form-card" class="hidden">
-      <div class="relative bg-white rounded-xl shadow-lg px-6 py-7 border-2 border-gray-300 card-row">
-        <button type="button" class="remove-row absolute top-3 right-3 text-red-500 hover:text-red-700 bg-transparent rounded-full p-1" title="Remove this upload card">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-        </button>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">Deliverable</label>
-            {{ formset.empty_form.deliverable }}
+      <div class="relative bg-white rounded-xl shadow-sm px-5 py-5 border border-gray-200 card-row">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#800505]/10 text-[#800505] text-xs font-semibold">
+              #
+            </span>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">New Upload</p>
+              <p class="text-xs text-gray-500">Select a teaching assignment and deliverable.</p>
+            </div>
           </div>
+          <button type="button"
+                  class="remove-row inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-full"
+                  title="Remove this upload card">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            Remove
+          </button>
+        </div>
+
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">Teaching Assignment</label>
+              {{ formset.empty_form.teaching_assignment }}
+              <p class="mt-1 text-[11px] text-gray-500">
+                Subject code, description, and year/section.
+              </p>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">Deliverable</label>
+              {{ formset.empty_form.deliverable }}
+              <p class="mt-1 text-[11px] text-gray-500">
+                Filtered by the selected teaching assignment.
+              </p>
+            </div>
+          </div>
+
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">File</label>
+            <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">File</label>
             <div class="flex w-full items-center">
               <label for="file_input__empty"
-                      class="inline-flex items-center cursor-pointer px-3 py-2 h-10 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg text-sm rounded-r-none shadow font-semibold transition duration-200">
-                  Choose File
+                     class="inline-flex items-center cursor-pointer px-3 py-2 h-10 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg text-xs sm:text-sm rounded-r-none shadow font-semibold transition duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/>
+                </svg>
+                Choose File
               </label>
               <span id="file-chosen-empty"
-                      class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-5 py-2 h-10 text-gray-700 text-sm bg-gray-50 flex-1 min-w-0 truncate">
-                  No file chosen
+                    class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-3 sm:px-5 py-2 h-10 text-gray-700 text-xs sm:text-sm bg-gray-50 flex-1 min-w-0 truncate">
+                No file chosen
               </span>
               {{ formset.empty_form.file }}
             </div>
@@ -126,23 +203,78 @@
       </div>
     </div>
 
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
       <button type="button" id="add-form-btn"
-        class="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg shadow text-sm font-semibold">
+        class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg shadow-sm text-sm font-semibold">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
         </svg>
         Add Another Upload
       </button>
       <button type="submit"
-        class="flex items-center gap-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow font-semibold transition duration-200">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+        class="inline-flex items-center justify-center gap-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition duration-200">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="2" stroke="currentColor" class="w-5 h-5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
         </svg>
         Upload
       </button>
     </div>
   </form>
+
+  <!-- Upload Confirmation Modal -->
+  <div id="upload-confirm-modal"
+       class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+      <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Confirm Upload</h3>
+        <button type="button"
+                id="upload-confirm-close"
+                class="text-gray-400 hover:text-gray-600">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="px-5 py-4 text-sm text-gray-700 space-y-3">
+        <p id="upload-confirm-summary" class="font-medium text-gray-900"></p>
+
+        <div id="upload-confirm-list-wrapper" class="hidden">
+          <p class="text-xs text-gray-600 mb-1">
+            You are about to upload the following item(s):
+          </p>
+          <ul id="upload-confirm-list" class="text-xs text-gray-700 space-y-1 list-disc pl-5 max-h-40 overflow-auto">
+          </ul>
+          <p id="upload-confirm-list-more" class="text-[11px] text-gray-500 mt-1 hidden">
+            And more items not listed here.
+          </p>
+        </div>
+
+        <div class="bg-yellow-50 border border-yellow-200 rounded-md px-3 py-2 text-[11px] text-yellow-800 space-y-1">
+          <p class="font-semibold text-xs">Please review before submitting:</p>
+          <ul class="list-disc pl-4 space-y-1">
+            <li>Only rows with a teaching assignment, deliverable, and file will be uploaded.</li>
+            <li>Rows that are partially filled will show errors and will not be uploaded.</li>
+            <li>Existing non-approved versions for the same teaching assignment and deliverable will be replaced.</li>
+            <li>Deliverables that are already approved cannot be replaced.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="px-5 py-3 border-t border-gray-200 flex justify-end gap-2 bg-gray-50">
+        <button type="button"
+                id="upload-confirm-cancel"
+                class="px-3 py-1.5 text-xs sm:text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100">
+          Cancel
+        </button>
+        <button type="button"
+                id="upload-confirm-continue"
+                class="px-4 py-1.5 text-xs sm:text-sm rounded-md bg-[#800505] text-white hover:bg-[#a80707] font-semibold">
+          Yes, Upload
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -153,23 +285,113 @@ document.addEventListener('DOMContentLoaded', function() {
   const emptyCard = document.getElementById('empty-form-card').firstElementChild;
   const maxForms = 10;
 
+  const form = document.getElementById('uploadForm');
+
+  // Modal elements
+  const uploadConfirmModal = document.getElementById('upload-confirm-modal');
+  const uploadConfirmContinue = document.getElementById('upload-confirm-continue');
+  const uploadConfirmCancel = document.getElementById('upload-confirm-cancel');
+  const uploadConfirmClose = document.getElementById('upload-confirm-close');
+  const uploadConfirmSummary = document.getElementById('upload-confirm-summary');
+  const uploadConfirmListWrapper = document.getElementById('upload-confirm-list-wrapper');
+  const uploadConfirmList = document.getElementById('upload-confirm-list');
+  const uploadConfirmListMore = document.getElementById('upload-confirm-list-more');
+
+  const allowedDeliverables = JSON.parse('{{ allowed_deliverables_json|escapejs }}' || '{}');
+  const deliverablesCatalog = JSON.parse('{{ deliverables_catalog_json|escapejs }}' || '{}');
+
+  function populateDeliverablesSelect(taId, selectEl) {
+    const previousValue = selectEl.value;
+
+    while (selectEl.firstChild) {
+      selectEl.removeChild(selectEl.firstChild);
+    }
+
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = 'Select Deliverable';
+    selectEl.appendChild(defaultOpt);
+
+    if (!taId || !allowedDeliverables[taId]) {
+      return;
+    }
+
+    const deliverableIds = allowedDeliverables[taId];
+    deliverableIds.forEach(function(dId) {
+      const opt = document.createElement('option');
+      opt.value = dId;
+      opt.textContent = deliverablesCatalog[dId] || ('Deliverable ' + dId);
+      selectEl.appendChild(opt);
+    });
+
+    if (previousValue) {
+      selectEl.value = previousValue;
+    }
+  }
+
+  function bindTeachingAssignmentChangeHandlers() {
+    cardsContainer.querySelectorAll('select[name$="-teaching_assignment"]').forEach(function(selectEl) {
+      if (selectEl._taChangeBound) return;
+      selectEl._taChangeBound = true;
+
+      selectEl.addEventListener('change', function() {
+        const taId = this.value;
+        const card = this.closest('.card-row');
+        if (!card) return;
+        const deliverableSelect = card.querySelector('select[name$="-deliverable"]');
+        if (!deliverableSelect) return;
+
+        populateDeliverablesSelect(taId, deliverableSelect);
+      });
+    });
+  }
+
+  function bindFileInputEvents() {
+    cardsContainer.querySelectorAll('input[type="file"]').forEach(function(input) {
+      if (input._fileChangeBound) return;
+      input._fileChangeBound = true;
+
+      const match = input.id.match(/file_input_(\d+|__empty)/);
+      const idx = match ? match[1] : 'empty';
+      const span = document.getElementById('file-chosen-' + idx) || document.getElementById('file-chosen-empty');
+      if (!span) return;
+
+      input.addEventListener('change', function(){
+        span.textContent = input.files.length ? input.files[0].name : "No file chosen";
+      });
+    });
+  }
+
   function updateFormIndices() {
     const cards = cardsContainer.querySelectorAll('.card-row');
     cards.forEach((card, idx) => {
-      card.querySelectorAll('input, select, label, span').forEach(el => {
-        if (el.name) el.name = el.name.replace(/form-(\d+)-/, `form-${idx}-`);
-        if (el.id) {
-          if (el.id.startsWith('file_input_')) el.id = 'file_input_' + idx;
-          else el.id = el.id.replace(/form-(\d+)-/, `form-${idx}-`);
+      card.querySelectorAll('input, select, textarea').forEach(el => {
+        if (el.name && el.name.includes('form-')) {
+          el.name = el.name.replace(/form-(\d+)-/, `form-${idx}-`);
         }
-        if (el.htmlFor && el.htmlFor.startsWith('file_input_')) el.htmlFor = 'file_input_' + idx;
-        else if (el.htmlFor) el.htmlFor = el.htmlFor.replace(/form-(\d+)-/, `form-${idx}-`);
-        if (el.id && el.id.startsWith('file-chosen-')) el.id = 'file-chosen-' + idx;
+        if (el.id && el.id.includes('form-')) {
+          el.id = el.id.replace(/form-(\d+)-/, `form-${idx}-`);
+        }
       });
+
+      const fileInput = card.querySelector('input[type="file"]');
+      const fileLabel = card.querySelector('label[for^="file_input_"]');
+      const fileSpan = card.querySelector('span[id^="file-chosen-"]');
+
+      if (fileInput) fileInput.id = 'file_input_' + idx;
+      if (fileLabel) fileLabel.htmlFor = 'file_input_' + idx;
+      if (fileSpan) fileSpan.id = 'file-chosen-' + idx;
+
+      const counterBadge = card.querySelector('span.inline-flex.w-7.h-7');
+      if (counterBadge) {
+        counterBadge.textContent = (idx + 1).toString();
+      }
     });
+
     totalForms.value = cards.length;
     bindFileInputEvents();
-    // Only show remove button on additional cards
+    bindTeachingAssignmentChangeHandlers();
+
     cards.forEach((card, idx) => {
       const removeBtn = card.querySelector('.remove-row');
       if (removeBtn) removeBtn.style.display = idx === 0 ? 'none' : '';
@@ -177,24 +399,27 @@ document.addEventListener('DOMContentLoaded', function() {
     addBtn.disabled = cards.length >= maxForms;
   }
 
-  function bindFileInputEvents() {
-    cardsContainer.querySelectorAll('input[type="file"]').forEach(function(input) {
-      const idx = input.id.replace('file_input_', '');
-      const span = document.getElementById('file-chosen-' + idx);
-      if (span) {
-        input.addEventListener('change', function(){
-          span.textContent = input.files.length ? input.files[0].name : "No file chosen";
-        });
-      }
-    });
-  }
-
+  // Initial bindings
   bindFileInputEvents();
+  bindTeachingAssignmentChangeHandlers();
+
+  // Initial populate of deliverables (only when options are empty)
+  cardsContainer.querySelectorAll('select[name$="-teaching_assignment"]').forEach(function(selectEl) {
+    const card = selectEl.closest('.card-row');
+    if (!card) return;
+    const deliverableSelect = card.querySelector('select[name$="-deliverable"]');
+    if (!deliverableSelect) return;
+
+    if (deliverableSelect.options.length <= 1 && selectEl.value) {
+      populateDeliverablesSelect(selectEl.value, deliverableSelect);
+    }
+  });
 
   addBtn.addEventListener('click', function() {
     if (cardsContainer.querySelectorAll('.card-row').length >= maxForms) return;
     const newCard = emptyCard.cloneNode(true);
     newCard.querySelectorAll('input[type="file"]').forEach(f => f.value = '');
+    newCard.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
     cardsContainer.appendChild(newCard);
     updateFormIndices();
   });
@@ -207,7 +432,113 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  updateFormIndices(); // initial update
+  updateFormIndices();
+
+  // --- Helpers for modal content ---
+
+  function getNonEmptyRows() {
+    const rows = [];
+    const cards = cardsContainer.querySelectorAll('.card-row');
+
+    cards.forEach((card, idx) => {
+      const taSelect = card.querySelector('select[name$="-teaching_assignment"]');
+      const dSelect  = card.querySelector('select[name$="-deliverable"]');
+      const fileInput = card.querySelector('input[type="file"]');
+
+      const taValue = taSelect && taSelect.value;
+      const dValue  = dSelect && dSelect.value;
+      const fileObj = fileInput && fileInput.files && fileInput.files[0];
+
+      const anyFilled = taValue || dValue || fileObj;
+      if (!anyFilled) return;
+
+      const taLabel = taSelect && taSelect.options[taSelect.selectedIndex]
+        ? taSelect.options[taSelect.selectedIndex].text.trim()
+        : "(no teaching assignment selected)";
+      const deliverableLabel = dSelect && dSelect.options[dSelect.selectedIndex]
+        ? dSelect.options[dSelect.selectedIndex].text.trim()
+        : "(no deliverable selected)";
+      const fileName = fileObj ? fileObj.name : "(no file chosen)";
+
+      rows.push({
+        index: idx + 1,
+        taLabel,
+        deliverableLabel,
+        fileName,
+      });
+    });
+
+    return rows;
+  }
+
+  function openUploadConfirmModal(rows) {
+    if (rows.length === 0) {
+      uploadConfirmSummary.textContent =
+        "No rows have been filled. If you continue, the server will reject the submission.";
+      uploadConfirmListWrapper.classList.add('hidden');
+    } else if (rows.length === 1) {
+      uploadConfirmSummary.textContent = "You are about to upload 1 item.";
+      uploadConfirmListWrapper.classList.remove('hidden');
+    } else {
+      uploadConfirmSummary.textContent = `You are about to upload ${rows.length} items.`;
+      uploadConfirmListWrapper.classList.remove('hidden');
+    }
+
+    uploadConfirmList.innerHTML = "";
+    const maxPreview = 5;
+    rows.slice(0, maxPreview).forEach(row => {
+      const li = document.createElement('li');
+      li.innerHTML =
+        `<span class="font-semibold">Row #${row.index}:</span> ` +
+        `<span class="text-gray-800">${row.taLabel}</span> ` +
+        `<span class="text-gray-500">– ${row.deliverableLabel}</span> ` +
+        `<span class="block text-[11px] text-gray-600 truncate">File: ${row.fileName}</span>`;
+      uploadConfirmList.appendChild(li);
+    });
+
+    if (rows.length > maxPreview) {
+      uploadConfirmListMore.classList.remove('hidden');
+    } else {
+      uploadConfirmListMore.classList.add('hidden');
+    }
+
+    uploadConfirmModal.classList.remove('hidden');
+    uploadConfirmModal.classList.add('flex');
+  }
+
+  function closeUploadConfirmModal() {
+    uploadConfirmModal.classList.add('hidden');
+    uploadConfirmModal.classList.remove('flex');
+  }
+
+  // Intercept submit for confirmation
+  form.addEventListener('submit', function(e) {
+    if (form.dataset.uploadConfirmed === 'true') {
+      return; // already confirmed
+    }
+    e.preventDefault();
+    const rows = getNonEmptyRows();
+    openUploadConfirmModal(rows);
+  });
+
+  uploadConfirmContinue.addEventListener('click', function() {
+    form.dataset.uploadConfirmed = 'true';
+    closeUploadConfirmModal();
+    form.submit();
+  });
+
+  function cancelUpload() {
+    closeUploadConfirmModal();
+  }
+
+  uploadConfirmCancel.addEventListener('click', cancelUpload);
+  uploadConfirmClose.addEventListener('click', cancelUpload);
+
+  uploadConfirmModal.addEventListener('click', function(e) {
+    if (e.target === uploadConfirmModal) {
+      cancelUpload();
+    }
+  });
 });
 </script>
 {% endblock %}

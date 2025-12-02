@@ -6,13 +6,14 @@
   <!-- Page Title and Back Button -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+       <svg xmlns="http://www.w3.org/2000/svg" fill="none"
           viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
           class="w-8 h-8 text-[#800505]">
           <path stroke-linecap="round" stroke-linejoin="round"
           d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
       </svg>
-      Deliverables</h2>
+      Deliverables
+    </h2>
     <a href="{% url 'adminhub:home' %}"
        class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
@@ -23,21 +24,30 @@
     </a>
   </div>
 
-  <!-- Academic Year and Semester Section -->
+  <!-- Warning if active semester does not match today's date range -->
+  {% if semester_date_mismatch %}
+    <div class="mt-2 px-4 py-3 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
+      Warning: The currently active semester does not match today’s date range.
+      Please review the semester dates or active flags in the Academic Year settings.
+    </div>
+  {% endif %}
+
+  <!-- Academic Year + Semester Section -->
   {% if academic_year_str and semester_str %}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-2">
       <div>
-        <h3 class="text-lg font-semibold text-gray-700">Current Academic Year:</h3>
-        <div class="mt-1 text-xl text-[#800505] font-bold">{{ academic_year_str }}</div>
-      </div>
-      <div>
-        <h3 class="text-lg font-semibold text-gray-700">Semester:</h3>
-        <div class="mt-1 text-xl text-[#800505] font-bold">{{ semester_str }}</div>
+        <h3 class="text-lg font-semibold text-gray-700">Current Academic Period:</h3>
+        <div class="mt-1 text-xl text-[#800505] font-bold">
+          {{ academic_year_str }} &mdash; {{ semester_str }}
+          <span class="ml-2 align-middle text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded">
+            Active
+          </span>
+        </div>
       </div>
     </div>
   {% endif %}
 
- <!-- Stats Cards -->
+  <!-- Stats Cards -->
   <div class="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2 lg:grid-cols-3">
     <!-- Total Faculty -->
     <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
@@ -46,73 +56,92 @@
         <p class="text-2xl font-semibold">{{ total_faculty }}</p>
       </div>
       <div class="p-3 bg-blue-100 rounded-xl">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" 
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" 
            stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-blue-500">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
-      </svg>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+        </svg>
       </div>
     </div>
-    <!-- Completed Submissions -->
+
+    <!-- Completed Submissions (faculty fully complete) -->
     <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
       <div>
-        <h2 class="text-sm text-gray-500">Completed Submissions</h2>
+        <h2 class="text-sm text-gray-500">Completed Submissions (Faculty)</h2>
         <p class="text-2xl font-semibold">{{ completed_submissions }}</p>
       </div>
       <div class="p-3 bg-green-100 rounded-xl">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-green-500">
           <path stroke-linecap="round" stroke-linejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25h.375a9 9 0 0 1 9 9v.375M10.125 2.25A3.375 3.375 0 0 1 13.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 0 1 3.375 3.375M9 15l2.25 2.25L15 12" />
         </svg>
-
       </div>
     </div>
-    <!-- Pending Submissions -->
+
+    <!-- Pending Documents (total pending doc slots) -->
     <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
       <div>
-        <h2 class="text-sm text-gray-500">Pending Submissions</h2>
+        <h2 class="text-sm text-gray-500">Pending Documents</h2>
         <p class="text-2xl font-semibold">{{ pending_submissions }}</p>
       </div>
       <div class="p-3 bg-yellow-100 rounded-xl">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" 
            stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-yellow-500">
-        <path stroke-linecap="round" stroke-linejoin="round" 
-              d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3" />
-      </svg>
+          <path stroke-linecap="round" stroke-linejoin="round" 
+                d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3" />
+        </svg>
       </div>
     </div>
   </div>
 
-  <!-- List of Active Deliverables -->
-  {% if deliverables_list %}
-    <div class="mt-4 bg-white shadow rounded-lg p-6">
+  <!-- Active Deliverables + Management side by side on md+ -->
+  <div class="mt-4 flex flex-col md:flex-row gap-4 md:items-stretch">
+    <!-- Active Deliverables: ~70% width on md+, full on mobile -->
+    <div class="w-full md:w-2/3 bg-white shadow rounded-lg p-6 flex flex-col">
       <h3 class="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-[#800505]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6 1A9 9 0 1 1 3 12a9 9 0 0 1 18 0Z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8v4l3 3m6 1A9 9 0 1 1 3 12a9 9 0 0 1 18 0Z"/>
         </svg>
         Active Deliverables for this Semester
       </h3>
-      <ul class="divide-y divide-gray-200">
-        {% for d in deliverables_list %}
-        <li class="py-3 flex justify-between items-center">
-          <span class="font-medium text-gray-900">{{ d.name }}</span>
-          <span class="text-sm text-gray-600">Deadline: <span class="font-semibold text-[#800505]">{{ d.deadline|date:"M d, Y" }}</span></span>
-        </li>
-        {% empty %}
-        <li class="py-3">No active deliverables.</li>
-        {% endfor %}
-      </ul>
+
+      {% if deliverables_list %}
+        <ul class="divide-y divide-gray-200 flex-1">
+          {% for d in deliverables_list %}
+          <li class="py-3 flex justify-between items-center">
+            <span class="font-medium text-gray-900">{{ d.name }}</span>
+            <span class="text-sm text-gray-600">
+              Deadline:
+              <span class="font-semibold text-[#800505]">
+                {{ d.deadline|date:"M d, Y" }}
+              </span>
+            </span>
+          </li>
+          {% empty %}
+          <li class="py-3">No active deliverables.</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-sm text-gray-500 flex-1">
+          No active deliverables for this semester.
+        </p>
+      {% endif %}
     </div>
-  {% endif %}
 
+    <!-- Deliverable Management: ~30% width on md+, full on mobile -->
+    <div class="w-full md:w-1/3 bg-white shadow rounded-lg border p-6 flex flex-col justify-between gap-3">
+      <div>
+        <h3 class="font-semibold mb-2 text-lg text-[#800505] flex items-center gap-2">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
+          </svg>
+          Deliverable Management
+        </h3>
+        <p class="text-sm text-gray-600 mb-3">
+          Configure and assign deliverables for the active semester.
+        </p>
+      </div>
 
-  <!-- Command/Quick Links Card -->
-  <div class="flex flex-col sm:flex-row gap-4">
-    <div class="flex-1 flex flex-col gap-3 bg-white shadow rounded-lg border p-6">
-      <h3 class="font-semibold mb-2 text-lg text-[#800505] flex items-center gap-2">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
-        </svg>
-        Deliverable Management
-      </h3>
       <div class="flex flex-wrap gap-3">
         <a href="{% url 'adminhub:assign_deliverables' %}"
            class="flex items-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow transition duration-200 text-sm font-semibold">
@@ -153,14 +182,16 @@
     </form>
   </div>
 
-  <!-- Per-Faculty Submission Status Table -->
-  <div class="bg-white rounded-lg shadow-md overflow-x-auto mt-8">
+  <!-- Per-Faculty Submission Status (desktop table) -->
+  <div class="hidden sm:block bg-white rounded-lg shadow-md overflow-x-auto mt-8">
     <table class="min-w-full border-collapse text-sm">
       <thead class="bg-gray-100 border-t border-gray-200">
         <tr class="text-left font-semibold text-gray-700">
           <th class="px-5 py-4 border-b">Name</th>
           <th class="px-5 py-4 border-b">Email</th>
+          <th class="px-5 py-4 border-b">Employment Status</th>
           <th class="px-5 py-4 border-b text-center">Submission Progress</th>
+          <th class="px-5 py-4 border-b text-center">Deliverable Status</th>
           <th class="px-5 py-4 border-b">Actions</th>
         </tr>
       </thead>
@@ -169,34 +200,126 @@
         <tr class="hover:bg-gray-50 transition">
           <td class="px-5 py-4 border-b">{{ faculty.name }}</td>
           <td class="px-5 py-4 border-b">{{ faculty.email }}</td>
+          <td class="px-5 py-4 border-b">
+            {% if faculty.status_label %}
+              <span class="inline-block px-2 py-1 text-xs font-semibold bg-blue-50 text-blue-800 rounded-full">
+                {{ faculty.status_label }}
+              </span>
+            {% else %}
+              <span class="text-xs text-gray-500">N/A</span>
+            {% endif %}
+          </td>
           <td class="px-5 py-4 border-b text-center">
             {% if faculty.total_required > 0 %}
               <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-900 rounded">
-                {{ faculty.approved_count }} / {{ faculty.total_required }}
+                {{ faculty.approved_count }} / {{ faculty.total_required }} Docs
               </span>
-              {% if faculty.approved_count == faculty.total_required %}
-                <span class="inline-block ml-2 px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded">Completed</span>
-              {% else %}
-                <span class="inline-block ml-2 px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded">Pending</span>
-              {% endif %}
             {% else %}
-              <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-500 rounded">No Deliverables</span>
+              <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-500 rounded">
+                No Deliverables
+              </span>
+            {% endif %}
+          </td>
+          <td class="px-5 py-4 border-b text-center">
+            {% if faculty.total_required > 0 and faculty.approved_count == faculty.total_required %}
+              <span class="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded-full">
+                Completed
+              </span>
+            {% elif faculty.total_required > 0 %}
+              <span class="inline-block px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded-full">
+                Pending
+              </span>
+            {% else %}
+              <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-500 rounded-full">
+                No Deliverables
+              </span>
             {% endif %}
           </td>
           <td class="px-5 py-4 border-b">
-            <a href="{% url 'adminhub:faculty_detail' faculty.faculty_uuid %}"
-               class="text-[#800505] hover:underline font-medium">View</a>
+            <a href="{% url 'adminhub:faculty_deliverables' faculty.faculty_uuid %}"
+               class="text-[#800505] hover:underline font-medium">
+              View
+            </a>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="4" class="px-5 py-10 text-center text-gray-500 font-semibold">
+          <td colspan="6" class="px-5 py-10 text-center text-gray-500 font-semibold">
             No faculty found.
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <!-- Per-Faculty Submission Status (mobile cards, reference-style with pills, no pending docs row) -->
+  <div class="sm:hidden space-y-5 mt-8">
+    {% for faculty in page_obj %}
+      <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200">
+        <!-- Header: name + view link -->
+        <div class="flex justify-between items-center mb-3 border-b border-gray-300 pb-2">
+          <h3 class="text-lg font-semibold text-gray-900 truncate">{{ faculty.name }}</h3>
+          <a href="{% url 'adminhub:faculty_deliverables' faculty.faculty_uuid %}"
+             class="text-[#800505] hover:underline text-sm font-semibold whitespace-nowrap">
+            View
+          </a>
+        </div>
+
+        <!-- Info grid -->
+        <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-gray-700 text-sm">
+          <div>
+            <p class="font-semibold">Email</p>
+            <p class="break-all">{{ faculty.email }}</p>
+          </div>
+
+          <div>
+            <p class="font-semibold">Employment Status</p>
+            {% if faculty.status_label %}
+              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-800">
+                {{ faculty.status_label }}
+              </span>
+            {% else %}
+              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-500">
+                N/A
+              </span>
+            {% endif %}
+          </div>
+
+          <div>
+            <p class="font-semibold">Submission Progress</p>
+            {% if faculty.total_required > 0 %}
+              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-900">
+                {{ faculty.approved_count }} / {{ faculty.total_required }} Docs
+              </span>
+            {% else %}
+              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded bg-gray-200 text-gray-500">
+                No Deliverables
+              </span>
+            {% endif %}
+          </div>
+
+          <div>
+            <p class="font-semibold">Deliverable Status</p>
+            {% if faculty.total_required > 0 and faculty.approved_count == faculty.total_required %}
+              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
+                Completed
+              </span>
+            {% elif faculty.total_required > 0 %}
+              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                Pending
+              </span>
+            {% else %}
+              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-500">
+                No Deliverables
+              </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <p class="text-center text-gray-500 font-semibold">No faculty found.</p>
+    {% endfor %}
   </div>
 
   <!-- Pagination -->

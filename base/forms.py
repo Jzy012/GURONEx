@@ -379,13 +379,15 @@ class AssignDeliverablesForm(forms.Form):
 
 
 from django import forms
+from django.forms import BaseModelFormSet
+from django.core.exceptions import ValidationError
 from faculty.models import AcademicYear, Semester
-import datetime 
-
+import datetime
 
 
 CURRENT_YEAR = datetime.datetime.now().year
 YEAR_CHOICES = [(y, f"{y}–{y + 1}") for y in range(CURRENT_YEAR, CURRENT_YEAR + 8)]
+
 
 class AcademicYearForm(forms.ModelForm):
     academic_year = forms.ChoiceField(
@@ -398,7 +400,7 @@ class AcademicYearForm(forms.ModelForm):
 
     class Meta:
         model = AcademicYear
-        fields = ['is_active']  # Only include what's still relevant from the model
+        fields = ['is_active']
         labels = {
             'is_active': 'Active'
         }
@@ -410,7 +412,6 @@ class AcademicYearForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Style all fields except academic_year (already styled above)
         for name, field in self.fields.items():
             if name != 'academic_year':
                 if isinstance(field.widget, forms.CheckboxInput):
@@ -433,9 +434,15 @@ class AcademicYearForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        year_start = int(cleaned_data.get('academic_year'))
+        academic_year_value = cleaned_data.get('academic_year')
+        if academic_year_value is None:
+            return cleaned_data  # field-level errors will handle this
+
+        year_start = int(academic_year_value)
         if AcademicYear.objects.filter(year_start=year_start, year_end=year_start + 1).exists():
             raise forms.ValidationError("This academic year already exists.")
+        return cleaned_data
+
 
 class SemesterForm(forms.ModelForm):
     start_date = forms.DateField(
@@ -453,9 +460,9 @@ class SemesterForm(forms.ModelForm):
         required=True
     )
 
-    # Override the choices for semester_type here
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Exclude "full" option
         filtered_choices = [choice for choice in Semester.SEMESTER_CHOICES if choice[0] != "full"]
         self.fields["semester_type"].choices = filtered_choices
 
@@ -467,6 +474,93 @@ class SemesterForm(forms.ModelForm):
                 'class': 'w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition'
             })
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start = cleaned_data.get("start_date")
+        end = cleaned_data.get("end_date")
+
+        if start and end and start > end:
+            raise forms.ValidationError("Start date cannot be after end date.")
+
+        return cleaned_data
+
+
+class BaseSemesterFormSet(BaseModelFormSet):
+    """
+    Enforces:
+    - Exactly three semesters: 1st, 2nd, summer
+    - No duplicate semester_type
+    - Non-overlapping semesters in order: 1st -> 2nd -> summer
+    """
+    def clean(self):
+        super().clean()
+
+        if any(self.errors):
+            # field-level errors already present
+            return
+
+        semesters = []
+        present_types = set()
+
+        for form in self.forms:
+            if not hasattr(form, "cleaned_data"):
+                continue
+            if form.cleaned_data.get("DELETE", False):
+                continue
+
+            sem_type = form.cleaned_data.get("semester_type")
+            start = form.cleaned_data.get("start_date")
+            end = form.cleaned_data.get("end_date")
+
+            if not sem_type or not start or not end:
+                # Required field errors already handled on form level
+                continue
+
+            semesters.append((sem_type, start, end, form))
+            present_types.add(sem_type)
+
+        # 1) Exactly the three required types
+        required_types = {"1st", "2nd", "summer"}
+        if present_types != required_types:
+            missing = required_types - present_types
+            extra = present_types - required_types
+            msg_parts = []
+            if missing:
+                msg_parts.append(f"Missing semesters: {', '.join(sorted(missing))}.")
+            if extra:
+                msg_parts.append(f"Unexpected semester types: {', '.join(sorted(extra))}.")
+            raise ValidationError(" ".join(msg_parts) or "Invalid semester configuration.")
+
+        # 2) No duplicates
+        type_to_form = {}
+        for sem_type, start, end, form in semesters:
+            if sem_type in type_to_form:
+                form.add_error("semester_type", "Duplicate semester type for this academic year.")
+            else:
+                type_to_form[sem_type] = form
+
+        if any(form.errors for _, _, _, form in semesters):
+            return
+
+        # 3) Non-overlapping & ordered: 1st -> 2nd -> summer
+        order = {"1st": 1, "2nd": 2, "summer": 3}
+        semesters_sorted = sorted(semesters, key=lambda s: order[s[0]])
+
+        for idx, (sem_type, start, end, form) in enumerate(semesters_sorted):
+            if idx > 0:
+                prev_type, prev_start, prev_end, prev_form = semesters_sorted[idx - 1]
+
+                # must not overlap and must be chronological
+                if prev_end > start:
+                    form.add_error(
+                        "start_date",
+                        f"{sem_type} semester must start on or after the end of {prev_type} semester."
+                    )
+                    prev_form.add_error(
+                        "end_date",
+                        f"{prev_type} semester must end on or before the start of {sem_type} semester."
+                    )
 
 from django import forms
 from faculty.models import DeliverableTemplate, DocumentCategory
@@ -512,48 +606,181 @@ from django import forms
 from faculty.models import FacultyDocument, Deliverable, Semester
 from django.utils import timezone
 
+from django import forms
+from faculty.models import FacultyDocument, Deliverable, Semester, TeachingAssignment
+from django.utils import timezone
+
+from django import forms
+from faculty.models import FacultyDocument, Deliverable, Semester, TeachingAssignment
+
+
+from django import forms
+from faculty.models import FacultyDocument, Deliverable, Semester, TeachingAssignment
+    
+
 class FacultyDeliverableUploadForm(forms.Form):
+    teaching_assignment = forms.ModelChoiceField(
+        queryset=TeachingAssignment.objects.none(),
+        label="Teaching Assignment",
+        empty_label="Select Subject / Section",
+    )
     deliverable = forms.ModelChoiceField(
         queryset=Deliverable.objects.none(),
         label="Deliverable",
-        empty_label="Select Deliverable"
+        empty_label="Select Deliverable",
     )
     file = forms.FileField(label="File")
 
     def __init__(self, *args, **kwargs):
         faculty = kwargs.pop("faculty", None)
-        index = kwargs.pop('index', None)  # <- get index if available
+        index = kwargs.pop('index', None)
+        request = kwargs.pop('request', None)  # to read ?ta=&deliverable=
         super().__init__(*args, **kwargs)
 
-        # Add Tailwind classes for reference-style inputs
-        self.fields['deliverable'].widget.attrs.update({
-            'class': 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]',
+        # Styling
+        base_select_classes = (
+            'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm '
+            'focus:outline-none focus:ring-2 focus:ring-[#800505]'
+        )
+
+        self.fields['teaching_assignment'].widget.attrs.update({
+            'class': base_select_classes,
         })
+        self.fields['deliverable'].widget.attrs.update({
+            'class': base_select_classes,
+        })
+
         file_id = f'file_input_{index}' if index is not None else 'file_input__empty'
         self.fields['file'].widget.attrs.update({
             'class': 'hidden',
             'id': file_id,
         })
 
-        # Only show deliverables not yet uploaded or previously rejected
+        # IMPORTANT: custom label just for this form (no model change)
+        self.fields['teaching_assignment'].label_from_instance = (
+            lambda obj: f"{obj.subject_code} – {obj.subject_description} ({obj.year_section})"
+        )
+
+        # Defaults from query params (only for first form on GET)
+        ta_prefill = None
+        deliverable_prefill = None
+        if request is not None and index == 0 and request.method == "GET":
+            ta_id = request.GET.get('ta')
+            deliverable_id = request.GET.get('deliverable')
+            if ta_id and ta_id.isdigit():
+                ta_prefill = int(ta_id)
+            if deliverable_id and deliverable_id.isdigit():
+                deliverable_prefill = int(deliverable_id)
+
+        self.fields['deliverable'].queryset = Deliverable.objects.none()  # default: empty
+
         if faculty:
             active_semester = Semester.objects.filter(is_active=True).first()
             if active_semester:
-                already_uploaded = FacultyDocument.objects.filter(
+                # Teaching assignments for active semester
+                ta_qs = TeachingAssignment.objects.filter(
                     faculty=faculty,
                     semester=active_semester
-                ).exclude(status='Rejected').values_list('deliverable_id', flat=True)
+                ).order_by('subject_code', 'year_section')
+                self.fields['teaching_assignment'].queryset = ta_qs
 
-                self.fields["deliverable"].queryset = Deliverable.objects.filter(
-                    semester=active_semester
-                ).exclude(id__in=already_uploaded).order_by("document_category__name")
+                # Determine current TA:
+                # 1) if bound (POST), use the bound value
+                # 2) else, if GET prefill provided, use that
+                ta_obj = None
+
+                ta_value = self.data.get(self.add_prefix('teaching_assignment')) if self.is_bound else None
+                if ta_value:
+                    try:
+                        ta_obj = ta_qs.get(pk=ta_value)
+                    except (TeachingAssignment.DoesNotExist, ValueError):
+                        ta_obj = None
+                elif ta_prefill:
+                    try:
+                        ta_obj = ta_qs.get(pk=ta_prefill)
+                        self.fields['teaching_assignment'].initial = ta_obj
+                    except TeachingAssignment.DoesNotExist:
+                        ta_obj = None
+
+                # Only if we have a TA selected, populate deliverables
+                if ta_obj:
+                    base_deliverables_qs = Deliverable.objects.filter(
+                        semester=active_semester
+                    ).select_related('document_category')
+
+                    # Exclude deliverables already APPROVED for this TA
+                    approved_ids = FacultyDocument.objects.filter(
+                        faculty=faculty,
+                        semester=active_semester,
+                        teaching_assignment=ta_obj,
+                        status='Approved'
+                    ).values_list('deliverable_id', flat=True)
+
+                    d_qs = base_deliverables_qs.exclude(id__in=approved_ids)
+                    self.fields['deliverable'].queryset = d_qs.order_by('document_category__name')
+
+                    # Pre-select deliverable if passed via GET and still valid
+                    if deliverable_prefill and not self.is_bound:
+                        try:
+                            d_obj = self.fields['deliverable'].queryset.get(pk=deliverable_prefill)
+                            self.fields['deliverable'].initial = d_obj
+                        except Deliverable.DoesNotExist:
+                            pass
+            else:
+                self.fields['teaching_assignment'].queryset = TeachingAssignment.objects.none()
+                # deliverables already set to none above
 
     def clean(self):
+        """
+        Enforce:
+          - A completely empty row is allowed and ignored.
+          - If any field in the row is filled, all three are required.
+          - Block upload if there is already an APPROVED document.
+        """
         cleaned = super().clean()
+        teaching_assignment = cleaned.get("teaching_assignment")
         deliverable = cleaned.get("deliverable")
-        # Only block if not rejected
-        if deliverable and FacultyDocument.objects.filter(deliverable=deliverable).exclude(status='Rejected').exists():
-            raise forms.ValidationError("This deliverable has already been uploaded and is not rejected.")
+        file = cleaned.get("file")
+
+        # Check if the row is completely empty
+        row_is_empty = not teaching_assignment and not deliverable and not file
+
+        # If the row is fully empty, we treat it as optional and don't raise errors here
+        if row_is_empty:
+            # Remove any field errors that might have been added by default 'required' validation
+            for field in ["teaching_assignment", "deliverable", "file"]:
+                if field in self._errors:
+                    del self._errors[field]
+            return cleaned
+
+        # If we reach here, it means at least one of the fields has a value,
+        # so we require ALL of them to be present.
+        errors = {}
+        if not teaching_assignment:
+            errors["teaching_assignment"] = "Please select a teaching assignment."
+        if not deliverable:
+            errors["deliverable"] = "Please select a deliverable."
+        if not file:
+            errors["file"] = "Please choose a file to upload."
+
+        if errors:
+            # Raise field-specific errors
+            raise ValidationError(errors)
+
+        # Existing approval check (keep your logic)
+        if deliverable and teaching_assignment:
+            exists_approved = FacultyDocument.objects.filter(
+                deliverable=deliverable,
+                teaching_assignment=teaching_assignment,
+                status='Approved'
+            ).exists()
+
+            if exists_approved:
+                raise ValidationError(
+                    "This deliverable is already approved for this teaching assignment. "
+                    "You can no longer upload a new version."
+                )
+
         return cleaned
 
 
