@@ -14,11 +14,23 @@ from faculty.models import FacultyDocument, FacultyRequest, Deliverable, Semeste
 from adminhub.models import Announcement
 from django.utils import timezone
 
+from django.db.models import Q
+from django.utils import timezone
+
+from faculty.models import (
+    FacultyDocument,
+    FacultyRequest,
+    Semester,
+    Deliverable,
+    TeachingAssignment,
+)
+
+
 @faculty_required
 def home(request):
     data = get_faculty_data(request)
     faculty = request.user.faculty_profile
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # Pending Documents (status = Pending, for this faculty)
     pending_documents = FacultyDocument.objects.filter(
@@ -29,27 +41,48 @@ def home(request):
     # Pending Requests (status = Pending or Open, for this faculty)
     pending_requests = FacultyRequest.objects.filter(
         faculty=faculty,
-        status__in=["Pending", "Open"]
+        status__in=["Pending", "Open"]  # keep "Open" only if it exists in STATUS_CHOICES
     ).count()
 
-    # Deliverables to Upload (assigned for active semester, not uploaded or not approved)
+    # Active Semester
     semester = Semester.objects.filter(
         is_active=True,
         start_date__lte=today,
         end_date__gte=today
     ).first()
 
+    # ================== Deliverables to Upload (per TA, per Deliverable) ==================
     pending_deliverables = 0
     if semester:
-        deliverables = Deliverable.objects.filter(semester=semester)
-        uploaded_docs = FacultyDocument.objects.filter(faculty=faculty, semester=semester)
-        for d in deliverables:
-            doc = uploaded_docs.filter(deliverable=d).first()
-            # fallback for old uploads
-            if not doc:
-                doc = uploaded_docs.filter(document_category=d.document_category).first()
-            if not doc or doc.status != "Approved":
-                pending_deliverables += 1
+        # All deliverables for this semester
+        deliverables = Deliverable.objects.filter(
+            semester=semester
+        )
+        deliverable_ids = list(deliverables.values_list('id', flat=True))
+        deliverable_count = len(deliverable_ids)
+
+        # How many teaching assignments this faculty has in this semester
+        ta_count = TeachingAssignment.objects.filter(
+            faculty=faculty,
+            semester=semester,
+        ).count()
+
+        # Total required documents for this faculty in this semester
+        # (same logic as admin: #deliverables * #teaching_assignments)
+        total_required = deliverable_count * ta_count
+
+        if total_required > 0:
+            approved_count = FacultyDocument.objects.filter(
+                faculty=faculty,
+                semester=semester,
+                deliverable_id__in=deliverable_ids,
+                status="Approved",
+            ).count()
+        else:
+            approved_count = 0
+
+        # Pending document slots (never negative)
+        pending_deliverables = max(total_required - approved_count, 0)
 
     # Recent Announcements (latest 3)
     recent_announcements = Announcement.objects.filter(
@@ -59,15 +92,58 @@ def home(request):
         Q(end_date__gte=today) | Q(end_date__isnull=True)
     ).order_by('-created_at')[:3]
 
+    # Faculty profile object to pass explicitly
+    faculty_profile = faculty
+
+    # Teaching assignments for current active semester only
+    teaching_assignments_qs = TeachingAssignment.objects.filter(
+        faculty=faculty
+    )
+    if semester:
+        teaching_assignments_qs = teaching_assignments_qs.filter(semester=semester)
+
+    teaching_assignments = teaching_assignments_qs.order_by(
+        'day_of_week',
+        'start_time'
+    )
+
+    # Group by day for simple weekly schedule
+    DAYS_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+    schedule_by_day = {d: [] for d in DAYS_ORDER}
+    for ta in teaching_assignments:
+        if ta.day_of_week in schedule_by_day:
+            schedule_by_day[ta.day_of_week].append(ta)
+
+    DAYS_META = [
+        ('mon', 'Monday'),
+        ('tue', 'Tuesday'),
+        ('wed', 'Wednesday'),
+        ('thu', 'Thursday'),
+        ('fri', 'Friday'),
+        ('sat', 'Saturday'),
+    ]
+    weekly_schedule = [
+        {
+            'code': code,
+            'label': label,
+            'assignments': schedule_by_day.get(code, []),
+        }
+        for code, label in DAYS_META
+    ]
+
     data.update({
         'pending_documents': pending_documents,
         'pending_requests': pending_requests,
         'pending_deliverables': pending_deliverables,
         'recent_announcements': recent_announcements,
+
+        'faculty_profile': faculty_profile,
+        'teaching_assignments': teaching_assignments,
+        'weekly_schedule': weekly_schedule,
+        'active_semester': semester,
     })
 
     return render(request, 'faculty/faculty_home.html', data)
-
 
 @faculty_required
 def faculty_settings_view(request):
@@ -208,11 +284,30 @@ def download_document(request, uid):
 from django.forms import formset_factory, BaseFormSet
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from base.forms import FacultyDocumentUploadForm
+
+from base.decorators import faculty_required
+from base.utils.faculty_data import get_faculty_data
+from base.forms import FacultyDocumentUploadForm  # ensure this points to the updated form
 from services.google_drive_service import CentralGoogleDriveService
 from .models import FacultyDocument
+
 import io
 from googleapiclient.http import MediaIoBaseUpload
+
+
+class IndexedFormSet(BaseFormSet):
+    """
+    Same pattern as your deliverables IndexedFormSet: inject index so each
+    form can have unique file input ids.
+    """
+    def add_fields(self, form, index):
+        super().add_fields(form, index)
+        form.index = index
+
+    def _construct_form(self, i, **kwargs):
+        kwargs['index'] = i
+        return super()._construct_form(i, **kwargs)
+
 
 @faculty_required
 def faculty_document_upload(request):
@@ -224,38 +319,68 @@ def faculty_document_upload(request):
         messages.error(request, "Only faculty can upload documents.")
         return redirect('faculty:home')
 
-    # --- CHANGED: custom formset to pass index to form
-    class IndexedFormSet(BaseFormSet):
-        def add_fields(self, form, index):
-            super().add_fields(form, index)
-            form.index = index  # store index for template/debug if needed
+    DocumentFormSet = formset_factory(
+        FacultyDocumentUploadForm,
+        formset=IndexedFormSet,
+        extra=1,
+        max_num=10,
+        validate_max=True,
+    )
 
-        def _construct_form(self, i, **kwargs):
-            kwargs['index'] = i  # <-- inject index for form
-            kwargs['faculty'] = faculty
-            return super()._construct_form(i, **kwargs)
-
-    DocumentFormSet = formset_factory(FacultyDocumentUploadForm, formset=IndexedFormSet, extra=1, max_num=10, validate_max=True)
+    form_kwargs = {
+        "faculty": faculty,
+    }
 
     if request.method == 'POST':
-        formset = DocumentFormSet(request.POST, request.FILES)
+        formset = DocumentFormSet(
+            request.POST,
+            request.FILES,
+            form_kwargs=form_kwargs,
+        )
+
         if formset.is_valid():
+            # Enforce "at least one non-empty row" (like deliverables)
+            non_empty_count = 0
+            for form in formset:
+                cd = form.cleaned_data
+                category = cd.get("document_category")
+                name = cd.get("document_name")
+                file = cd.get("file")
+                expiry = cd.get("expiry_date")
+
+                if category or name or file or expiry:
+                    non_empty_count += 1
+
+            if non_empty_count == 0:
+                formset._non_form_errors = formset.error_class(
+                    ["Please fill out at least one document card before submitting."]
+                )
+                messages.error(
+                    request, "Please fill out at least one document card before submitting."
+                )
+                data["formset"] = formset
+                return render(request, "faculty/faculty_document_upload.html", data)
+
+            # At least one row is non-empty & valid → process uploads
             service = CentralGoogleDriveService()
             success_count = 0
 
             for form in formset:
-                if not form.cleaned_data:
-                    continue  # skip empty rows
-                file = form.cleaned_data["file"]
-                name = form.cleaned_data["document_name"]
-                category = form.cleaned_data["document_category"]
-                expiry = form.cleaned_data.get("expiry_date")
+                cd = form.cleaned_data
+                category = cd.get("document_category")
+                name = cd.get("document_name")
+                file = cd.get("file")
+                expiry = cd.get("expiry_date")
+
+                # Skip fully empty rows (allowed and ignored)
+                if not category and not name and not file and not expiry:
+                    continue
 
                 try:
                     media = MediaIoBaseUpload(
-                        io.BytesIO(file.read()),  # wrap file in a stream
+                        io.BytesIO(file.read()),
                         mimetype=file.content_type,
-                        resumable=False
+                        resumable=False,
                     )
 
                     upload = service.service.files().create(
@@ -281,19 +406,22 @@ def faculty_document_upload(request):
                     success_count += 1
 
                 except Exception as e:
-                    print(e)
+                    print("Document upload error:", e)
                     messages.error(request, f"Failed to upload '{name}'.")
 
             if success_count:
-                messages.success(request, f"{success_count} document(s) uploaded successfully.")
+                messages.success(
+                    request, f"{success_count} document(s) uploaded successfully."
+                )
             return redirect("faculty:faculty_documents")
-        else:
-            messages.error(request, "One or more documents are invalid.")
-    else:
-        formset = DocumentFormSet()
 
-    context = {**data, "formset": formset}
-    return render(request, "faculty/faculty_document_upload.html", context)
+        else:
+            messages.error(request, "Please fix the errors in the form before uploading.")
+    else:
+        formset = DocumentFormSet(form_kwargs=form_kwargs)
+
+    data["formset"] = formset
+    return render(request, "faculty/faculty_document_upload.html", data)
 
 
 
@@ -356,17 +484,21 @@ from faculty.models import TeachingAssignment
 from rfid.models import AttendanceLog
 from services.dtr_service import DTRCalculator
 
-# Replace with your actual faculty RBAC decorator
-
 @faculty_required
 def faculty_teaching_assignment_dtr_view(request):
     faculty = request.user.faculty_profile
     today = date.today()
     year = int(request.GET.get('year', today.year))
     month = int(request.GET.get('month', today.month))
+    day_of_week = request.GET.get('day', '')  # '' means show all
 
     # All teaching assignments for this faculty
-    assignments = TeachingAssignment.objects.filter(faculty=faculty).select_related('semester').order_by('semester', 'day_of_week', 'start_time')
+    assignments = (
+        TeachingAssignment.objects
+        .filter(faculty=faculty)
+        .select_related('semester')
+        .order_by('semester', 'day_of_week', 'start_time')
+    )
 
     # DTR for the selected month and year
     dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
@@ -378,7 +510,9 @@ def faculty_teaching_assignment_dtr_view(request):
     for day_num in range(1, days_in_month + 1):
         current_date = date(year, month, day_num)
         logs_by_date[current_date] = list(
-            AttendanceLog.objects.filter(faculty=faculty, date=current_date).order_by('time_in')
+            AttendanceLog.objects
+            .filter(faculty=faculty, date=current_date)
+            .order_by('time_in')
         )
 
     # Post-process DTR rows so every attendance log is shown, even unmatched ones
@@ -413,10 +547,21 @@ def faculty_teaching_assignment_dtr_view(request):
                 'status': 'no assignment',
             })
 
+    # ==== Handle Filtering by day ====
+    if day_of_week:
+        dtr = [
+            row for row in dtr
+            if row['date'].strftime('%a').lower()[:3] == day_of_week
+        ]
+
     # For year dropdown, show last 3 years and next year
-    year_choices = [today.year-1, today.year, today.year+1]
+    year_choices = [today.year - 1, today.year, today.year + 1]
 
     months = [(i, calendar.month_name[i]) for i in range(1, 13)]
+    day_choices = [
+        ('', 'All Days'), ('mon', 'Monday'), ('tue', 'Tuesday'), ('wed', 'Wednesday'),
+        ('thu', 'Thursday'), ('fri', 'Friday'), ('sat', 'Saturday')
+    ]
 
     context = {
         'faculty': faculty,
@@ -426,12 +571,388 @@ def faculty_teaching_assignment_dtr_view(request):
         'year': year,
         'year_choices': year_choices,
         'months': months,
+        'day_of_week': day_of_week,
+        'day_choices': day_choices,
     }
     return render(request, 'faculty/faculty_teaching_assignment_dtr.html', context)
 
 
 
 
+
+
+
+
+
+
+
+from django.shortcuts import render
+from django.http import HttpResponse
+from datetime import date
+import calendar
+from io import BytesIO
+
+from django.utils.timezone import localtime
+
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+from faculty.models import FacultyProfile
+from services.dtr_service import DTRCalculator
+from base.decorators import faculty_required
+from base.utils.dtr_workinghours import calculate_total_working_hours
+
+
+@faculty_required
+def faculty_dtr_export_preview(request):
+    faculty: FacultyProfile = request.user.faculty_profile
+    today = date.today()
+
+    months = [(i, calendar.month_name[i]) for i in range(1, 13)]
+    year_choices = [today.year - 1, today.year, today.year + 1]
+
+    # Get selected or current month/year
+    month = int(request.GET.get("month", today.month))
+    year = int(request.GET.get("year", today.year))
+    days_in_month = calendar.monthrange(year, month)[1]
+    month_label = calendar.month_name[month]
+
+    dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
+
+    # Build rows: [{day, am_in, am_out, pm_in, pm_out}]
+    rows = []
+    for day_num in range(1, days_in_month + 1):
+        am_in = am_out = pm_in = pm_out = ""
+        # same logic as admin: use the first attendance_log for that day
+        logs = [
+            status["attendance_log"]
+            for status in dtr[day_num - 1]["statuses"]
+            if status["attendance_log"]
+        ]
+        if logs:
+            log = logs[0]
+            if log.time_in:
+                t_in = localtime(log.time_in)
+                if t_in.hour < 12:
+                    am_in = t_in.strftime("%I:%M %p").lstrip("0")
+                else:
+                    pm_in = t_in.strftime("%I:%M %p").lstrip("0")
+            if log.time_out:
+                t_out = localtime(log.time_out)
+                if t_out.hour < 12:
+                    am_out = t_out.strftime("%I:%M %p").lstrip("0")
+                else:
+                    pm_out = t_out.strftime("%I:%M %p").lstrip("0")
+
+        rows.append(
+            {
+                "day": day_num,
+                "am_in": am_in,
+                "am_out": am_out,
+                "pm_in": pm_in,
+                "pm_out": pm_out,
+            }
+        )
+
+    total_working_hours = calculate_total_working_hours(rows)
+    status_label = (
+        faculty.status.name.upper()
+        if getattr(faculty, "status", None) and getattr(faculty.status, "name", None)
+        else "---"
+    )
+
+    context = {
+        "faculty": faculty,
+        "month": month,
+        "year": year,
+        "month_label": month_label,
+        "rows": rows,
+        "months": months,
+        "year_choices": year_choices,
+        "status_label": status_label,
+        "total_working_hours": total_working_hours,
+    }
+    return render(request, "faculty/faculty_dtr_export_preview.html", context)
+
+
+@faculty_required
+def faculty_dtr_export_view(request):
+    faculty: FacultyProfile = request.user.faculty_profile
+    today = date.today()
+    month = int(request.GET.get("month", today.month))
+    year = int(request.GET.get("year", today.year))
+    days_in_month = calendar.monthrange(year, month)[1]
+    month_label = calendar.month_name[month]
+
+    dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
+
+    rows = []
+    for day_num in range(1, days_in_month + 1):
+        am_in = am_out = pm_in = pm_out = ""
+        logs = [
+            status["attendance_log"]
+            for status in dtr[day_num - 1]["statuses"]
+            if status["attendance_log"]
+        ]
+        if logs:
+            log = logs[0]
+            if log.time_in:
+                t_in = localtime(log.time_in)
+                if t_in.hour < 12:
+                    am_in = t_in.strftime("%I:%M %p").lstrip("0")
+                else:
+                    pm_in = t_in.strftime("%I:%M %p").lstrip("0")
+            if log.time_out:
+                t_out = localtime(log.time_out)
+                if t_out.hour < 12:
+                    am_out = t_out.strftime("%I:%M %p").lstrip("0")
+                else:
+                    pm_out = t_out.strftime("%I:%M %p").lstrip("0")
+
+        rows.append([str(day_num), am_in, am_out, pm_in, pm_out])
+
+    rows_dicts = [
+        {"am_in": am_in, "am_out": am_out, "pm_in": pm_in, "pm_out": pm_out}
+        for (_, am_in, am_out, pm_in, pm_out) in rows
+    ]
+    total_working_hours = calculate_total_working_hours(rows_dicts)
+    status_label = (
+        faculty.status.name.upper()
+        if getattr(faculty, "status", None) and getattr(faculty.status, "name", None)
+        else "---"
+    )
+
+    buffer = BytesIO()
+
+    # MINIMUM margins (to maximize printable area)
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=0.7 * cm,
+        rightMargin=0.7 * cm,
+        topMargin=0.7 * cm,
+        bottomMargin=0.7 * cm,
+    )
+    width, height = A4
+    styles = getSampleStyleSheet()
+
+    cell_style = ParagraphStyle(
+        "cell",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=7.5,
+        alignment=1,
+        spaceAfter=0,
+        spaceBefore=0,
+    )
+    head_style = ParagraphStyle(
+        "head",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=8.3,
+        alignment=1,
+        spaceAfter=0,
+        spaceBefore=0,
+    )
+    document_title_style = ParagraphStyle(
+        "documenttitle",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=12,
+        alignment=1,
+        spaceAfter=0,
+        spaceBefore=0,
+    )
+    bold_style = ParagraphStyle(
+        "boldcell",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=7.7,
+        alignment=1,
+        spaceAfter=0,
+        spaceBefore=0,
+    )
+    note_style = ParagraphStyle(
+        "note",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=7.3,
+        alignment=1,
+        textColor=colors.HexColor("#222"),
+        leading=8.5,
+    )
+    sign_style = ParagraphStyle(
+        "sign",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=8,
+        alignment=1,
+    )
+    small_left = ParagraphStyle(
+        "small_left",
+        parent=styles["Normal"],
+        fontName="Helvetica-Oblique",
+        fontSize=6.8,
+        alignment=0,
+        textColor=colors.HexColor("#888888"),
+    )
+
+    avail_width = width - doc.leftMargin - doc.rightMargin
+    w_day = 1.18 * cm
+    w_other = (avail_width - w_day) / 4
+    col_widths = [w_day, w_other, w_other, w_other, w_other]
+
+    data = [
+        [
+            Paragraph(
+                "Civil Service Form No. 48",
+                ParagraphStyle(
+                    "left",
+                    fontName="Helvetica-Oblique",
+                    fontSize=9,
+                    alignment=0,
+                ),
+            ),
+            "",
+            "",
+            "",
+            Paragraph(
+                status_label,
+                ParagraphStyle(
+                    "right",
+                    fontName="Helvetica-Oblique",
+                    fontSize=10,
+                    alignment=2,
+                ),
+            ),
+        ],
+        [Paragraph("<b>DAILY TIME RECORD</b>", document_title_style), "", "", "", ""],
+        [Paragraph(f"<b>{faculty.name.upper()}</b>", head_style), "", "", "", ""],
+        [
+            Paragraph(
+                f"For the month of <b>{month_label.upper()} {year}</b>", cell_style
+            ),
+            "",
+            "",
+            "",
+            "",
+        ],
+        [
+            Paragraph(
+                f"Official Hours Of: <b>{total_working_hours}</b>", cell_style
+            ),
+            "",
+            "",
+            "",
+            "",
+        ],
+        [
+            Paragraph("<b>Day</b>", head_style),
+            Paragraph("<b>A.M.</b>", head_style),
+            "",
+            Paragraph("<b>P.M.</b>", head_style),
+            "",
+        ],
+        [
+            "",
+            Paragraph("<b>Arrival</b>", head_style),
+            Paragraph("<b>Departure</b>", head_style),
+            Paragraph("<b>Arrival</b>", head_style),
+            Paragraph("<b>Departure</b>", head_style),
+        ],
+    ]
+
+    # Day rows
+    for row in rows:
+        data.append(
+            [Paragraph(row[0], bold_style)]
+            + [Paragraph(cell, cell_style) for cell in row[1:]]
+        )
+
+    # Total row
+    data.append(
+        [
+            Paragraph("<b>TOTAL — Working Hours:</b>", bold_style),
+            "",
+            "",
+            "",
+            Paragraph(f"<b>{total_working_hours}</b>", bold_style),
+        ]
+    )
+
+    # Certification/signature/verified
+    data.append(
+        [
+            Paragraph(
+                "I certify on my honor that the above is true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure from office.",
+                note_style,
+            ),
+            "",
+            "",
+            "",
+            "",
+        ]
+    )
+    data.append([Paragraph(f"<b>{faculty.name.upper()}</b>", sign_style), "", "", "", ""])
+    data.append(
+        [
+            Paragraph(
+                "VERIFIED as to the prescribed office hours", small_left
+            ),
+            "",
+            "",
+            "",
+            "",
+        ]
+    )
+
+    t = Table(data, colWidths=col_widths, repeatRows=0)
+    t.setStyle(
+        TableStyle(
+            [
+                ("SPAN", (0, 0), (3, 0)),
+                ("SPAN", (4, 0), (4, 0)),
+                ("SPAN", (0, 1), (4, 1)),
+                ("SPAN", (0, 2), (4, 2)),
+                ("SPAN", (0, 3), (4, 3)),
+                ("SPAN", (0, 4), (4, 4)),
+                ("SPAN", (0, 5), (0, 6)),
+                ("SPAN", (1, 5), (2, 5)),
+                ("SPAN", (3, 5), (4, 5)),
+                ("SPAN", (0, -4), (3, -4)),
+                ("SPAN", (0, -3), (4, -3)),
+                ("SPAN", (0, -2), (4, -2)),
+                ("SPAN", (0, -1), (4, -1)),
+                ("GRID", (0, 5), (-1, -5), 0.5, colors.HexColor("#444444")),
+                ("BOX", (0, 5), (-1, -5), 1, colors.HexColor("#444444")),
+                ("BOX", (0, -4), (-1, -4), 1, colors.HexColor("#444444")),
+                ("BACKGROUND", (0, 5), (-1, 6), colors.HexColor("#f3f4f6")),
+                ("BACKGROUND", (0, -4), (-1, -4), colors.HexColor("#f3f4f6")),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("FONTNAME", (0, 7), (0, -5), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 7), (-1, -5), 7.6),
+                ("BOTTOMPADDING", (0, -3), (0, -1), 5),
+                ("TOPPADDING", (0, -3), (0, -3), 3),
+                ("TOPPADDING", (0, -2), (0, -2), 2),
+                ("TOPPADDING", (0, -1), (0, -1), 0),
+                ("LINEBELOW", (0, 2), (4, 2), 0.7, colors.HexColor("#111")),
+                ("LINEBELOW", (0, -2), (4, -2), 0.7, colors.HexColor("#111")),
+            ]
+        )
+    )
+
+    doc.build([t])
+    pdf_data = buffer.getvalue()
+    buffer.close()
+
+    filename = f"{faculty.name}_{status_label}_{month_label}_{year}.pdf"
+    response = HttpResponse(pdf_data, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 

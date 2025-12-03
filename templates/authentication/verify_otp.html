@@ -1,4 +1,5 @@
 {% load static %}
+{% load appearance_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,81 +37,97 @@
   </style>
 </head>
 
-<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen flex items-center justify-center px-4">
-  <div class="bg-white shadow-2xl rounded-xl w-full max-w-md p-8 md:p-10 space-y-6 text-center">
+<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen relative">
+  <div class="relative min-h-screen flex items-center justify-center px-4">
 
-    <!-- Logo and Branding -->
-    <div class="text-gray-800">
-      <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo" class="w-20 h-20 mx-auto mb-2" />
-      <h1 class="text-3xl md:text-4xl font-bold leading-snug mb-1">Verify OTP</h1>
-      <p class="text-sm font-light mb-2">Check your email for a 6-digit code</p>
-    </div>
-
-    <!-- Django Alerts -->
-    {% if messages %}
-      {% for message in messages %}
-        <div class="relative flex items-center justify-between p-4 rounded-lg text-sm
-          {% if message.tags == 'error' %}bg-red-100 text-red-800
-          {% elif message.tags == 'success' %}bg-green-100 text-green-800
-          {% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800
-          {% else %}bg-blue-100 text-blue-800{% endif %}">
-          <span>{{ message }}</span>
-          <button type="button" onclick="this.parentElement.style.display='none'" class="text-xl font-bold leading-none focus:outline-none">&times;</button>
-        </div>
-      {% endfor %}
+    {# Shared background image, if enabled #}
+    {% landing_background_url as bg_url %}
+    {% if bg_url %}
+      <div
+        style="background: url('{{ bg_url }}') center/cover no-repeat fixed;"
+        class="absolute inset-0 -z-20">
+      </div>
     {% endif %}
 
-    <!-- JS Alerts -->
-    <div id="js-alert-container" class="space-y-2"></div>
+    {# Shared overlay style (none / dark / silhouette) #}
+    <div class="absolute inset-0 -z-10 {% landing_background_overlay_classes %}"></div>
 
-    <!-- OTP Form -->
-    <form method="POST" class="w-full max-w-sm mx-auto space-y-6 text-left" onsubmit="return prepareOTP()">
-      {% csrf_token %}
+    <!-- Card -->
+    <div class="relative z-10 bg-white shadow-2xl rounded-xl w-full max-w-md p-8 md:p-10 space-y-6 text-center">
 
-      <!-- OTP Input Boxes -->
-      <div class="w-full flex justify-center">
-        <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4" id="otp-container">
-          {% for i in "123456" %}
-            <input
-              type="text"
-              inputmode="numeric"
-              maxlength="1"
-              class="otp-box text-center text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
-            />
-          {% endfor %}
+      <!-- Logo and Branding -->
+      <div class="text-gray-800">
+        <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo" class="w-20 h-20 mx-auto mb-2" />
+        <h1 class="text-3xl md:text-4xl font-bold leading-snug mb-1">Verify OTP</h1>
+        <p class="text-sm font-light mb-2">Check your email for a 6-digit code</p>
+      </div>
+
+      <!-- Django Alerts -->
+      {% if messages %}
+        {% for message in messages %}
+          <div class="relative flex items-center justify-between p-4 rounded-lg text-sm
+            {% if message.tags == 'error' %}bg-red-100 text-red-800
+            {% elif message.tags == 'success' %}bg-green-100 text-green-800
+            {% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800
+            {% else %}bg-blue-100 text-blue-800{% endif %}">
+            <span>{{ message }}</span>
+            <button type="button" onclick="this.parentElement.style.display='none'" class="text-xl font-bold leading-none focus:outline-none">&times;</button>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <!-- JS Alerts -->
+      <div id="js-alert-container" class="space-y-2"></div>
+
+      <!-- OTP Form -->
+      <form method="POST" class="w-full max-w-sm mx-auto space-y-6 text-left" onsubmit="return prepareOTP()">
+        {% csrf_token %}
+
+        <!-- OTP Input Boxes -->
+        <div class="w-full flex justify-center">
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4" id="otp-container">
+            {% for i in "123456" %}
+              <input
+                type="text"
+                inputmode="numeric"
+                maxlength="1"
+                class="otp-box text-center text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+              />
+            {% endfor %}
+          </div>
         </div>
-      </div>
 
-      <!-- Hidden OTP -->
-      <input type="hidden" name="otp" id="otp-input" />
+        <!-- Hidden OTP -->
+        <input type="hidden" name="otp" id="otp-input" />
 
-      <!-- Resend + Timer -->
-      <div class="flex justify-between items-center text-sm mt-2">
-        <span id="timer" class="text-gray-600">Resend available in <span id="countdown">2:00</span></span>
+        <!-- Resend + Timer -->
+        <div class="flex justify-between items-center text-sm mt-2">
+          <span id="timer" class="text-gray-600">Resend available in <span id="countdown">2:00</span></span>
+          <button
+            type="button"
+            id="resendBtn"
+            class="text-[#800505] font-medium hover:text-[#a80707] disabled:text-gray-400"
+            onclick="resendOTP()"
+            disabled
+          >
+            Resend OTP
+          </button>
+        </div>
+
+        <!-- Submit Button -->
         <button
-          type="button"
-          id="resendBtn"
-          class="text-[#800505] font-medium hover:text-[#a80707] disabled:text-gray-400"
-          onclick="resendOTP()"
-          disabled
+          type="submit"
+          class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold w-full py-3 rounded-lg transition duration-200 text-base"
         >
-          Resend OTP
+          Verify
         </button>
-      </div>
+      </form>
 
-      <!-- Submit Button -->
-      <button
-        type="submit"
-        class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold w-full py-3 rounded-lg transition duration-200 text-base"
-      >
-        Verify
-      </button>
-    </form>
-
-    <!-- Footer -->
-    <p class="text-center text-xs text-gray-500 pt-2">
-      This code expires in 10 minutes.
-    </p>
+      <!-- Footer -->
+      <p class="text-center text-xs text-gray-500 pt-2">
+        This code expires in 10 minutes.
+      </p>
+    </div>
   </div>
 
   <!-- JS Scripts -->

@@ -242,21 +242,48 @@ class FacultyEditForm(forms.ModelForm):
 
 
 from django import forms
+from django.core.exceptions import ValidationError
 from faculty.models import DocumentCategory
 import os
 
 class FacultyDocumentUploadForm(forms.Form):
-    document_category = forms.ModelChoiceField(queryset=DocumentCategory.objects.all(), required=True)
-    document_name = forms.CharField(max_length=255, required=True)
-    file = forms.FileField(required=True)
-    expiry_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+    document_category = forms.ModelChoiceField(
+        queryset=DocumentCategory.objects.none(),  # set in __init__
+        required=True,
+        label="Category",
+    )
+    document_name = forms.CharField(
+        max_length=255,
+        required=True,
+        label="Document Name",
+    )
+    file = forms.FileField(
+        required=True,
+        label="File",
+    )
+    expiry_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        label="Expiry Date",
+    )
 
     def __init__(self, *args, **kwargs):
-        index = kwargs.pop("index", None)  # <-- NEW: get index for unique file input id
+        index = kwargs.pop("index", None)
         self.faculty = kwargs.pop('faculty', None)
         super().__init__(*args, **kwargs)
 
-        input_class = 'w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]'
+        # EXCLUDE all categories that are used in ANY Deliverable
+        # i.e. document upload is only for non-deliverable categories
+        self.fields['document_category'].queryset = (
+            DocumentCategory.objects
+            .filter(deliverables__isnull=True)
+            .order_by('name')
+        )
+
+        input_class = (
+            'w-full border border-gray-300 rounded-lg px-2 py-2 text-sm '
+            'focus:outline-none focus:ring-2 focus:ring-[#800505]'
+        )
 
         self.fields['document_category'].widget.attrs.update({
             'class': input_class,
@@ -266,32 +293,66 @@ class FacultyDocumentUploadForm(forms.Form):
             'class': input_class,
             'placeholder': 'Document Name',
         })
-        # --- CHANGED: dynamic id for each file input, for formset support
+
         file_id = f'file_input_{index}' if index is not None else 'file_input__empty'
         self.fields['file'].widget.attrs.update({
             'class': 'hidden',
             'id': file_id,
             'placeholder': 'Select File',
         })
+
         self.fields['expiry_date'].widget.attrs.update({
             'class': input_class,
             'placeholder': 'Expiry Date',
         })
 
     def clean(self):
+        """
+        - Completely empty row is allowed and ignored.
+        - If any field is filled, require category, name, file,
+          and expiry_date if category.requires_expiry_date.
+        - Validate extension against category.allowed_file_types.
+        """
         cleaned_data = super().clean()
         category = cleaned_data.get("document_category")
+        name = cleaned_data.get("document_name")
         file = cleaned_data.get("file")
         expiry = cleaned_data.get("expiry_date")
 
-        if file and category:
-            ext = os.path.splitext(file.name)[1].lower().lstrip('.')
-            allowed = category.allowed_file_types.values_list("extension", flat=True)
-            if ext not in allowed:
-                raise forms.ValidationError(f"File type '.{ext}' is not allowed for {category.name}.")
+        row_is_empty = not category and not name and not file and not expiry
 
-        if category and category.requires_expiry_date and not expiry:
-            raise forms.ValidationError("Expiry date is required for this document category.")
+        if row_is_empty:
+            # Clear default 'required' errors so empty rows are truly ignored
+            for field in ["document_category", "document_name", "file", "expiry_date"]:
+                if field in self._errors:
+                    del self._errors[field]
+            return cleaned_data
+
+        errors = {}
+
+        if not category:
+            errors["document_category"] = "Please select a category."
+        if not name:
+            errors["document_name"] = "Please enter the document name."
+        if not file:
+            errors["file"] = "Please choose a file to upload."
+
+        if category:
+            # Expiry requirement
+            if category.requires_expiry_date and not expiry:
+                errors["expiry_date"] = "Expiry date is required for this document category."
+
+            # File extension validation
+            if file:
+                ext = os.path.splitext(file.name)[1].lower().lstrip('.')
+                allowed = category.allowed_file_types.values_list("extension", flat=True)
+                if ext not in allowed:
+                    errors["file"] = f"File type '.{ext}' is not allowed for {category.name}."
+
+        if errors:
+            raise ValidationError(errors)
+
+        return cleaned_data
 
 
 
@@ -1143,3 +1204,90 @@ class TeachingAssignmentBulkUploadForm(forms.Form):
         if not files:
             raise forms.ValidationError("Please select at least one file.")
         return files
+    
+
+
+
+
+
+
+from django import forms
+from adminhub.models import PUPSite
+
+
+
+class PUPSiteForm(forms.ModelForm):
+    class Meta:
+        model = PUPSite
+        fields = ["name", "url", "description", "is_active"]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        base_class = (
+            "w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for name, field in self.fields.items():
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.update({
+                    "class": "h-5 w-5 text-[#800505] focus:ring-[#800505] border-gray-300 rounded"
+                })
+            else:
+                field.widget.attrs.update({
+                    "class": base_class,
+                    "placeholder": field.label,
+                })
+
+
+
+
+
+from django import forms
+
+
+from django import forms
+from base.models import LandingAppearance
+
+
+class BackgroundUploadForm(forms.Form):
+    file = forms.ImageField(
+        label="Background image (JPG/PNG/WebP)",
+        required=False,
+        help_text="Upload to replace the current landing background image.",
+    )
+    use_background_image = forms.BooleanField(
+        required=False,
+        label="Use background image",
+        initial=True,
+    )
+
+    overlay_style = forms.ChoiceField(
+        label="Background overlay style",
+        choices=LandingAppearance.OVERLAY_CHOICES,
+        required=True,
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Ensure file input id for custom button
+        self.fields["file"].widget.attrs.update({
+            "id": "bg_file_input",
+        })
+
+        appearance = LandingAppearance.get_solo()
+        self.fields["use_background_image"].initial = appearance.use_background_image
+        self.fields["overlay_style"].initial = appearance.overlay_style
+
+    def clean_file(self):
+        img = self.cleaned_data.get("file")
+        if not img:
+            return img
+        max_size = 5 * 1024 * 1024  # 5 MB
+        if img.size > max_size:
+            raise forms.ValidationError("Image file too large (max 5MB).")
+        if img.content_type not in ("image/jpeg", "image/png", "image/webp"):
+            raise forms.ValidationError("Please upload a JPG, PNG, or WebP image.")
+        return img

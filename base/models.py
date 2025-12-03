@@ -179,3 +179,49 @@ class GoogleStorageAccount(models.Model):
 
     def __str__(self):
         return f"{self.label} - {self.email}"
+
+
+
+
+
+
+from django.db import models
+
+
+class LandingAppearance(models.Model):
+    """
+    Stores options for the landing/background behavior.
+    We expect only one row, referenced via get_solo().
+    """
+    use_background_image = models.BooleanField(default=True)
+
+    # Overlay style: none, dark, or silhouette
+    OVERLAY_NONE = "none"
+    OVERLAY_DARK = "dark"
+    OVERLAY_SILHOUETTE = "silhouette"
+
+    OVERLAY_CHOICES = [
+        (OVERLAY_NONE, "None (no overlay)"),
+        (OVERLAY_DARK, "Dark overlay (muted image)"),
+        (OVERLAY_SILHOUETTE, "Silhouette (grayscale + darkened)"),
+    ]
+
+    overlay_style = models.CharField(
+        max_length=20,
+        choices=OVERLAY_CHOICES,
+        default=OVERLAY_DARK,  # sensible default
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Landing Appearance"
+        verbose_name_plural = "Landing Appearance"
+
+    def __str__(self):
+        return "Landing Appearance Settings"
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

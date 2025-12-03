@@ -1,4 +1,5 @@
 {% load static %}
+{% load appearance_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -38,43 +39,62 @@
       margin: 0.5rem 0 1.5rem 0;
     }
   </style>
-</head>
+</head> 
 
-<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen flex items-center justify-center px-4">
+<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen ">
+  <div class="relative min-h-screen flex items-center justify-center">
 
-  <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl p-8 md:p-16 flex flex-col items-start justify-center space-y-6 fade-in text-gray-800">
-    
-    <!-- Logo -->
-    <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo"
-      class="w-20 h-20 mb-2 rounded-full bg-white object-contain" />
+    {% landing_background_url as bg_url %}
+    {% if bg_url %}
+      <!-- Background image wrapper -->
+      <div
+        style="background: url('{{ bg_url }}') center/cover no-repeat fixed;"
+        class="absolute inset-0 -z-20">
+      </div>
+    {% endif %}
 
-    <!-- Heading -->
-    <h1 class="text-4xl md:text-5xl font-bold leading-snug">
-      Welcome to LINANG
-    </h1>
+    <!-- Overlay: style chosen in admin (none / dark / silhouette) -->
+    <div class="absolute inset-0 -z-10 {% landing_background_overlay_classes %}"></div>
 
-    <div class="divider"></div>
+    <!-- Foreground card content -->
+    <div class="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-5xl p-8 md:p-16 flex flex-col items-start justify-center space-y-6 fade-in text-gray-800">
+      
+      <!-- Logo -->
+      <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo"
+        class="w-20 h-20 mb-2 rounded-full bg-white object-contain" />
 
-    <!-- Subtitle -->
-    <p class="text-lg md:text-2xl font-light max-w-3xl text-left w-full">
-      Linking Information Networks for Administration and Narrative Gathering
-    </p>
+      <!-- Heading -->
+      <h1 class="text-4xl md:text-5xl font-bold leading-snug">
+        Welcome to LINANG
+      </h1>
 
-    <!-- Description -->
-    <p class="text-base md:text-lg text-gray-700 max-w-3xl text-left w-full">
-      LINANG streamlines PUP-SPC Faculty Management with a modern, secure, and user-friendly platform designed for efficiency and clarity.
-    </p>
+      <div class="divider"></div>
 
-    <!-- Main Button -->
-    <a href="{% url 'login' %}" class="inline-block bg-[#800505] hover:bg-[#a80707] text-white font-semibold py-3 px-8 rounded-lg transition duration-200 text-base shadow-md mt-2">
-      Log In
-    </a>
+      <!-- Subtitle -->
+      <p class="text-lg md:text-2xl font-light max-w-3xl text-left w-full">
+        Linking Information Networks for Administration and Narrative Gathering
+      </p>
 
-    <!-- Small Applicant Link -->
-    <a href="{% url 'applicants:home' %}" class="text-[#800505] hover:text-[#a80707] text-sm font-medium mt-3 transition duration-200">
-      Want to be a part of PUP-SPC? Apply now!
-    </a>
+      <!-- Description -->
+      <p class="text-base md:text-lg text-gray-700 max-w-3xl text-left w-full">
+        LINANG streamlines PUP-SPC Faculty Management with a modern, secure, and user-friendly platform designed for efficiency and clarity.
+      </p>
+
+      <!-- Main Button -->
+      <a href="{% url 'login' %}" class="inline-block bg-[#800505] hover:bg-[#a80707] text-white font-semibold py-3 px-8 rounded-lg transition duration-200 text-base shadow-md mt-2">
+        Log In
+      </a>
+
+      <!-- Small Applicant Link -->
+      <a href="{% url 'applicants:home' %}" class="text-[#800505] hover:text-[#a80707] text-sm font-medium mt-3 transition duration-200">
+        Want to be a part of PUP-SPC? Apply now!
+      </a>
+
+      <a href="{% url 'pup_sites_public' %}" class="text-[#800505] hover:text-[#a80707] text-sm font-medium mt-1 transition duration-200">
+        Visit other PUP related sites
+      </a>
+    </div>
+
   </div>
-
 </body>
 </html>

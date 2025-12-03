@@ -2445,27 +2445,8 @@ def admin_dtr_export_preview(request, faculty_uuid):
     }
     return render(request, 'admin/admin_dtr_export_preview.html', context)
 
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
-import calendar
-from datetime import date
-from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
-from reportlab.lib.units import cm
-from django.utils.timezone import localtime
 
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
-import calendar
-from datetime import date
-from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
-from reportlab.lib.units import cm
-from django.utils.timezone import localtime
+
 
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -2643,3 +2624,164 @@ def admin_dtr_export_view(request, faculty_uuid):
     response = HttpResponse(pdf_data, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+
+from adminhub.models import PUPSite
+from base.forms import PUPSiteForm
+
+# you already have this for admin_settings, reuse it
+from base.decorators import admin_required 
+
+
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+
+from base.decorators import admin_required
+from adminhub.models import PUPSite
+from base.forms import PUPSiteForm
+
+
+@admin_required
+def pup_sites_admin_list(request):
+    """
+    Admin management page with table + modals.
+    """
+    sites = PUPSite.objects.all()  # ordering via Meta.ordering
+    form = PUPSiteForm()
+    return render(request, "admin/pup_sites_admin_list.html", {
+        "sites": sites,
+        "form": form,
+    })
+
+
+@admin_required
+def pup_site_create(request):
+    """
+    Handles POST from the 'Add' modal.
+    """
+    if request.method != "POST":
+        return redirect("adminhub:pup_sites_admin_list")
+
+    form = PUPSiteForm(request.POST)
+    if form.is_valid():
+        form.save()
+        messages.success(request, "PUP site added successfully.")
+    else:
+        messages.error(request, "Failed to add PUP site. Please check the form input.")
+
+    return redirect("adminhub:pup_sites_admin_list")
+
+
+@admin_required
+def pup_site_update(request, uid):
+    """
+    Handles POST from the 'Edit' modal.
+    """
+    if request.method != "POST":
+        return redirect("adminhub:pup_sites_admin_list")
+
+    site = get_object_or_404(PUPSite, uid=uid)
+    form = PUPSiteForm(request.POST, instance=site)
+
+    if form.is_valid():
+        form.save()
+        messages.success(request, "PUP site updated successfully.")
+    else:
+        messages.error(request, "Failed to update PUP site. Please check the form input.")
+
+    return redirect("adminhub:pup_sites_admin_list")
+
+
+@admin_required
+def pup_site_delete(request, uid):
+    """
+    Handles POST from the 'Delete' confirmation modal.
+    """
+    if request.method != "POST":
+        return redirect("adminhub:pup_sites_admin_list")
+
+    site = get_object_or_404(PUPSite, uid=uid)
+    site.delete()
+    messages.success(request, "PUP site deleted successfully.")
+    return redirect("adminhub:pup_sites_admin_list")
+
+
+
+
+
+
+
+
+import os
+from pathlib import Path
+from django.conf import settings
+from django.shortcuts import render, redirect
+from django.contrib import messages
+
+from base.decorators import admin_required
+from base.forms import BackgroundUploadForm
+from base.models import LandingAppearance
+
+
+@admin_required
+def landing_background_settings(request):
+    """
+    Uploads a new background image into MEDIA_ROOT/backgrounds/landing-bg.jpg,
+    toggles whether to use it, and controls overlay style (none/dark/silhouette).
+    """
+    target_dir = Path(settings.MEDIA_ROOT) / "backgrounds"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_path = target_dir / "landing-bg.jpg"
+
+    appearance = LandingAppearance.get_solo()
+
+    if request.method == "POST":
+        if "remove_background" in request.POST:
+            # Remove image and disable its use
+            if target_path.exists():
+                target_path.unlink()
+            appearance.use_background_image = False
+            appearance.save()
+            messages.success(request, "Background image removed. The gradient will be used instead.")
+            return redirect("adminhub:landing_background_settings")
+
+        form = BackgroundUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            # Save flags / style
+            appearance.use_background_image = form.cleaned_data.get("use_background_image", False)
+            appearance.overlay_style = form.cleaned_data.get("overlay_style", LandingAppearance.OVERLAY_DARK)
+
+            # Handle new file if provided
+            img = form.cleaned_data.get("file")
+            if img:
+                with open(target_path, "wb+") as dest:
+                    for chunk in img.chunks():
+                        dest.write(chunk)
+                # If file uploaded and checkbox not explicitly off, default to on
+                if "use_background_image" not in request.POST:
+                    appearance.use_background_image = True
+
+            appearance.save()
+            messages.success(request, "Landing background settings have been updated.")
+            return redirect("adminhub:landing_background_settings")
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = BackgroundUploadForm()
+
+    file_exists = target_path.exists()
+    bg_url = settings.MEDIA_URL + "backgrounds/landing-bg.jpg"
+
+    return render(request, "admin/landing_background_settings.html", {
+        "form": form,
+        "file_exists": file_exists,
+        "bg_url": bg_url,
+        "appearance": appearance,
+    })

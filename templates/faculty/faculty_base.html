@@ -35,7 +35,7 @@
 
   <!-- Sidebar -->
  <aside id="sidebar"
-    class="bg-[#f8f9fa] text-gray-800 w-64 p-4 fixed top-16 left-0 h-[calc(100%-4rem)] transform -translate-x-full z-40 shadow-lg flex flex-col justify-between border-r border-gray-200">
+    class="bg-[#f8f9fa] text-gray-800 w-64 p-4 fixed top-14 sm:top-16 left-0 h-[calc(100%-3.5rem)] sm:h-[calc(100%-4rem)] transform -translate-x-full z-40 shadow-lg flex flex-col justify-between border-r border-gray-200 text-sm">
 
     <!-- Top links -->
     <div>
@@ -124,10 +124,14 @@
 
 
   <!-- Main Content -->
-  <main id="mainContent" class="flex-grow p-6">
-    {% block content %}{% endblock %}
-  </main>
-</div>
+  <main
+  id="mainContent"
+  class="flex-grow w-full max-w-full overflow-x-hidden
+         p-3 sm:p-4
+         text-xs sm:text-sm leading-tight"
+>
+  {% block content %}{% endblock %}
+</main>
 
 {% block extra_js %}{% endblock %}
 

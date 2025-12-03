@@ -1,4 +1,5 @@
 {% load static %}
+{% load appearance_tags %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -6,13 +7,32 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
-  <title>{% block title %}Admin{% endblock %}</title>
+  <title>{% block title %}LINANG{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/output.css' %}" />
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
-  
-    {% block content %}
-    {% endblock %}
- 
+
+<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen relative">
+  <div class="relative min-h-screen flex {% block layout_align %}items-center justify-center{% endblock %} px-4">
+
+    {# Shared background image, if enabled #}
+    {% landing_background_url as bg_url %}
+    {% if bg_url %}
+      <div
+        style="background: url('{{ bg_url }}') center/cover no-repeat fixed;"
+        class="absolute inset-0 -z-20">
+      </div>
+    {% endif %}
+
+    {# Shared overlay style (none / dark / silhouette) #}
+    <div class="absolute inset-0 -z-10 {% landing_background_overlay_classes %}"></div>
+
+    {# Page content goes here #}
+    <div class="relative z-10 w-full">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  {% block extra_scripts %}{% endblock %}
 </body>
 </html>

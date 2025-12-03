@@ -1,4 +1,5 @@
 {% load static %}
+{% load appearance_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,135 +15,149 @@
   </style>
 </head>
 
-<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen flex items-center justify-center px-4 relative">
+<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen relative">
+  <div class="relative min-h-screen flex items-center justify-center">
 
-  <!-- Back Button (Top-Left with Hover Effect) -->
-  <a href="{% url 'index' %}" 
-     class="absolute top-6 left-6 flex items-center gap-2 text-white font-semibold text-lg px-3 py-2 rounded-full transition duration-300 ease-in-out hover:bg-white/20 hover:backdrop-blur-md hover:shadow-md z-10">
-    <!-- Icon -->
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-    </svg>
-    <span>Back</span>
-  </a>
+    {# Shared background image, if enabled #}
+    {% landing_background_url as bg_url %}
+    {% if bg_url %}
+      <div
+        style="background: url('{{ bg_url }}') center/cover no-repeat fixed;"
+        class="absolute inset-0 -z-20">
+      </div>
+    {% endif %}
 
-  <!-- White card wrapper -->
-  <div class="bg-white shadow-2xl rounded-xl w-full max-w-md p-8 md:p-10 space-y-6 text-center">
+    {# Shared overlay style (none / dark / silhouette) #}
+    <div class="absolute inset-0 -z-10 {% landing_background_overlay_classes %}"></div>
 
-    <!-- Logo + Text -->
-    <div class="text-gray-800">
-      <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo" class="w-20 h-20 mx-auto mb-2" />
+    <!-- Back Button (Top-Left with Hover Effect) -->
+    <a href="{% url 'index' %}" 
+       class="absolute top-6 left-6 flex items-center gap-2 text-white font-semibold text-lg px-3 py-2 rounded-full transition duration-300 ease-in-out hover:bg-white/20 hover:backdrop-blur-md hover:shadow-md z-10">
+      <!-- Icon -->
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      <span>Back</span>
+    </a>
 
-      <h1 class="text-3xl md:text-4xl font-bold leading-snug mb-1">
-        Welcome to LINANG
-      </h1>
+    <!-- White card wrapper -->
+    <div class="relative z-10 bg-white shadow-2xl rounded-xl w-full max-w-md p-8 md:p-10 space-y-6 text-center">
 
-      <p class="text-sm font-light mb-2">
-        Linking Information Networks for Administration and Narrative Gathering
-      </p>
-    </div>
+      <!-- Logo + Text -->
+      <div class="text-gray-800">
+        <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo" class="w-20 h-20 mx-auto mb-2" />
 
-    <!-- Login Form -->
-    <div class="space-y-6 text-left">
+        <h1 class="text-3xl md:text-4xl font-bold leading-snug mb-1">
+          Welcome to LINANG
+        </h1>
 
-      {# Only display messages that have the 'login' tag #}
-      {% if messages %}
-        {% for message in messages %}
-          {% if 'login' in message.tags %}
-            <div class="relative flex items-center justify-between p-4 rounded-lg text-sm
-              {% if message.tags == 'error' %}
-                bg-red-100 text-red-800
-              {% elif message.tags == 'success' %}
-                bg-green-100 text-green-800
-              {% elif message.tags == 'warning' %}
-                bg-yellow-100 text-yellow-800
-              {% else %}
-                bg-blue-100 text-blue-800
-              {% endif %}
-            ">
-              <span>{{ message }}</span>
-              <button type="button" onclick="this.parentElement.style.display='none'" class="text-xl font-bold leading-none focus:outline-none">&times;</button>
-            </div>
-          {% endif %}
-        {% endfor %}
-      {% endif %}
+        <p class="text-sm font-light mb-2">
+          Linking Information Networks for Administration and Narrative Gathering
+        </p>
+      </div>
 
-      <form method="POST" class="space-y-4">
-        {% csrf_token %}
+      <!-- Login Form -->
+      <div class="space-y-6 text-left">
 
-        <!-- Email Field -->
-        <div>
-          {{ form.email }}
-          {% if form.email.errors %}
-            <p class="text-sm text-red-500 mt-1">{{ form.email.errors.0 }}</p>
-          {% endif %}
-        </div>
+        {# Only display messages that have the 'login' tag #}
+        {% if messages %}
+          {% for message in messages %}
+            {% if 'login' in message.tags %}
+              <div class="relative flex items-center justify-between p-4 rounded-lg text-sm
+                {% if message.tags == 'error' %}
+                  bg-red-100 text-red-800
+                {% elif message.tags == 'success' %}
+                  bg-green-100 text-green-800
+                {% elif message.tags == 'warning' %}
+                  bg-yellow-100 text-yellow-800
+                {% else %}
+                  bg-blue-100 text-blue-800
+                {% endif %}
+              ">
+                <span>{{ message }}</span>
+                <button type="button" onclick="this.parentElement.style.display='none'" class="text-xl font-bold leading-none focus:outline-none">&times;</button>
+              </div>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
 
-        <!-- Password Field with Show/Hide Icon -->
-        <div class="relative">
-          {{ form.password }}
-          <button
-            type="button"
-            class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#800505] focus:outline-none"
-            onclick="togglePasswordVisibility()"
-            aria-label="Show password"
-          >
-            <!-- Eye Open SVG (visible by default) -->
-            <span id="eyeOpen" style="display:inline;">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-              </svg>
-            </span>
-            <!-- Eye Closed SVG (hidden by default) -->
-            <span id="eyeClosed" style="display:none;">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
-              </svg>
-            </span>
+        <form method="POST" class="space-y-4">
+          {% csrf_token %}
+
+          <!-- Email Field -->
+          <div>
+            {{ form.email }}
+            {% if form.email.errors %}
+              <p class="text-sm text-red-500 mt-1">{{ form.email.errors.0 }}</p>
+            {% endif %}
+          </div>
+
+          <!-- Password Field with Show/Hide Icon -->
+          <div class="relative">
+            {{ form.password }}
+            <button
+              type="button"
+              class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#800505] focus:outline-none"
+              onclick="togglePasswordVisibility()"
+              aria-label="Show password"
+            >
+              <!-- Eye Open SVG (visible by default) -->
+              <span id="eyeOpen" style="display:inline;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                </svg>
+              </span>
+              <!-- Eye Closed SVG (hidden by default) -->
+              <span id="eyeClosed" style="display:none;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                </svg>
+              </span>
+            </button>
+            {% if form.password.errors %}
+              <p class="text-sm text-red-500 mt-1">{{ form.password.errors.0 }}</p>
+            {% endif %}
+          </div>
+
+          <!-- Forgot password link -->
+          <div class="flex items-center justify-start text-sm text-gray-600">
+            <a href="{% url 'forgot_password' %}" class="text-[#800505] hover:text-[#a80707] font-medium">Forgot password?</a>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit"
+            class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold w-full py-3 rounded-lg transition duration-200 text-base">
+            Log In
           </button>
-          {% if form.password.errors %}
-            <p class="text-sm text-red-500 mt-1">{{ form.password.errors.0 }}</p>
-          {% endif %}
-        </div>
+        </form>
 
-        <!-- Forgot password link -->
-        <div class="flex items-center justify-start text-sm text-gray-600">
-          <a href="{% url 'forgot_password' %}" class="text-[#800505] hover:text-[#a80707] font-medium">Forgot password?</a>
-        </div>
+        <!-- Terms -->
+        <p class="text-center text-[11px] text-gray-500 pt-2">
+          By logging in, you agree to our
+          <a href="#" class="text-[#800505] hover:text-[#a80707] font-medium">Terms and Conditions</a>.
+        </p>
+      </div>
 
-        <!-- Submit Button -->
-        <button type="submit"
-          class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold w-full py-3 rounded-lg transition duration-200 text-base">
-          Log In
-        </button>
-      </form>
-
-      <!-- Terms -->
-      <p class="text-center text-[11px] text-gray-500 pt-2">
-        By logging in, you agree to our
-        <a href="#" class="text-[#800505] hover:text-[#a80707] font-medium">Terms and Conditions</a>.
-      </p>
     </div>
-
   </div>
-  
+
   <!-- Show/Hide Password Script -->
- <script>
-function togglePasswordVisibility() {
-  const pwdInput = document.querySelector('input[name="password"]');
-  const eyeOpen = document.getElementById('eyeOpen');
-  const eyeClosed = document.getElementById('eyeClosed');
-  if (pwdInput.type === "password") {
-    pwdInput.type = "text";
-    eyeOpen.style.display = "none";
-    eyeClosed.style.display = "inline";
-  } else {
-    pwdInput.type = "password";
-    eyeOpen.style.display = "inline";
-    eyeClosed.style.display = "none";
-  }
-}
-</script>
+  <script>
+    function togglePasswordVisibility() {
+      const pwdInput = document.querySelector('input[name="password"]');
+      const eyeOpen = document.getElementById('eyeOpen');
+      const eyeClosed = document.getElementById('eyeClosed');
+      if (pwdInput.type === "password") {
+        pwdInput.type = "text";
+        eyeOpen.style.display = "none";
+        eyeClosed.style.display = "inline";
+      } else {
+        pwdInput.type = "password";
+        eyeOpen.style.display = "inline";
+        eyeClosed.style.display = "none";
+      }
+    }
+  </script>
 </body>
 </html>

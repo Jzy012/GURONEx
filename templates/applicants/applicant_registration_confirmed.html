@@ -3,7 +3,7 @@
 
 {% block title %}Registration Confirmed{% endblock %}
 
-{% block content %}
+{% block extra_head %}
 <style>
   .fade-in {
     animation: fade-in 0.8s ease-out both;
@@ -26,9 +26,11 @@
     margin: 0.5rem 0 1.5rem 0;
   }
 </style>
+{% endblock %}
 
-<div class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen flex flex-col items-center justify-center px-4 relative">
+{% block content %}
 
+  <!-- Back button, sits above the shared background -->
   <a href="{% url 'index' %}" 
      class="absolute top-6 left-6 flex items-center gap-2 text-white font-semibold text-lg px-3 py-2 rounded-full transition duration-300 ease-in-out hover:bg-white/20 hover:backdrop-blur-md hover:shadow-md">
     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -37,10 +39,11 @@
     <span>Back to Home</span>
   </a>
 
-  <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-8 md:p-12 flex flex-col items-center fade-in text-gray-800">
+  <!-- Main card (centered by the base flex container) -->
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-auto p-8 md:p-12 flex flex-col items-center fade-in text-gray-800">
 
     <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo"
-      class="w-20 h-20 mb-2 rounded-full bg-white object-contain" />
+         class="w-20 h-20 mb-2 rounded-full bg-white object-contain" />
 
     <h1 class="text-3xl md:text-4xl font-bold text-center mb-2">
       Registration Successful!
@@ -55,13 +58,15 @@
     </p>
 
     <div class="flex flex-col md:flex-row gap-3 w-full justify-center">
-      <a href="{% url 'applicants:check_status' %}" class="inline-block bg-[#800505] hover:bg-[#a80707] text-white font-semibold py-3 px-7 rounded-lg transition duration-200 text-base shadow-md text-center">
+      <a href="{% url 'applicants:check_status' %}"
+         class="inline-block bg-[#800505] hover:bg-[#a80707] text-white font-semibold py-3 px-7 rounded-lg transition duration-200 text-base shadow-md text-center">
         Check Application Status
       </a>
-      <a href="{% url 'index' %}" class="inline-block bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-7 rounded-lg transition duration-200 text-base shadow-md text-center">
+      <a href="{% url 'index' %}"
+         class="inline-block bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-7 rounded-lg transition duration-200 text-base shadow-md text-center">
         Back to Home
       </a>
     </div>
   </div>
-</div>
+
 {% endblock %}

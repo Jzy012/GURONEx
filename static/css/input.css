@@ -15,3 +15,9 @@
     font-family: 'Karla', sans-serif;
   }
 }
+
+
+.bg-silhouette-overlay {
+  background-color: rgba(0, 0, 0, 0.5);        /* dark overlay */
+  backdrop-filter: grayscale(100%) blur(1px);  /* silhouette effect */
+}

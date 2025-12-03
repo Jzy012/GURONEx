@@ -70,8 +70,12 @@ urlpatterns = [
     path('admin/settings/academic-years/', views.academic_years_view, name='academic_years'),
     path('admin/settings/academic-years/create/', views.create_academic_year_view, name='create_academic_year'),
 
-
+    path('admin/settings/pup-sites/', views.pup_sites_admin_list, name='pup_sites_admin_list'),
+    path('admin/settings/pup-sites/add/', views.pup_site_create, name='pup_site_create'),
+    path('admin/settings/pup-sites/<uuid:uid>/edit/', views.pup_site_update, name='pup_site_update'),
+    path('admin/settings/pup-sites/<uuid:uid>/delete/', views.pup_site_delete, name='pup_site_delete'),
    
+    path('admin/settings/landing-background/', views.landing_background_settings, name='landing_background_settings'),
 
     path('admin/settings/change-password/', auth_views.PasswordChangeView.as_view(
         template_name='admin/admin_change_password.html',

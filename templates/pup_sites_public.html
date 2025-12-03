@@ -1,0 +1,146 @@
+{% load static %}
+{% load appearance_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
+  <title>PUP Related Sites | LINANG</title>
+  <link href="{% static 'css/output.css' %}" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'karla', sans-serif;
+    }
+    .fade-in {
+      animation: fade-in 0.8s ease-out both;
+    }
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .divider {
+      width: 48px;
+      height: 3px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #a80707 0%, #800505 100%);
+      margin: 0.25rem 0 1rem 0;
+    }
+  </style>
+</head>
+
+<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen relative">
+  <div class="relative min-h-screen flex flex-col items-center justify-center px-3 md:px-4">
+
+    {# Shared background image, if enabled #}
+    {% landing_background_url as bg_url %}
+    {% if bg_url %}
+      <div
+        style="background: url('{{ bg_url }}') center/cover no-repeat fixed;"
+        class="absolute inset-0 -z-20">
+      </div>
+    {% endif %}
+
+    {# Shared overlay style (none / dark / silhouette) #}
+    <div class="absolute inset-0 -z-10 {% landing_background_overlay_classes %}"></div>
+
+    <!-- Back Button (Top-Left) -->
+    <a href="{% url 'index' %}" 
+       class="absolute top-4 left-4 flex items-center gap-2 text-white font-semibold text-sm md:text-base px-3 py-1.5 rounded-full transition duration-300 ease-in-out hover:bg-white/20 hover:backdrop-blur-md hover:shadow-md">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 md:h-5 md:w-5" fill="none"
+           viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M15 19l-7-7 7-7" />
+      </svg>
+      <span>Back</span>
+    </a>
+
+    <!-- Main Card -->
+    <div class="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-3xl p-6 md:p-8 flex flex-col items-start justify-center space-y-4 fade-in text-gray-800">
+
+      <!-- Logo -->
+      <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo"
+           class="w-16 h-16 mb-1 rounded-full bg-white object-contain" />
+
+      <!-- Heading -->
+      <h1 class="text-3xl md:text-4xl font-bold leading-snug">
+        PUP Related Sites
+      </h1>
+
+      <div class="divider"></div>
+
+      <!-- Subtitle -->
+      <p class="text-base md:text-lg font-light max-w-2xl text-left w-full">
+        Explore official PUP online portals and resources connected to LINANG.
+      </p>
+
+      <!-- Description -->
+      <p class="text-sm md:text-base text-gray-700 max-w-2xl text-left w-full">
+        Access important PUP websites from a single place. These links are curated by LINANG administrators to help
+        faculty, staff, and applicants find trusted resources quickly.
+      </p>
+
+      <!-- Sites List -->
+      <div class="w-full mt-2">
+        {% if sites %}
+          <ul class="space-y-2.5 md:space-y-3">
+            {% for site in sites %}
+              <li class="p-3 md:p-4 rounded-lg border border-gray-200 bg-gray-50 hover:bg-white hover:shadow-md transition duration-200">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                  <div class="flex-1 min-w-0">
+                    <h2 class="text-base md:text-lg font-semibold text-gray-900">
+                      <a href="{{ site.url }}" target="_blank" rel="noopener noreferrer"
+                         class="text-[#800505] hover:text-[#a80707] hover:underline break-words">
+                        {{ site.name }}
+                      </a>
+                    </h2>
+                    {% if site.description %}
+                      <p class="text-xs md:text-sm text-gray-700 mt-1">
+                        {{ site.description }}
+                      </p>
+                    {% endif %}
+                    <p class="mt-1 text-[11px] md:text-xs text-gray-500 break-all">
+                      {{ site.url }}
+                    </p>
+                  </div>
+                  <div class="flex flex-row sm:flex-col items-end sm:items-center gap-1.5 sm:gap-2">
+                    <a href="{{ site.url }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-block bg-[#800505] hover:bg-[#a80707] text-white font-semibold py-1.5 px-3 rounded-lg transition duration-200 text-[11px] md:text-xs shadow-md">
+                      Visit Site
+                    </a>
+                  </div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <!-- Empty State -->
+          <div class="w-full py-8 flex flex-col items-center justify-center text-center space-y-3">
+            <div class="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-[#800505]" fill="none"
+                   viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                      d="M9 13.5l3 3 3-3m-6-3l3-3 3 3M4.5 5.25h15m-15 13.5h15" />
+              </svg>
+            </div>
+            <h2 class="text-base md:text-lg font-semibold text-gray-900">
+              No related sites available yet
+            </h2>
+            <p class="text-xs md:text-sm text-gray-600 max-w-sm">
+              Once administrators add related PUP sites in LINANG admin settings, they will appear here for quick access.
+            </p>
+          </div>
+        {% endif %}
+      </div>
+
+    </div>
+
+  </div>
+</body>
+</html>

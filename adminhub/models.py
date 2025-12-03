@@ -79,3 +79,25 @@ class CreatedAccountLog(models.Model):
 
     def __str__(self):
         return f"{self.faculty_email} ({self.created_at})"
+
+
+
+
+
+
+
+import uuid
+from django.db import models
+
+class PUPSite(models.Model):
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    name = models.CharField(max_length=255)
+    url = models.URLField()
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name

@@ -3,7 +3,7 @@
 
 {% block title %}Applicant Home{% endblock %}
 
-{% block content %}
+{% block extra_head %}
 <style>
   body {
     font-family: 'karla', sans-serif;
@@ -29,13 +29,13 @@
     margin: 0.5rem 0 1.5rem 0;
   }
 </style>
+{% endblock %}
 
-<div class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen flex flex-col items-center justify-center px-4 relative">
+{% block content %}
 
   <!-- Back Button (Top-Left with Hover Effect) -->
   <a href="{% url 'index' %}" 
      class="absolute top-6 left-6 flex items-center gap-2 text-white font-semibold text-lg px-3 py-2 rounded-full transition duration-300 ease-in-out hover:bg-white/20 hover:backdrop-blur-md hover:shadow-md">
-    <!-- Icon -->
     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
     </svg>
@@ -43,7 +43,7 @@
   </a>
 
   <!-- Main Card -->
-  <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-8 md:p-16 flex flex-col items-start justify-center space-y-6 fade-in text-gray-800">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-auto p-8 md:p-16 flex flex-col items-start justify-center space-y-6 fade-in text-gray-800">
     
     <!-- Logo -->
     <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo"
@@ -77,5 +77,4 @@
     </div>
   </div>
 
-</div>
 {% endblock %}

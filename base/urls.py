@@ -23,6 +23,9 @@ urlpatterns =[
 
     path("admin/storage-status/", views.storage_status_view, name="storage_status"),
 
+    path('pup-sites/', views.pup_sites_public_list, name='pup_sites_public'),
+
+
 ]
 
 

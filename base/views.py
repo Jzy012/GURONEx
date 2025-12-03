@@ -365,3 +365,15 @@ def storage_status_view(request):
             }
 
     return render(request, "admin/admin_storage_status.html", {"status": status})
+
+
+from adminhub.models import PUPSite
+
+
+
+def pup_sites_public_list(request):
+    """
+    Public page: list of active PUP sites.
+    """
+    sites = PUPSite.objects.filter(is_active=True)
+    return render(request, "pup_sites_public.html", {"sites": sites})
