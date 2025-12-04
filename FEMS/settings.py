@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import environ
-
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -186,6 +186,7 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 # Google Service Account Credentials
+# Google Service Account Credentials
 GOOGLE_SERVICE_ACCOUNT_FILE = env("GOOGLE_SERVICE_ACCOUNT_FILE")  
 
 # Google OAuth2 Client Secret
@@ -193,6 +194,22 @@ GOOGLE_CLIENT_SECRET_FILE = env("GOOGLE_CLIENT_SECRET_FILE")
 
 # Google OAuth2 Redirect URI
 GOOGLE_OAUTH2_REDIRECT_URI = env("GOOGLE_OAUTH2_REDIRECT_URI")
+
+# --------- NEW: support JSON from env on platforms like Railway ---------
+GOOGLE_CLIENT_SECRET_JSON = os.getenv("GOOGLE_CLIENT_SECRET_JSON")
+GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+
+# If JSON is provided in env and the file does not exist, write it to disk.
+if GOOGLE_CLIENT_SECRET_JSON and not Path(GOOGLE_CLIENT_SECRET_FILE).exists():
+    Path(GOOGLE_CLIENT_SECRET_FILE).parent.mkdir(parents=True, exist_ok=True)
+    with open(GOOGLE_CLIENT_SECRET_FILE, "w") as f:
+        f.write(GOOGLE_CLIENT_SECRET_JSON)
+
+if GOOGLE_SERVICE_ACCOUNT_JSON and not Path(GOOGLE_SERVICE_ACCOUNT_FILE).exists():
+    Path(GOOGLE_SERVICE_ACCOUNT_FILE).parent.mkdir(parents=True, exist_ok=True)
+    with open(GOOGLE_SERVICE_ACCOUNT_FILE, "w") as f:
+        f.write(GOOGLE_SERVICE_ACCOUNT_JSON)
+# ------------------------------------------------------------------------
 
 # Fernet Key for encryption
 FERNET_KEY = env("FERNET_KEY")
