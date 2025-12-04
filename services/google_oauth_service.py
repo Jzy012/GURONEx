@@ -11,14 +11,19 @@ SCOPES = [
 ]
 
 def load_client_secrets():
+    from django.conf import settings
+
     with open(settings.GOOGLE_CLIENT_SECRET_FILE, 'r') as f:
-        secrets = json.load(f)
-        if "installed" in secrets:
-            return secrets["installed"]
-        elif "web" in secrets:
-            return secrets["web"]
-        else:
-            raise KeyError("Neither 'installed' nor 'web' found in client secret JSON file.")
+        raw = f.read()
+    print("DEBUG client_secret.json content:", repr(raw))  # TEMP
+
+    secrets = json.loads(raw)
+    if "installed" in secrets:
+        return secrets["installed"]
+    elif "web" in secrets:
+        return secrets["web"]
+    else:
+        raise KeyError("Neither 'installed' nor 'web' found in client secret JSON file.")
 
 class GoogleOAuthService:
     def __init__(self, user):
