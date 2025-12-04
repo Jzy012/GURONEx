@@ -1,25 +1,21 @@
-from django.shortcuts import render
-
-# Create your views here.
 from django.shortcuts import render, redirect, get_object_or_404
-from django.forms import formset_factory, BaseFormSet
+from django.forms import formset_factory
 from django.contrib import messages
 from django.db import transaction
+
 from .models import Applicant, ApplicantDocument, ApplicantRequiredDocument, ApplicantTimeline
-from base.forms import ApplicantForm, ApplicantDocumentUploadForm
+from base.forms import ApplicantForm
+from base.forms import ApplicantDocumentUploadForm
 from faculty.models import DocumentCategory
 from services.google_drive_service import CentralGoogleDriveService
-import io
 from googleapiclient.http import MediaIoBaseUpload
+from base.utils.email import send_applicant_submission_receipt
 
-
-
-
+import io
 
 
 def applicant_home(request):
     return render(request, "applicants/applicant_home.html")
-
 
 
 def applicant_apply(request):
@@ -30,18 +26,20 @@ def applicant_apply(request):
         basic_form = ApplicantForm(request.POST)
         forms = [
             ApplicantDocumentUploadForm(
-                request.POST, request.FILES,
+                request.POST,
+                request.FILES,
                 prefix=f"doc{idx}",
                 fixed_document_category=doc_cat,
                 index=idx
             )
             for idx, doc_cat in enumerate(doc_categories)
         ]
-        valid = all([form.is_valid() for form in forms]) and basic_form.is_valid()
+        valid = all(form.is_valid() for form in forms) and basic_form.is_valid()
         if valid:
             with transaction.atomic():
                 applicant = basic_form.save()
                 drive_service = CentralGoogleDriveService()
+
                 for form, category in zip(forms, doc_categories):
                     file = form.cleaned_data["file"]
                     expiry = form.cleaned_data.get("expiry_date")
@@ -72,12 +70,25 @@ def applicant_apply(request):
                             remarks=remarks,
                             status="Pending"
                         )
+
                 ApplicantTimeline.objects.create(
                     applicant=applicant,
                     action="Submitted application",
                     note="Initial application and document upload."
                 )
-                messages.success(request, "Application submitted! Please keep your Applicant ID for future status checks.")
+
+                # Send receipt email (summary + Applicant ID)
+                try:
+                    send_applicant_submission_receipt(applicant)
+                except Exception:
+                    # Optionally log this; don't block submission if email fails
+                    pass
+
+                messages.success(
+                    request,
+                    "Application submitted! A copy has been sent to your email. "
+                    "Please keep your Applicant ID for future status checks."
+                )
                 return redirect("applicants:registration_confirmed")
         else:
             messages.error(request, "Please correct errors in your form(s).")
@@ -91,6 +102,7 @@ def applicant_apply(request):
             )
             for idx, doc_cat in enumerate(doc_categories)
         ]
+
     context = {
         "basic_form": basic_form,
         "forms": forms,
@@ -99,12 +111,8 @@ def applicant_apply(request):
     return render(request, "applicants/applicant_apply.html", context)
 
 
-
-
 def applicant_registration_confirmed(request):
-    
     return render(request, "applicants/applicant_registration_confirmed.html")
-
 
 
 def applicant_check_status(request):
@@ -118,16 +126,19 @@ def applicant_check_status(request):
             messages.error(request, "Applicant not found. Please check your ID and email.")
     return render(request, "applicants/applicant_check_status.html")
 
+
 def applicant_status_page(request, pk):
     applicant = get_object_or_404(Applicant, pk=pk)
     docs = applicant.documents.all()
     required_docs = ApplicantRequiredDocument.objects.all()
     timeline = applicant.timeline.order_by("timestamp")
-    from adminhub.models import Announcement  # Assuming your Announcement app
+
+    from adminhub.models import Announcement
     announcements = Announcement.objects.filter(
         visible_to_roles__contains=["applicant"],
         is_active=True
     )
+
     context = {
         "applicant": applicant,
         "docs": docs,
@@ -137,20 +148,32 @@ def applicant_status_page(request, pk):
     }
     return render(request, "applicants/applicant_status_page.html", context)
 
+
 def applicant_upload_doc(request, pk):
     applicant = get_object_or_404(Applicant, pk=pk)
+
     # Only allow if not hired/failed
     if applicant.status in ["hired", "failed"]:
         messages.error(request, "Cannot upload documents at this stage.")
         return redirect("applicants:status_page", pk=pk)
+
     required_docs = ApplicantRequiredDocument.objects.all()
     doc_categories = [doc.document_category for doc in required_docs]
+
     DocumentFormSet = formset_factory(
-        ApplicantDocumentUploadForm, extra=0, max_num=len(doc_categories)
+        ApplicantDocumentUploadForm,
+        extra=0,
+        max_num=len(doc_categories)
     )
+
     if request.method == "POST":
-        formset = DocumentFormSet(request.POST, request.FILES, 
-            form_kwargs={"required_doc_cats": DocumentCategory.objects.filter(id__in=[cat.id for cat in doc_categories]), "applicant": applicant}
+        formset = DocumentFormSet(
+            request.POST,
+            request.FILES,
+            form_kwargs={
+                "required_doc_cats": DocumentCategory.objects.filter(id__in=[cat.id for cat in doc_categories]),
+                "applicant": applicant
+            }
         )
         if formset.is_valid():
             drive_service = CentralGoogleDriveService()
@@ -163,7 +186,7 @@ def applicant_upload_doc(request, pk):
                 remarks = form.cleaned_data.get("remarks", "")
 
                 media = MediaIoBaseUpload(
-                    io.BytesIO(file.read()),  # wrap file in a stream
+                    io.BytesIO(file.read()),
                     mimetype=file.content_type,
                     resumable=False
                 )
@@ -197,8 +220,12 @@ def applicant_upload_doc(request, pk):
             messages.error(request, "Please correct errors in your document uploads.")
     else:
         formset = DocumentFormSet(
-            form_kwargs={"required_doc_cats": DocumentCategory.objects.filter(id__in=[cat.id for cat in doc_categories]), "applicant": applicant}
+            form_kwargs={
+                "required_doc_cats": DocumentCategory.objects.filter(id__in=[cat.id for cat in doc_categories]),
+                "applicant": applicant
+            }
         )
+
     context = {
         "formset": formset,
         "applicant": applicant,

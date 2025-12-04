@@ -101,3 +101,46 @@ class PUPSite(models.Model):
 
     def __str__(self):
         return self.name
+    
+
+
+
+# faculty/models.py (near other models)
+from django.db import models
+from base.models import Account
+from faculty.models import DocumentCategory  # adjust if needed
+import uuid
+
+
+class DocumentTemplate(models.Model):
+    uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+
+    name = models.CharField(max_length=255)
+    document_category = models.OneToOneField(
+        DocumentCategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="document_template",
+        help_text="Each category can have at most one template."
+    )
+
+    file_path = models.URLField(max_length=500)        # Google Drive webViewLink
+    google_drive_id = models.CharField(max_length=255) # Drive file id
+    file_size = models.PositiveIntegerField(null=True, blank=True)
+    mime_type = models.CharField(max_length=100, blank=True, null=True)
+
+    uploaded_by = models.ForeignKey(
+        Account,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="uploaded_document_templates"
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name or f"Template {self.uid}"

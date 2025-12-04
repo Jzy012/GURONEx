@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from faculty.models import DocumentCategory
 import uuid
 
+
 def generate_applicant_id():
     last_applicant = Applicant.objects.order_by('-id').first()
     if not last_applicant or not last_applicant.applicant_id:
@@ -11,16 +12,56 @@ def generate_applicant_id():
     last_id = int(last_applicant.applicant_id.split('-')[1])
     return f"APL-{last_id + 1:05d}"
 
+
 class Applicant(models.Model):
     applicant_id = models.CharField(max_length=20, unique=True, editable=False)
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
+    # Name fields
     first_name = models.CharField(max_length=100)
+    middle_name = models.CharField(max_length=100, blank=True)  # NEW: optional
     last_name = models.CharField(max_length=100)
     suffix = models.CharField(max_length=20, blank=True)
+
+    # Contact / basic info
     email = models.EmailField()
     contact_number = models.CharField(max_length=15, null=True, blank=True)
     department = models.CharField(max_length=100)
     birth_date = models.DateField(null=True, blank=True)
+
+    # Educational background (college + grad school)
+    college_course = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="e.g. BS Computer Science",
+    )
+    college_school_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="e.g. University of X",
+    )
+    college_graduation_year = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="e.g. 2022",
+    )
+
+    grad_course = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="e.g. MS Education (leave blank if not applicable)",
+    )
+    grad_school_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="e.g. University of Y",
+    )
+    grad_graduation_year = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="e.g. 2024",
+    )
+
     status = models.CharField(
         max_length=20,
         choices=[
@@ -33,8 +74,11 @@ class Applicant(models.Model):
         ],
         default='pending'
     )
+
+    # Emergency contact
     emergency_contact_name = models.CharField(max_length=100, null=True, blank=True)
     emergency_contact_number = models.CharField(max_length=15, null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     google_drive_folder_id = models.CharField(max_length=255, null=True, blank=True)
     account_created = models.BooleanField(default=False)
@@ -53,7 +97,16 @@ class Applicant(models.Model):
             super().save(update_fields=['google_drive_folder_id'])
 
     def __str__(self):
-        return f"{self.applicant_id} - {self.first_name} {self.last_name}"
+        # Include middle name if present
+        name_parts = [self.first_name]
+        if self.middle_name:
+            name_parts.append(self.middle_name)
+        name_parts.append(self.last_name)
+        if self.suffix:
+            name_parts.append(self.suffix)
+        full_name = " ".join(name_parts)
+        return f"{self.applicant_id} - {full_name}"
+
 
 class ApplicantRequiredDocument(models.Model):
     document_category = models.ForeignKey(
@@ -65,6 +118,7 @@ class ApplicantRequiredDocument(models.Model):
 
     def __str__(self):
         return f"{self.document_category.name} ({'Required' if self.is_required else 'Optional'})"
+
 
 class ApplicantDocument(models.Model):
     applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, related_name="documents")
@@ -101,6 +155,7 @@ class ApplicantDocument(models.Model):
             return self.expiry_date >= timezone.now().date()
         return True
 
+
 class ApplicantTimeline(models.Model):
     applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, related_name="timeline")
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -110,6 +165,7 @@ class ApplicantTimeline(models.Model):
 
     def __str__(self):
         return f"{self.applicant.applicant_id} @ {self.timestamp}: {self.action}"
+
 
 class ApplicantRetentionPolicy(models.Model):
     retention_days = models.PositiveIntegerField(default=30)

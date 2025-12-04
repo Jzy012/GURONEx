@@ -1389,3 +1389,129 @@ def faculty_request_create_view(request):
 
     return render(request, "faculty/faculty_request_form.html", {"form": form})
 
+
+
+
+from base.decorators import faculty_required
+from faculty.models import DocumentCategory
+from adminhub.models import DocumentTemplate
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.shortcuts import render
+
+
+@faculty_required
+def faculty_document_templates(request):
+    """
+    Read-only list of document templates for faculty.
+    Faculty can download/view templates and then upload completed documents via the existing upload flow.
+    """
+    search = request.GET.get("q", "")
+    category_id = request.GET.get("category")
+
+    templates = (
+        DocumentTemplate.objects
+        .filter(is_active=True)
+        .select_related("document_category")
+    )
+
+    if search:
+        templates = templates.filter(
+            Q(name__icontains=search) |
+            Q(document_category__name__icontains=search)
+        )
+
+    if category_id:
+        templates = templates.filter(document_category_id=category_id)
+
+    templates = templates.order_by("document_category__name", "name")
+
+    # Helper to format sizes
+    def format_storage(size_bytes):
+        if not size_bytes:
+            return "0 bytes"
+        if size_bytes >= 1024 ** 3:
+            return f"{size_bytes / (1024 ** 3):.2f} GB"
+        elif size_bytes >= 1024 ** 2:
+            return f"{size_bytes / (1024 ** 2):.2f} MB"
+        elif size_bytes >= 1024:
+            return f"{size_bytes / 1024:.2f} KB"
+        return f"{size_bytes} bytes"
+
+    for t in templates:
+        t.size_human = format_storage(t.file_size or 0)
+
+    paginator = Paginator(templates, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    categories = DocumentCategory.objects.all().order_by("name")
+
+    context = {
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "categories": categories,
+        "selected_category": category_id,
+        "search_query": search,
+    }
+    return render(request, "faculty/faculty_document_templates.html", context)
+
+
+
+
+def _finalize_response(resp: HttpResponse):
+    resp['X-Frame-Options'] = 'SAMEORIGIN'
+    resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
+
+from django.http import StreamingHttpResponse, Http404, HttpResponse
+import mimetypes
+
+@faculty_required
+def download_document_template(request, uid):
+    """
+    Streams or returns bytes for a document template stored on Google Drive.
+    Uses uid (UUID) to lookup template.
+    Query param inline=1 requests inline preview (only honored for PDF/images).
+    """
+    template = get_object_or_404(DocumentTemplate, uid=uid, is_active=True)
+    file_id = template.google_drive_id
+
+    drive = CentralGoogleDriveService()
+    want_inline = request.GET.get('inline', '0').lower() in ('1', 'true', 'yes')
+
+    # Get metadata
+    try:
+        meta = drive.service.files().get(fileId=file_id, fields='mimeType, name, size').execute()
+        mime_type = meta.get('mimeType')
+        name_on_drive = meta.get('name') or template.name or f'template_{template.uid}'
+    except Exception:
+        raise Http404("Could not retrieve template file metadata from Google Drive.")
+
+    # Google-native types -> export to PDF
+    if mime_type and mime_type.startswith('application/vnd.google-apps.'):
+        export_mime = 'application/pdf'
+        try:
+            exported_bytes = drive.service.files().export(fileId=file_id, mimeType=export_mime).execute()
+        except Exception:
+            raise Http404("Template file could not be exported from Google Drive.")
+
+        content_type = export_mime
+        disposition = 'inline' if (want_inline and content_type == 'application/pdf') else 'attachment'
+        resp = HttpResponse(exported_bytes, content_type=content_type)
+        resp['Content-Disposition'] = f'{disposition}; filename="{name_on_drive}"'
+        resp['Content-Length'] = str(len(exported_bytes))
+        return _finalize_response(resp)
+
+    # Binary files -> stream
+    content_type = mime_type or mimetypes.guess_type(name_on_drive)[0] or 'application/octet-stream'
+    inline_allowed = (content_type == 'application/pdf') or content_type.startswith('image/')
+
+    if want_inline and inline_allowed:
+        response = StreamingHttpResponse(_stream_drive_media(drive, file_id), content_type=content_type)
+        response['Content-Disposition'] = f'inline; filename="{name_on_drive}"'
+        return _finalize_response(response)
+
+    response = StreamingHttpResponse(_stream_drive_media(drive, file_id), content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{name_on_drive}"'
+    return _finalize_response(response)

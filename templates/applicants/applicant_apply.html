@@ -49,17 +49,26 @@
       <form method="post" enctype="multipart/form-data" class="space-y-8">
         {% csrf_token %}
 
-        <!-- Basic Information -->
+        <!-- Personal Information -->
         <div class="bg-gray-50 rounded-lg p-6 shadow-sm">
           <h2 class="text-xl font-semibold mb-4 text-[#800505]">Personal Information</h2>
           <div class="space-y-4">
-            <!-- First Name - Last Name - Suffix -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            <!-- First Name - Middle Name - Last Name - Suffix -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 {{ basic_form.first_name.label_tag }}
                 {{ basic_form.first_name }}
                 {% if basic_form.first_name.errors %}
                   <p class="text-red-600 text-xs mt-1">{{ basic_form.first_name.errors.0 }}</p>
+                {% endif %}
+              </div>
+              <div>
+                {{ basic_form.middle_name.label_tag }}
+                {{ basic_form.middle_name }}
+                <p class="text-xs text-gray-500 mt-1">Optional</p>
+                {% if basic_form.middle_name.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ basic_form.middle_name.errors.0 }}</p>
                 {% endif %}
               </div>
               <div>
@@ -133,6 +142,70 @@
               </div>
             </div>
 
+          </div>
+        </div>
+
+        <!-- Educational Background -->
+        <div class="bg-gray-50 rounded-lg p-6 shadow-sm">
+          <h2 class="text-xl font-semibold mb-4 text-[#800505]">Educational Background</h2>
+          <p class="text-sm text-gray-500 mb-4">
+            Please provide your college details. Graduate studies are optional.
+          </p>
+
+          <!-- College -->
+          <div class="mb-6">
+            <h3 class="text-md font-semibold mb-2 text-gray-800">College</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                {{ basic_form.college_course.label_tag }}
+                {{ basic_form.college_course }}
+                {% if basic_form.college_course.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ basic_form.college_course.errors.0 }}</p>
+                {% endif %}
+              </div>
+              <div>
+                {{ basic_form.college_school_name.label_tag }}
+                {{ basic_form.college_school_name }}
+                {% if basic_form.college_school_name.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ basic_form.college_school_name.errors.0 }}</p>
+                {% endif %}
+              </div>
+              <div>
+                {{ basic_form.college_graduation_year.label_tag }}
+                {{ basic_form.college_graduation_year }}
+                {% if basic_form.college_graduation_year.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ basic_form.college_graduation_year.errors.0 }}</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Graduate School -->
+          <div>
+            <h3 class="text-md font-semibold mb-2 text-gray-800">Graduate Studies (Optional)</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                {{ basic_form.grad_course.label_tag }}
+                {{ basic_form.grad_course }}
+                {% if basic_form.grad_course.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ basic_form.grad_course.errors.0 }}</p>
+                {% endif %}
+              </div>
+              <div>
+                {{ basic_form.grad_school_name.label_tag }}
+                {{ basic_form.grad_school_name }}
+                {% if basic_form.grad_school_name.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ basic_form.grad_school_name.errors.0 }}</p>
+                {% endif %}
+              </div>
+              <div>
+                {{ basic_form.grad_graduation_year.label_tag }}
+                {{ basic_form.grad_graduation_year }}
+                {% if basic_form.grad_graduation_year.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ basic_form.grad_graduation_year.errors.0 }}</p>
+                {% endif %}
+              </div>
+            </div>
           </div>
         </div>
 

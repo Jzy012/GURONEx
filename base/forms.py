@@ -916,12 +916,36 @@ from faculty.models import DocumentCategory
 
 
 
+from django import forms
+from applicant.models import Applicant
+# import other forms you already have in this file as needed
+
+
 class ApplicantForm(forms.ModelForm):
     class Meta:
         model = Applicant
         fields = [
-            "first_name", "last_name", "suffix", "email", "contact_number",
-            "department", "birth_date", "emergency_contact_name", "emergency_contact_number"
+            # Basic info
+            "first_name",
+            "middle_name",               # NEW
+            "last_name",
+            "suffix",
+            "email",
+            "contact_number",
+            "department",
+            "birth_date",
+
+            # Educational background
+            "college_course",
+            "college_school_name",
+            "college_graduation_year",
+            "grad_course",
+            "grad_school_name",
+            "grad_graduation_year",
+
+            # Emergency contact
+            "emergency_contact_name",
+            "emergency_contact_number",
         ]
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
@@ -937,8 +961,12 @@ class ApplicantForm(forms.ModelForm):
             field.widget.attrs["class"] = field_class
             field.widget.attrs["placeholder"] = field.label
 
-        # Optionally, add a more specific placeholder for contact number
+        # Optional / helpful placeholders
         self.fields['contact_number'].widget.attrs["placeholder"] = "e.g. 09XXXXXXXXX"
+        self.fields['middle_name'].required = False
+        self.fields['grad_course'].required = False
+        self.fields['grad_school_name'].required = False
+        self.fields['grad_graduation_year'].required = False
 
   
 
@@ -1291,3 +1319,61 @@ class BackgroundUploadForm(forms.Form):
         if img.content_type not in ("image/jpeg", "image/png", "image/webp"):
             raise forms.ValidationError("Please upload a JPG, PNG, or WebP image.")
         return img
+    
+
+
+
+
+
+
+
+# adminhub/forms.py
+class DocumentTemplateForm(forms.Form):
+    document_category = forms.ModelChoiceField(
+        queryset=DocumentCategory.objects.all().order_by("name"),
+        required=True,
+        label="Document Category",
+        help_text="Each category may only have one template."
+    )
+    name = forms.CharField(
+        max_length=255,
+        required=True,
+        label="Template Name",
+    )
+    file = forms.FileField(
+        required=True,
+        label="Template File",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        input_class = (
+            'w-full border border-gray-300 rounded-lg px-2 py-2 text-sm '
+            'focus:outline-none focus:ring-2 focus:ring-[#800505]'
+        )
+
+        self.fields['document_category'].widget.attrs.update({
+            'class': input_class,
+            'placeholder': 'Category',
+        })
+        self.fields['name'].widget.attrs.update({
+            'class': input_class,
+            'placeholder': 'Template Name',
+        })
+        # Hide the file field itself; we trigger it by label click
+        self.fields['file'].widget.attrs.update({
+            'class': 'hidden',
+            'id': 'id_file',
+        })
+
+    def clean_document_category(self):
+        from adminhub.models import DocumentTemplate
+        category = self.cleaned_data["document_category"]
+        existing = getattr(category, "document_template", None)
+        if existing:
+            raise forms.ValidationError(
+                f"This category already has a template: '{existing.name}'. "
+                "Delete it first if you want to replace it."
+            )
+        return category

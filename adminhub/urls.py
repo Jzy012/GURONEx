@@ -14,6 +14,10 @@ urlpatterns = [
     path('admin/documents/view/<uuid:uid>/', views.view_document, name='view_document'),
     path('admin/document/change-status/<uuid:uid>/', views.change_document_status, name='change_document_status'),
     path('admin/documents/download/<uuid:uid>/', views.download_document, name='download_document'),
+    path("documents/templates/", views.document_templates, name="document_templates"),
+    path("documents/templates/<uuid:uid>/download/", views.download_document_template, name="download_document_template"),
+    path("documents/templates/<uuid:uid>/delete/", views.delete_document_template, name="delete_document_template"),
+
 
     path('admin/faculty-list/', views.faculty_list_view, name='faculty_list'),
     path('admin/faculty/<uuid:faculty_uuid>/', views.faculty_detail_view, name='faculty_detail'),
@@ -40,6 +44,8 @@ urlpatterns = [
 
     path('admin/applicants/', views.applicant_list_view, name='applicant_list'),
     path('admin/applicants/<uuid:uuid>/', views.applicant_detail_view, name='applicant_detail'),
+    path('admin/applicants/documents/download/<int:pk>/',views.download_applicant_document,name='download_applicant_document',),
+    path('admin/applicants/document/change-status/<int:pk>/',views.change_applicant_document_status,name='change_applicant_document_status',),
     path('admin/applicants/account-creation/', views.account_creation_view, name='account_creation'),
     path('admin/applicants/account-creation/log/', views.created_account_log_view, name='account_creation_log'),
 

@@ -13,6 +13,8 @@ urlpatterns = [
     path('faculty/documents/upload/', views.faculty_document_upload, name='upload_documents'),
     path('faculty/documents/', views.faculty_documents_view, name='faculty_documents'),
     path('faculty/documents/download/<uuid:uid>/', views.download_document, name='download_document'),
+    path("faculty/documents/templates/", views.faculty_document_templates, name="faculty_document_templates"),
+    path("faculty/documents/templates/<uuid:uid>/download/", views.download_document_template, name="download_document_template"),
 
     path('faculty/attendance-logs/', views.faculty_attendance_logs_view, name='faculty_attendance_logs'),
     path('faculty/teaching-assignments-dtr/', views.faculty_teaching_assignment_dtr_view, name='faculty_teaching_assignment'),
