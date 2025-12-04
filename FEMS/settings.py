@@ -196,19 +196,20 @@ GOOGLE_CLIENT_SECRET_FILE = env("GOOGLE_CLIENT_SECRET_FILE")
 GOOGLE_OAUTH2_REDIRECT_URI = env("GOOGLE_OAUTH2_REDIRECT_URI")
 
 # --------- NEW: support JSON from env on platforms like Railway ---------
-GOOGLE_CLIENT_SECRET_JSON = os.getenv("GOOGLE_CLIENT_SECRET_JSON")
-GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+GOOGLE_CLIENT_SECRET_JSON_B64 = os.getenv("GOOGLE_CLIENT_SECRET_JSON_B64")
+GOOGLE_SERVICE_ACCOUNT_JSON_B64 = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON_B64")
 
-# Always overwrite the file if JSON is provided via env
-if GOOGLE_CLIENT_SECRET_JSON:
+if GOOGLE_CLIENT_SECRET_JSON_B64:
+    import base64
     Path(GOOGLE_CLIENT_SECRET_FILE).parent.mkdir(parents=True, exist_ok=True)
-    with open(GOOGLE_CLIENT_SECRET_FILE, "w") as f:
-        f.write(GOOGLE_CLIENT_SECRET_JSON)
+    with open(GOOGLE_CLIENT_SECRET_FILE, "wb") as f:
+        f.write(base64.b64decode(GOOGLE_CLIENT_SECRET_JSON_B64))
 
-if GOOGLE_SERVICE_ACCOUNT_JSON:
+if GOOGLE_SERVICE_ACCOUNT_JSON_B64:
+    import base64
     Path(GOOGLE_SERVICE_ACCOUNT_FILE).parent.mkdir(parents=True, exist_ok=True)
-    with open(GOOGLE_SERVICE_ACCOUNT_FILE, "w") as f:
-        f.write(GOOGLE_SERVICE_ACCOUNT_JSON)
+    with open(GOOGLE_SERVICE_ACCOUNT_FILE, "wb") as f:
+        f.write(base64.b64decode(GOOGLE_SERVICE_ACCOUNT_JSON_B64))
 # ------------------------------------------------------------------------
 
 # Fernet Key for encryption
