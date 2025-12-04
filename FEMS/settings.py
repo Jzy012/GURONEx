@@ -199,13 +199,13 @@ GOOGLE_OAUTH2_REDIRECT_URI = env("GOOGLE_OAUTH2_REDIRECT_URI")
 GOOGLE_CLIENT_SECRET_JSON = os.getenv("GOOGLE_CLIENT_SECRET_JSON")
 GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
 
-# If JSON is provided in env and the file does not exist, write it to disk.
-if GOOGLE_CLIENT_SECRET_JSON and not Path(GOOGLE_CLIENT_SECRET_FILE).exists():
+# Always overwrite the file if JSON is provided via env
+if GOOGLE_CLIENT_SECRET_JSON:
     Path(GOOGLE_CLIENT_SECRET_FILE).parent.mkdir(parents=True, exist_ok=True)
     with open(GOOGLE_CLIENT_SECRET_FILE, "w") as f:
         f.write(GOOGLE_CLIENT_SECRET_JSON)
 
-if GOOGLE_SERVICE_ACCOUNT_JSON and not Path(GOOGLE_SERVICE_ACCOUNT_FILE).exists():
+if GOOGLE_SERVICE_ACCOUNT_JSON:
     Path(GOOGLE_SERVICE_ACCOUNT_FILE).parent.mkdir(parents=True, exist_ok=True)
     with open(GOOGLE_SERVICE_ACCOUNT_FILE, "w") as f:
         f.write(GOOGLE_SERVICE_ACCOUNT_JSON)
