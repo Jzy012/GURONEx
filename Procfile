@@ -1,1 +1,1 @@
-web: gunicorn FEMS.wsgi
+web: python manage.py migrate --noinput && gunicorn FEMS.wsgi --bind 0.0.0.0:$PORT
