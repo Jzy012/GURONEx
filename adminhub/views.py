@@ -3105,3 +3105,103 @@ def delete_document_template(request, uid):
     template.save(update_fields=["is_active"])
     messages.success(request, f"Template '{template.name}' has been removed.")
     return redirect("adminhub:document_templates")
+
+
+
+
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.core.paginator import Paginator
+from .models import DocumentCategory
+from base.forms import DocumentCategoryForm
+from django.db.models import Q
+from django.http import JsonResponse
+
+from faculty.models import DocumentCategory, FileType
+
+@admin_required
+def document_category_list(request):
+    """List and search for Document Categories."""
+    search_query = request.GET.get("q", "")
+    categories = DocumentCategory.objects.all()
+
+    if search_query:
+        categories = categories.filter(
+            Q(name__icontains=search_query) | Q(description__icontains=search_query)
+        )
+
+    categories = categories.order_by("name")
+    paginator = Paginator(categories, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    # Fetch all file types for the modal
+    file_types = FileType.objects.all()
+
+    return render(
+        request,
+        "admin/document_category_list.html",
+        {
+            "page_obj": page_obj,
+            "search_query": search_query,
+            "filetypes": file_types,
+        },
+    )
+
+
+@admin_required
+def document_category_create_or_edit(request, id=None):
+    """
+    Handle both creating and editing of Document Categories via AJAX.
+    Expects an AJAX POST and returns JSON.
+    """
+    if id:
+        category = get_object_or_404(DocumentCategory, id=id)
+        success_message = f"Document category '{category.name}' updated successfully!"
+    else:
+        category = None
+        success_message = "Document category created successfully!"
+
+    if request.method == "POST":
+        form = DocumentCategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            saved_category = form.save()
+            messages.success(request, success_message)
+            return JsonResponse(
+                {
+                    "success": True,
+                    "id": saved_category.id,
+                    "name": saved_category.name,
+                }
+            )
+        else:
+            # Respond with validation errors
+            return JsonResponse({"success": False, "errors": form.errors}, status=400)
+
+    # Non-POST or non-AJAX access
+    return JsonResponse(
+        {"success": False, "error": "Invalid request method or non-AJAX access."},
+        status=405,
+    )
+
+
+@admin_required
+def document_category_delete(request, id):
+    """
+    Handle deleting a Document Category via AJAX.
+    """
+    category = get_object_or_404(DocumentCategory, id=id)
+
+    if request.method == "POST":
+        category_name = category.name
+        category.delete()
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f"Category '{category_name}' has been deleted.",
+            }
+        )
+
+    return JsonResponse({"success": False, "error": "Invalid request method."}, status=405)

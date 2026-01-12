@@ -1377,3 +1377,29 @@ class DocumentTemplateForm(forms.Form):
                 "Delete it first if you want to replace it."
             )
         return category
+    
+
+
+from django import forms
+from faculty.models import DocumentCategory, FileType
+
+
+class DocumentCategoryForm(forms.ModelForm):
+    """Form for creating and updating Document Categories."""
+    allowed_file_types = forms.ModelMultipleChoiceField(
+        queryset=FileType.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Allowed File Types",
+        help_text="Select all file types that are allowed for this category.",
+    )
+
+    class Meta:
+        model = DocumentCategory
+        fields = [
+            "name",
+            "description",
+            "is_required",
+            "requires_expiry_date",
+            "allowed_file_types",
+        ]

@@ -18,6 +18,11 @@ urlpatterns = [
     path("documents/templates/<uuid:uid>/download/", views.download_document_template, name="download_document_template"),
     path("documents/templates/<uuid:uid>/delete/", views.delete_document_template, name="delete_document_template"),
 
+    # DocumentCategory CRUD URLs
+    path('admin/document-categories/', views.document_category_list, name='document_category_list'),
+    path('admin/document-categories/create/', views.document_category_create_or_edit, name='document_category_create'),
+    path('admin/document-categories/<int:id>/edit/', views.document_category_create_or_edit, name='document_category_edit'),
+    path('admin/document-categories/<int:id>/delete/', views.document_category_delete, name='document_category_delete'),
 
     path('admin/faculty-list/', views.faculty_list_view, name='faculty_list'),
     path('admin/faculty/<uuid:faculty_uuid>/', views.faculty_detail_view, name='faculty_detail'),
