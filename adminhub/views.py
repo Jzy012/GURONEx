@@ -3097,15 +3097,39 @@ def download_document_template(request, uid):
 
 
 
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.views.decorators.http import require_POST
+
+from base.decorators import admin_required
+from adminhub.models import DocumentTemplate
+from services.google_drive_service import CentralGoogleDriveService
+
+
 @admin_required
 @require_POST
 def delete_document_template(request, uid):
-    template = get_object_or_404(DocumentTemplate, uid=uid, is_active=True)
-    template.is_active = False
-    template.save(update_fields=["is_active"])
-    messages.success(request, f"Template '{template.name}' has been removed.")
-    return redirect("adminhub:document_templates")
+    """
+    Permanently delete the template row and its file on Google Drive.
+    """
+    template = get_object_or_404(DocumentTemplate, uid=uid)
 
+    name = template.name  # keep for message
+
+    # Delete from Google Drive
+    try:
+        if template.google_drive_id:
+            drive = CentralGoogleDriveService()
+            drive.delete_file(template.google_drive_id)
+    except Exception as e:
+        # Log but don't block deletion in DB
+        print("Google Drive delete error:", e)
+
+    # Hard delete in DB
+    template.delete()
+
+    messages.success(request, f"Template '{name}' has been removed.")
+    return redirect("adminhub:document_templates")
 
 
 

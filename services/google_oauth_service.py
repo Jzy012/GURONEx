@@ -1,6 +1,7 @@
 import json
 from google_auth_oauthlib.flow import Flow
 from django.conf import settings
+from django.utils import timezone  # <-- add this
 from base.models import GoogleStorageAccount
 
 SCOPES = [
@@ -53,6 +54,13 @@ class GoogleOAuthService:
         flow.fetch_token(code=code)
         creds = flow.credentials
 
+        # Normalize expiry to an aware datetime in UTC
+        expiry = creds.expiry
+        if not expiry:
+            raise ValueError("Missing expiry on Google credentials.")
+        if timezone.is_naive(expiry):
+            expiry = timezone.make_aware(expiry, timezone=timezone.utc)
+
         # Save centrally! Deactivate old accounts.
         from google.oauth2 import id_token
         from google.auth.transport import requests as google_requests
@@ -62,7 +70,7 @@ class GoogleOAuthService:
         email = token_info.get("email")
 
         # Check that all required fields are present
-        if not creds.token or not creds.refresh_token or not creds.expiry:
+        if not creds.token or not creds.refresh_token or not expiry:
             raise ValueError("Missing required credential data (access_token, refresh_token, or expiry).")
 
         # Deactivate all other accounts
@@ -74,7 +82,7 @@ class GoogleOAuthService:
             defaults={
                 'access_token': creds.token,
                 'refresh_token': creds.refresh_token,
-                'token_expiry': creds.expiry,
+                'token_expiry': expiry,   # aware datetime
                 'is_active': True,
             }
         )
@@ -82,7 +90,7 @@ class GoogleOAuthService:
             # Update all fields if the account already exists
             account.access_token = creds.token
             account.refresh_token = creds.refresh_token
-            account.token_expiry = creds.expiry
+            account.token_expiry = expiry  # aware datetime
             account.is_active = True
             account.save()
 

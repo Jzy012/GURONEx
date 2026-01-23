@@ -1370,7 +1370,14 @@ class DocumentTemplateForm(forms.Form):
     def clean_document_category(self):
         from adminhub.models import DocumentTemplate
         category = self.cleaned_data["document_category"]
-        existing = getattr(category, "document_template", None)
+
+        # Hard-delete model: any existing template for this category blocks new one
+        existing = (
+            DocumentTemplate.objects
+            .filter(document_category=category)
+            .first()
+        )
+
         if existing:
             raise forms.ValidationError(
                 f"This category already has a template: '{existing.name}'. "

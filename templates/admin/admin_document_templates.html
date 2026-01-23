@@ -1,6 +1,7 @@
 {% extends "admin/admin_base.html" %}
+{% load static %}
 {% block content %}
-<div class="space-y-8">
+<div class="space-y-8" x-data="deleteTemplateModal()">
   <!-- Header -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
@@ -12,22 +13,20 @@
       Document Templates
     </h2>
 
-    <div class="flex items-center gap-4">
-    <!-- Existing "Back to Documents" Button -->
-    <a href="{% url 'adminhub:documents' %}"
-       class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-      </svg>
-      <span>Back to Documents</span>
-    </a>
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      <a href="{% url 'adminhub:document_category_list' %}"
+         class="flex items-center justify-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 text-sm font-semibold">
+        <span>Manage Document Categories</span>
+      </a>
 
-    <!-- New "Manage Document Categories" Button -->
-    <a href="{% url 'adminhub:document_category_list' %}"
-       class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 text-sm font-semibold">
-      <span>Manage Document Categories</span>
-    </a>
+      <a href="{% url 'adminhub:documents' %}"
+         class="flex items-center justify-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+        <span>Back to Documents</span>
+      </a>
     </div>
   </div>
 
@@ -75,8 +74,7 @@
     </div>
   </form>
 
-  <!-- Upload form (styled similar to faculty document upload card) -->
-    <!-- Upload form (full width, like the rest of the admin page) -->
+  <!-- Upload form -->
   <div class="bg-white rounded-lg shadow p-5">
     <form method="post" enctype="multipart/form-data" class="space-y-6">
       {% csrf_token %}
@@ -118,7 +116,7 @@
                 Template Name
               </label>
               {{ form.name }}
-              <p class="mt-1 text=[11px] text-gray-500">
+              <p class="mt-1 text-[11px] text-gray-500">
                 A clear, descriptive name (e.g., “Standard PRC License Template”).
               </p>
               {% if form.name.errors %}
@@ -131,16 +129,16 @@
             <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">
               File
             </label>
-            <div class="flex w-full items-center">
+            <div class="flex w-full items-center flex-col sm:flex-row gap-2 sm:gap-0">
               <label for="id_file"
-                     class="inline-flex items-center cursor-pointer px-3 py-2 h-10 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg text-xs sm:text-sm rounded-r-none shadow font-semibold transition duration-200">
+                     class="inline-flex items-center cursor-pointer px-3 py-2 h-10 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg sm:rounded-l-lg sm:rounded-r-none text-xs sm:text-sm shadow font-semibold transition duration-200 w-full sm:w-auto justify-center sm:justify-start">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/>
                 </svg>
                 Choose File
               </label>
               <span id="file-chosen-template"
-                    class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-3 sm:px-5 py-2 h-10 text-gray-700 text-xs sm:text-sm bg-gray-50 flex-1 min-w-0 truncate">
+                    class="inline-flex items-center border border-gray-300 sm:border-l-0 rounded-lg sm:rounded-r-lg sm:rounded-l-none px-3 sm:px-5 py-2 h-10 text-gray-700 text-xs sm:text-sm bg-gray-50 flex-1 min-w-0 truncate w-full sm:w-auto">
                 No file chosen
               </span>
               {{ form.file }}
@@ -165,7 +163,7 @@
 
       <div class="flex justify-end">
         <button type="submit"
-                class="inline-flex items-center justify-center gap-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition duration-200">
+                class="inline-flex items-center justify-center gap-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition duration-200 w-full sm:w-auto">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                stroke-width="2" stroke="currentColor" class="w-5 h-5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
@@ -176,8 +174,8 @@
     </form>
   </div>
 
-  <!-- Template list -->
-  <div class="bg-white rounded-lg shadow-md overflow-x-auto">
+  <!-- Desktop table (sm and up) -->
+  <div class="hidden sm:block bg-white rounded-lg shadow-md overflow-x-auto">
     <table class="min-w-full border-collapse text-sm">
       <thead class="bg-gray-100 border-t border-gray-200">
         <tr class="text-left font-semibold text-gray-700">
@@ -211,20 +209,26 @@
             <td class="px-5 py-3 border-b">
               {{ tmpl.uploaded_at|date:"M d, Y" }}
             </td>
-            <td class="px-5 py-3 border-b space-x-3">
-              <a href="{% url 'adminhub:download_document_template' tmpl.uid %}?inline=1"
-   target="_blank" rel="noopener noreferrer"
-   class="text-[#800505] hover:underline font-medium">
-  View
-</a>
-              <form method="post" action="{% url 'adminhub:delete_document_template' tmpl.uid %}" class="inline"
-                    onsubmit="return confirm('Delete this template?');">
-                {% csrf_token %}
-                <button type="submit"
-                        class="text-red-600 hover:underline font-medium">
+            <td class="px-5 py-3 border-b">
+              <div class="flex flex-wrap gap-2 items-center">
+                <a href="{% url 'adminhub:download_document_template' tmpl.uid %}?inline=1"
+                   target="_blank" rel="noopener noreferrer"
+                   class="text-[#800505] hover:underline font-medium">
+                  View
+                </a>
+                <button type="button"
+                        @click="openFor({
+                          name: '{{ tmpl.name|escapejs }}',
+                          category: '{{ tmpl.document_category.name|default:"(Unassigned)"|escapejs }}',
+                          size: '{{ tmpl.size_human|escapejs }}',
+                          uploader: '{{ tmpl.uploaded_by.email|default:"N/A"|escapejs }}',
+                          uploaded_at: '{{ tmpl.uploaded_at|date:"M d, Y"|escapejs }}',
+                          url: '{% url "adminhub:delete_document_template" tmpl.uid %}'
+                        })"
+                        class="text-red-600 hover:underline font-medium text-sm">
                   Delete
                 </button>
-              </form>
+              </div>
             </td>
           </tr>
         {% empty %}
@@ -236,6 +240,58 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <!-- Mobile cards (below sm) -->
+  <div class="sm:hidden space-y-5">
+    {% for tmpl in page_obj %}
+      <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200">
+        <div class="flex justify-between items-center mb-3 border-b border-gray-300 pb-2 gap-3">
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-gray-500 truncate">
+              {{ tmpl.document_category.name|default:"(Unassigned)" }}
+            </p>
+            <h3 class="text-lg font-semibold text-gray-900 truncate">{{ tmpl.name }}</h3>
+          </div>
+          <div class="flex flex-col items-end gap-1">
+            <a href="{% url 'adminhub:download_document_template' tmpl.uid %}?inline=1"
+               target="_blank" rel="noopener noreferrer"
+               class="text-[#800505] hover:underline text-sm font-semibold whitespace-nowrap">
+              View
+            </a>
+            <button type="button"
+                    @click="openFor({
+                      name: '{{ tmpl.name|escapejs }}',
+                      category: '{{ tmpl.document_category.name|default:"(Unassigned)"|escapejs }}',
+                      size: '{{ tmpl.size_human|escapejs }}',
+                      uploader: '{{ tmpl.uploaded_by.email|default:"N/A"|escapejs }}',
+                      uploaded_at: '{{ tmpl.uploaded_at|date:"M d, Y"|escapejs }}',
+                      url: '{% url "adminhub:delete_document_template" tmpl.uid %}'
+                    })"
+                    class="text-xs text-red-600 hover:underline font-semibold">
+              Delete
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-gray-700 text-sm">
+          <div>
+            <p class="font-semibold">Size</p>
+            <p>{{ tmpl.size_human|default:"N/A" }}</p>
+          </div>
+          <div>
+            <p class="font-semibold">Uploaded By</p>
+            <p class="truncate">{{ tmpl.uploaded_by.email|default:"N/A" }}</p>
+          </div>
+          <div>
+            <p class="font-semibold">Uploaded At</p>
+            <p>{{ tmpl.uploaded_at|date:"M d, Y" }}</p>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <p class="text-center text-gray-500 font-semibold">No templates found.</p>
+    {% endfor %}
   </div>
 
   <!-- Pagination -->
@@ -274,9 +330,95 @@
       {% endif %}
     </nav>
   {% endif %}
+
+  <!-- Hidden form used to submit the delete POST -->
+  <form x-ref="deleteForm" method="post" :action="actionUrl" class="hidden">
+    {% csrf_token %}
+  </form>
+
+  <!-- Delete confirmation modal (teleported to body) -->
+  <template x-teleport="body">
+    <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
+      <div class="fixed inset-0 bg-black/40" @click="close()"></div>
+      <div x-ref="panel"
+           class="relative w-full max-w-lg bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
+           @keydown.escape.window="close()" tabindex="-1">
+        <div class="px-6 py-5 border-b bg-gray-50 flex items-start justify-between">
+          <h3 class="text-lg font-semibold text-gray-900">Confirm Template Deletion</h3>
+          <button type="button" @click="close()" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M6 18L18 6"/>
+            </svg>
+            <span class="sr-only">Close</span>
+          </button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <p class="text-sm text-gray-700">
+            You are about to delete this document template:
+          </p>
+          <div class="text-sm bg-gray-50 border border-gray-200 rounded-md p-4 space-y-1">
+            <div><span class="font-semibold">Name:</span> <span x-text="template.name"></span></div>
+            <div><span class="font-semibold">Category:</span> <span x-text="template.category"></span></div>
+            <div><span class="font-semibold">Size:</span> <span x-text="template.size"></span></div>
+            <div><span class="font-semibold">Uploaded By:</span> <span x-text="template.uploader"></span></div>
+            <div><span class="font-semibold">Uploaded At:</span> <span x-text="template.uploaded_at"></span></div>
+          </div>
+          <div class="bg-[#fff5f5] border border-[#f4dada] text-[#800505] rounded-md px-4 py-3 text-xs">
+            This action cannot be undone. The template will be marked as removed and will no longer appear in the list.
+          </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t flex items-center justify-end gap-3">
+          <button type="button"
+                  @click="close()"
+                  class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-100">
+            Cancel
+          </button>
+          <button type="button"
+                  @click="submitDelete()"
+                  class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md text-sm font-semibold flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+            </svg>
+            Confirm Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
 </div>
 
+<!-- Alpine: remove this if already loaded in admin_base.html -->
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
 <script>
+document.addEventListener('alpine:init', () => {
+  Alpine.data('deleteTemplateModal', () => ({
+    open: false,
+    template: {},
+    actionUrl: '',
+    openFor(data) {
+      this.template = data;
+      this.actionUrl = data.url || '';
+      this.open = true;
+      this.$nextTick(() => {
+        const panel = this.$refs.panel;
+        if (panel) panel.focus();
+      });
+    },
+    close() {
+      this.open = false;
+      this.template = {};
+      this.actionUrl = '';
+    },
+    submitDelete() {
+      if (!this.actionUrl) return;
+      const form = this.$refs.deleteForm;
+      form.setAttribute('action', this.actionUrl);
+      form.submit();
+    }
+  }));
+});
+
 document.addEventListener('DOMContentLoaded', function () {
   const fileInput = document.getElementById('id_file');
   const fileSpan = document.getElementById('file-chosen-template');

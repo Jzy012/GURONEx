@@ -1,11 +1,12 @@
 from django.contrib import admin
-from .models import AdminProfile, Announcement, AnnouncementViewLog, CreatedAccountLog
+from .models import AdminProfile, Announcement, AnnouncementViewLog, CreatedAccountLog, DocumentTemplate
  
 # Register your models here.
 
 
 admin.site.register(AdminProfile)
 admin.site.register(CreatedAccountLog)
+admin.site.register(DocumentTemplate)
 
 # adminhub/admin.py
 

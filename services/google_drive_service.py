@@ -111,3 +111,15 @@ class CentralGoogleDriveService:
             fields='id, webViewLink'
         ).execute()
         return new_file['id'], new_file.get('webViewLink')
+    
+
+
+    def delete_file(self, file_id):
+        """
+        Permanently delete a file from Google Drive by its file ID.
+        """
+        try:
+            self.service.files().delete(fileId=file_id).execute()
+        except Exception as e:
+            # Log but don't break the user flow
+            print(f"[Drive] Failed to delete file {file_id}: {e}")
