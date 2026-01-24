@@ -1,8 +1,13 @@
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.utils import timezone
+import logging
+
+import brevo_python
+from brevo_python.rest import ApiException
+
+logger = logging.getLogger(__name__)
 
 
 def send_html_email(
@@ -13,7 +18,7 @@ def send_html_email(
     from_email: str | None = None,
 ) -> None:
     """
-    Generic HTML email sender for LINANG.
+    Generic HTML email sender for LINANG using Brevo HTTP API.
 
     - subject: email subject line
     - to_emails: string or list of strings
@@ -36,11 +41,36 @@ def send_html_email(
     html_content = render_to_string(template_name, ctx)
     text_content = strip_tags(html_content)
 
-    msg = EmailMultiAlternatives(
+    # --- Brevo API sending starts here ---
+
+    api_key = getattr(settings, "BREVO_API_KEY", None)
+    if not api_key:
+        logger.error("BREVO_API_KEY is not configured")
+        return  # or raise an error if you want this to break loudly
+
+    configuration = brevo_python.Configuration()
+    configuration.api_key["api-key"] = api_key
+
+    api_client = brevo_python.ApiClient(configuration)
+    api_instance = brevo_python.TransactionalEmailsApi(api_client)
+
+    # Prepare recipients
+    to_list = [{"email": email} for email in to_emails]
+
+    # Sender (must be a verified Brevo sender)
+    sender_email = from_email or settings.DEFAULT_FROM_EMAIL
+
+    send_email = brevo_python.SendSmtpEmail(
+        to=to_list,
+        sender={"email": sender_email},
         subject=subject,
-        body=text_content,
-        from_email=from_email or settings.DEFAULT_FROM_EMAIL,
-        to=to_emails,
+        html_content=html_content,
+        text_content=text_content,
     )
-    msg.attach_alternative(html_content, "text/html")
-    msg.send(fail_silently=False)
+
+    try:
+        api_instance.send_transac_email(send_email)
+    except ApiException as e:
+        logger.exception("Error sending email via Brevo API: %s", e)
+        # Optionally: raise to let the view fail instead of silently logging
+        # raise
