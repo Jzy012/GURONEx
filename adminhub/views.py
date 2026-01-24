@@ -2846,23 +2846,39 @@ from base.forms import BackgroundUploadForm
 from base.models import LandingAppearance
 
 
+from pathlib import Path
+from django.conf import settings
+from django.shortcuts import render, redirect
+from django.contrib import messages
+
+from base.decorators import admin_required
+from base.forms import BackgroundUploadForm
+from base.models import LandingAppearance
+
+
 @admin_required
 def landing_background_settings(request):
-    """
-    Uploads a new background image into MEDIA_ROOT/backgrounds/landing-bg.jpg,
-    toggles whether to use it, and controls overlay style (none/dark/silhouette).
-    """
     target_dir = Path(settings.MEDIA_ROOT) / "backgrounds"
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / "landing-bg.jpg"
 
+    print(">>> [view] MEDIA_ROOT:", settings.MEDIA_ROOT)
+    print(">>> [view] target_path BEFORE:", target_path, "exists:", target_path.exists())
+
     appearance = LandingAppearance.get_solo()
 
     if request.method == "POST":
+        print(">>> [view] POST /admin/settings/landing-background/")
+        print(">>> [view] POST keys:", list(request.POST.keys()))
+        print(">>> [view] FILES keys:", list(request.FILES.keys()))
+
         if "remove_background" in request.POST:
-            # Remove image and disable its use
+            print(">>> [view] remove_background in POST")
             if target_path.exists():
+                print(">>> [view] Removing file at:", target_path)
                 target_path.unlink()
+            else:
+                print(">>> [view] File did not exist at remove:", target_path)
             appearance.use_background_image = False
             appearance.save()
             messages.success(request, "Background image removed. The gradient will be used instead.")
@@ -2870,30 +2886,41 @@ def landing_background_settings(request):
 
         form = BackgroundUploadForm(request.POST, request.FILES)
         if form.is_valid():
-            # Save flags / style
+            print(">>> [view] form is valid")
             appearance.use_background_image = form.cleaned_data.get("use_background_image", False)
             appearance.overlay_style = form.cleaned_data.get("overlay_style", LandingAppearance.OVERLAY_DARK)
 
-            # Handle new file if provided
             img = form.cleaned_data.get("file")
+            print(">>> [view] cleaned_data['file']:", img)
+
             if img:
+                print(">>> [view] Writing uploaded file to:", target_path)
                 with open(target_path, "wb+") as dest:
                     for chunk in img.chunks():
                         dest.write(chunk)
-                # If file uploaded and checkbox not explicitly off, default to on
+                print(">>> [view] After write, target_path exists:", target_path.exists())
+
                 if "use_background_image" not in request.POST:
                     appearance.use_background_image = True
+                    print(">>> [view] use_background_image not in POST -> forced True")
 
             appearance.save()
+            print(">>> [view] Saved appearance: use_background_image=",
+                  appearance.use_background_image,
+                  "overlay_style=", appearance.overlay_style)
             messages.success(request, "Landing background settings have been updated.")
             return redirect("adminhub:landing_background_settings")
         else:
+            print(">>> [view] form invalid, errors:", form.errors)
             messages.error(request, "Please correct the errors below.")
     else:
+        print(">>> [view] GET /admin/settings/landing-background/")
+
         form = BackgroundUploadForm()
 
     file_exists = target_path.exists()
     bg_url = settings.MEDIA_URL + "backgrounds/landing-bg.jpg"
+    print(">>> [view] Rendering admin page with file_exists=", file_exists, "bg_url=", bg_url)
 
     return render(request, "admin/landing_background_settings.html", {
         "form": form,
