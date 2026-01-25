@@ -19,6 +19,9 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+
+from base.media_views import serve_landing_background  # <-- add this
+
 urlpatterns = [
     path('system-config/', admin.site.urls),
     path('', include('base.urls')),
@@ -26,8 +29,8 @@ urlpatterns = [
     path('', include('faculty.urls')),
     path('', include('applicant.urls')),
     path('', include('rfid.urls')),
+    path('background-image/', serve_landing_background),  # <-- new route
 ]
 
-
-print(">>> urls.py: adding media static route", settings.MEDIA_URL, "->", settings.MEDIA_ROOT)
+# You can keep this, but it's no longer critical for the background:
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

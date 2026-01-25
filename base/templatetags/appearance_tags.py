@@ -24,23 +24,15 @@ def landing_background_url():
     Returns the background image URL if enabled and present, otherwise an empty string.
     """
     appearance = LandingAppearance.get_solo()
-    print(">>> landing_background_url: use_background_image =", appearance.use_background_image)
-
     if not appearance.use_background_image:
-        print(">>> landing_background_url: use_background_image is False, returning empty string")
         return ""
 
     file_path = Path(settings.MEDIA_ROOT) / "backgrounds" / "landing-bg.jpg"
-    print(">>> landing_background_url: MEDIA_ROOT =", settings.MEDIA_ROOT)
-    print(">>> landing_background_url: checking file_path =", file_path, "exists:", file_path.exists())
-
     if not file_path.exists():
-        print(">>> landing_background_url: file does not exist, returning empty string")
         return ""
 
-    url = settings.MEDIA_URL + "backgrounds/landing-bg.jpg"
-    print(">>> landing_background_url: returning URL =", url)
-    return url
+    # Use the explicit Django view instead of /media/...
+    return "/background-image/"
 
 @register.simple_tag
 def landing_background_overlay_classes():
