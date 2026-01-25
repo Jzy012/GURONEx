@@ -5,13 +5,30 @@ from faculty.models import DocumentCategory
 import uuid
 
 
-def generate_applicant_id():
-    last_applicant = Applicant.objects.order_by('-id').first()
-    if not last_applicant or not last_applicant.applicant_id:
-        return "APL-00001"
-    last_id = int(last_applicant.applicant_id.split('-')[1])
-    return f"APL-{last_id + 1:05d}"
+# applicant/models.py
 
+from django.utils import timezone
+
+def generate_applicant_id():
+    current_year = timezone.now().year
+    prefix = f"APL-{current_year}-"   # e.g. "APL-2026-"
+
+    # Get last applicant for this year
+    last_applicant = Applicant.objects.filter(
+        applicant_id__startswith=prefix
+    ).order_by('-id').first()
+
+    if not last_applicant or not last_applicant.applicant_id:
+        seq = 1
+    else:
+        # applicant_id format: "APL-2026-001"
+        try:
+            last_seq_str = last_applicant.applicant_id.split('-')[2]
+            seq = int(last_seq_str) + 1
+        except (IndexError, ValueError):
+            seq = 1  # fallback to 1 if old/bad data
+
+    return f"{prefix}{seq:03d}"  # 3 digits: 001, 002, ...
 
 class Applicant(models.Model):
     applicant_id = models.CharField(max_length=20, unique=True, editable=False)
@@ -29,38 +46,6 @@ class Applicant(models.Model):
     department = models.CharField(max_length=100)
     birth_date = models.DateField(null=True, blank=True)
 
-    # Educational background (college + grad school)
-    college_course = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="e.g. BS Computer Science",
-    )
-    college_school_name = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="e.g. University of X",
-    )
-    college_graduation_year = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        help_text="e.g. 2022",
-    )
-
-    grad_course = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="e.g. MS Education (leave blank if not applicable)",
-    )
-    grad_school_name = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="e.g. University of Y",
-    )
-    grad_graduation_year = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        help_text="e.g. 2024",
-    )
 
     status = models.CharField(
         max_length=20,

@@ -18,6 +18,23 @@ def applicant_home(request):
     return render(request, "applicants/applicant_home.html")
 
 
+# applicants/views.py
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.forms import formset_factory
+from django.contrib import messages
+from django.db import transaction
+
+from .models import Applicant, ApplicantDocument, ApplicantRequiredDocument, ApplicantTimeline
+from base.forms import ApplicantForm
+from base.forms import ApplicantDocumentUploadForm
+from faculty.models import DocumentCategory
+from base.utils.email import send_applicant_submission_receipt
+
+from services.applicant_document_service import process_applicant_documents_sync  # NEW import
+from services.applicant_document_service import process_applicant_documents_sync
+from applicant.tasks import process_applicant_documents_task
+
 def applicant_apply(request):
     required_docs = ApplicantRequiredDocument.objects.all()
     doc_categories = [doc.document_category for doc in required_docs]
@@ -30,7 +47,7 @@ def applicant_apply(request):
                 request.FILES,
                 prefix=f"doc{idx}",
                 fixed_document_category=doc_cat,
-                index=idx
+                index=idx,
             )
             for idx, doc_cat in enumerate(doc_categories)
         ]
@@ -38,58 +55,53 @@ def applicant_apply(request):
         if valid:
             with transaction.atomic():
                 applicant = basic_form.save()
-                drive_service = CentralGoogleDriveService()
 
+                # Build docs_payload instead of uploading here
+                docs_payload = []
                 for form, category in zip(forms, doc_categories):
                     file = form.cleaned_data["file"]
                     expiry = form.cleaned_data.get("expiry_date")
                     remarks = form.cleaned_data.get("remarks", "")
 
                     if file:
-                        media = MediaIoBaseUpload(
-                            io.BytesIO(file.read()),
-                            mimetype=file.content_type,
-                            resumable=False
-                        )
-                        upload = drive_service.service.files().create(
-                            body={
+                        docs_payload.append(
+                            {
                                 "name": file.name,
-                                "parents": [applicant.google_drive_folder_id],
-                            },
-                            media_body=media,
-                            fields="id,webViewLink"
-                        ).execute()
-
-                        ApplicantDocument.objects.create(
-                            applicant=applicant,
-                            document_category=category,
-                            file_path=upload["webViewLink"],
-                            google_drive_id=upload["id"],
-                            file_size=file.size,
-                            expiry_date=expiry,
-                            remarks=remarks,
-                            status="Pending"
+                                "content": file.read(),          # bytes
+                                "content_type": file.content_type,
+                                "size": file.size,
+                                "document_category_id": category.id,
+                                "expiry_date": expiry,
+                                "remarks": remarks,
+                            }
                         )
 
                 ApplicantTimeline.objects.create(
                     applicant=applicant,
                     action="Submitted application",
-                    note="Initial application and document upload."
+                    note="Initial application and document upload.",
                 )
 
-                # Send receipt email (summary + Applicant ID)
-                try:
-                    send_applicant_submission_receipt(applicant)
-                except Exception:
-                    # Optionally log this; don't block submission if email fails
-                    pass
+            # AFTER the transaction, do the upload synchronously (current behavior)
+                        # Prefer Celery; fall back to sync if Celery/Redis is not available
+            try:
+                process_applicant_documents_task.delay(applicant.id, docs_payload)
+            except Exception:
+                process_applicant_documents_sync(applicant.id, docs_payload)
 
-                messages.success(
-                    request,
-                    "Application submitted! A copy has been sent to your email. "
-                    "Please keep your Applicant ID for future status checks."
-                )
-                return redirect("applicants:registration_confirmed")
+            # Send receipt email (summary + Applicant ID)
+            try:
+                send_applicant_submission_receipt(applicant)
+            except Exception:
+                # Optionally log this; don't block submission if email fails
+                pass
+
+            messages.success(
+                request,
+                "Application submitted! A copy has been sent to your email. "
+                "Please keep your Applicant ID for future status checks.",
+            )
+            return redirect("applicants:registration_confirmed")
         else:
             messages.error(request, "Please correct errors in your form(s).")
     else:
@@ -98,7 +110,7 @@ def applicant_apply(request):
             ApplicantDocumentUploadForm(
                 prefix=f"doc{idx}",
                 fixed_document_category=doc_cat,
-                index=idx
+                index=idx,
             )
             for idx, doc_cat in enumerate(doc_categories)
         ]

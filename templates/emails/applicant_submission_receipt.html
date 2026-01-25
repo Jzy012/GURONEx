@@ -1,0 +1,31 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}
+  [LINANG] Application Received
+{% endblock %}
+
+{% block header_subtitle %}
+  Application Confirmation
+{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    Thank you for submitting your application to LINANG.
+  </p>
+
+  <p>
+    Your Applicant ID is:
+    <span class="code">{{ applicant_id }}</span>
+  </p>
+
+  <p>
+    Please keep this Applicant ID for your records. You can use it together
+    with your email address to check your application status.
+  </p>
+
+  <p>Regards,<br>
+    LINANG Team
+  </p>
+{% endblock %}

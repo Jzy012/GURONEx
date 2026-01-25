@@ -935,13 +935,6 @@ class ApplicantForm(forms.ModelForm):
             "department",
             "birth_date",
 
-            # Educational background
-            "college_course",
-            "college_school_name",
-            "college_graduation_year",
-            "grad_course",
-            "grad_school_name",
-            "grad_graduation_year",
 
             # Emergency contact
             "emergency_contact_name",
@@ -964,15 +957,24 @@ class ApplicantForm(forms.ModelForm):
         # Optional / helpful placeholders
         self.fields['contact_number'].widget.attrs["placeholder"] = "e.g. 09XXXXXXXXX"
         self.fields['middle_name'].required = False
-        self.fields['grad_course'].required = False
-        self.fields['grad_school_name'].required = False
-        self.fields['grad_graduation_year'].required = False
+        self.fields['suffix'].required = False
 
   
 
 
 from django import forms
 from applicant.models import ApplicantDocument
+# If DocumentCategory has the `is_required` flag, we can rely on that.
+# from faculty.models import DocumentCategory  # only if you need it
+
+MAX_FILE_SIZE = 15 * 1024 * 1024  # 15MB
+ALLOWED_CONTENT_TYPES = [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    # add more if needed
+]
+
 
 class ApplicantDocumentUploadForm(forms.ModelForm):
     class Meta:
@@ -982,25 +984,68 @@ class ApplicantDocumentUploadForm(forms.ModelForm):
     def __init__(self, *args, required_doc_cats=None, fixed_document_category=None, index=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fixed_document_category = fixed_document_category
+        self._index = index  # store for potential debugging
 
+        # If a specific category is fixed for this form
         if self.fixed_document_category:
+            # We don't want users to pick the category; it's fixed
             self.fields.pop("document_category", None)
             self.instance.document_category = self.fixed_document_category
-        elif required_doc_cats is not None:
-            self.fields["document_category"].queryset = required_doc_cats
+            doc_cat = self.fixed_document_category
+        else:
+            doc_cat = self.initial.get("document_category")
+            if required_doc_cats is not None and "document_category" in self.fields:
+                self.fields["document_category"].queryset = required_doc_cats
 
-        doc_cat = self.fixed_document_category or self.initial.get("document_category")
+        # If this category requires an expiry date, make field required
         if doc_cat and getattr(doc_cat, "requires_expiry_date", False):
             self.fields["expiry_date"].required = True
 
+        # If category is required, make file required at the form level
+        self.fields["file"].required = False 
+        
         # Hide file input, assign unique id for JS/label targeting
         file_id = f'file_input_{index}' if index is not None else 'file_input__empty'
-        existing_class = self.fields['file'].widget.attrs.get('class', '')
-        self.fields['file'].widget.attrs.update({
-            'class': (existing_class + ' hidden').strip(),
-            'id': file_id,
-            'placeholder': 'Select File',
-        })
+        existing_class = self.fields["file"].widget.attrs.get("class", "")
+        self.fields["file"].widget.attrs.update(
+            {
+                "class": (existing_class + " hidden").strip(),
+                "id": file_id,
+                "placeholder": "Select File",
+            }
+        )
+
+    # Per-field validation for file
+    def clean_file(self):
+        f = self.cleaned_data.get("file")
+        doc_cat = self.fixed_document_category or getattr(self.instance, "document_category", None)
+
+        # Required file check
+        if doc_cat and getattr(doc_cat, "is_required", False) and not f:
+            raise forms.ValidationError("This document is required.")
+
+        # If optional and not provided, that's fine
+        if not f:
+            return f
+
+        # Size validation
+        if f.size > MAX_FILE_SIZE:
+            raise forms.ValidationError("File size must be 15MB or less.")
+
+        # Content type validation (optional but recommended)
+        if hasattr(f, "content_type") and f.content_type not in ALLOWED_CONTENT_TYPES:
+            raise forms.ValidationError("Invalid file type. Please upload a PDF or image file.")
+
+        return f
+
+    def clean_expiry_date(self):
+        expiry = self.cleaned_data.get("expiry_date")
+        doc_cat = self.fixed_document_category or getattr(self.instance, "document_category", None)
+
+        if doc_cat and getattr(doc_cat, "requires_expiry_date", False) and not expiry:
+            raise forms.ValidationError("Expiry date is required for this document type.")
+
+        return expiry
 
 
 
