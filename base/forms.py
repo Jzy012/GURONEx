@@ -141,13 +141,32 @@ from base.models import Account
 from faculty.models import FacultyProfile, EmploymentStatus
 import secrets
 
+# faculty/forms.py
+from django import forms
+from base.models import Account
+from faculty.models import FacultyProfile, EmploymentStatus
+import secrets
+
+
 class FacultyCreationForm(forms.Form):
+    faculty_code = forms.CharField(
+        max_length=20,
+        required=False,
+        help_text="Unique faculty code, e.g. FA0014SP2021"
+    )
+
     name = forms.CharField(max_length=255)
     email = forms.EmailField()
     department = forms.CharField(max_length=100)
-    birth_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+    birth_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date'})
+    )
     contact_number = forms.CharField(max_length=11, required=False)
-    status = forms.ModelChoiceField(queryset=EmploymentStatus.objects.filter(is_active=True), required=False)
+    status = forms.ModelChoiceField(
+        queryset=EmploymentStatus.objects.filter(is_active=True),
+        required=False
+    )
     password = forms.CharField(
         max_length=128,
         required=False,
@@ -162,9 +181,9 @@ class FacultyCreationForm(forms.Form):
             "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
         )
         for fname, field in self.fields.items():
-            field.widget.attrs["class"] = field_class
+            existing = field.widget.attrs.get("class", "")
+            field.widget.attrs["class"] = f"{existing} {field_class}".strip()
             field.widget.attrs["placeholder"] = field.label
-        # If you want to customize select or date widgets further, you can do so here
 
     def clean_email(self):
         email = self.cleaned_data['email']
@@ -172,8 +191,19 @@ class FacultyCreationForm(forms.Form):
             raise forms.ValidationError("An account with this email already exists.")
         return email
 
+    def clean_faculty_code(self):
+        code = self.cleaned_data.get("faculty_code")
+        if not code:
+            return code  # optional for now
+        if FacultyProfile.objects.filter(faculty_code=code).exists():
+            raise forms.ValidationError("This faculty code is already in use.")
+        return code
+
     def generate_random_password(self):
-        return ''.join(secrets.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for _ in range(8))
+        return ''.join(
+            secrets.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+            for _ in range(8)
+        )
 
 
 
@@ -191,7 +221,8 @@ class FacultyEditForm(forms.ModelForm):
 
     class Meta:
         model = FacultyProfile
-        fields = ['name', 'department', 'birth_date', 'contact_number', 'status']
+        # NEW: add faculty_code to editable fields
+        fields = ['faculty_code', 'name', 'department', 'birth_date', 'contact_number', 'status']
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
         }
@@ -204,28 +235,34 @@ class FacultyEditForm(forms.ModelForm):
             self.fields['email'].initial = account_instance.email
 
         # Style each field
+        common_class = 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]'
+
         self.fields['email'].widget.attrs.update({
-            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'class': common_class,
             'placeholder': 'Email',
         })
+        self.fields['faculty_code'].widget.attrs.update({     # NEW
+            'class': common_class,
+            'placeholder': 'Faculty Code',
+        })
         self.fields['name'].widget.attrs.update({
-            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'class': common_class,
             'placeholder': 'Full Name',
         })
         self.fields['department'].widget.attrs.update({
-            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'class': common_class,
             'placeholder': 'Department',
         })
         self.fields['birth_date'].widget.attrs.update({
-            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'class': common_class,
             'placeholder': 'Birth Date',
         })
         self.fields['contact_number'].widget.attrs.update({
-            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'class': common_class,
             'placeholder': 'Contact Number',
         })
         self.fields['status'].widget.attrs.update({
-            'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
+            'class': common_class,
         })
 
     def save(self, commit=True):
@@ -233,7 +270,6 @@ class FacultyEditForm(forms.ModelForm):
         if commit:
             faculty_profile.save()
         return faculty_profile
-
 
 
 

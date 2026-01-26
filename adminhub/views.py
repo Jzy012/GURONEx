@@ -394,6 +394,15 @@ def admin_2fa(request):
 
 
 
+from datetime import timedelta
+from django.utils import timezone
+from django.db.models import Prefetch
+
+from faculty.models import FacultyProfile, FacultyDocument
+from rfid.models import AttendanceLog
+from base.forms import FacultyEditForm  # adjust import if needed
+
+
 @admin_required
 def faculty_detail_view(request, faculty_uuid):
     faculty = get_object_or_404(
@@ -401,22 +410,154 @@ def faculty_detail_view(request, faculty_uuid):
         uuid=faculty_uuid
     )
 
-    # Fetch related documents (optional: order/filter as needed)
-    documents = faculty.documents.all().order_by('-uploaded_at')
+    # Last 10 attendance logs, most recent first
+    attendance_logs = (
+        AttendanceLog.objects
+        .filter(faculty=faculty)
+        .prefetch_related('teaching_assignments')
+        .order_by('-date', '-time_in')[:10]
+    )
 
-    # Instantiate the form with the faculty instance and account_instance
+    documents = (
+        faculty.documents
+        .select_related('document_category')
+        .order_by('-uploaded_at')
+    )
+
     form = FacultyEditForm(instance=faculty, account_instance=faculty.account)
 
     context = {
         'faculty': faculty,
         'documents': documents,
-        'form': form,  # <-- pass form to context!
+        'attendance_logs': attendance_logs,
+        'form': form,
     }
 
     return render(request, 'admin/admin_faculty_detail.html', context)
 
 
 
+from django.http import HttpResponse, StreamingHttpResponse, Http404, JsonResponse
+from django.views.decorators.http import require_POST
+from django.db import transaction
+import mimetypes
+import io
+
+from faculty.models import FacultyDocument
+from services.google_drive_service import CentralGoogleDriveService
+from googleapiclient.http import MediaIoBaseDownload
+
+
+def _stream_drive_media(drive_service: CentralGoogleDriveService, file_id: str, chunk_size: int = 1024 * 256):
+    request = drive_service.service.files().get_media(fileId=file_id)
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request, chunksize=chunk_size)
+    done = False
+    last_pos = 0
+    while not done:
+        status, done = downloader.next_chunk()
+        data = fh.getvalue()[last_pos:]
+        if data:
+            yield data
+            last_pos = len(fh.getvalue())
+    remaining = fh.getvalue()[last_pos:]
+    if remaining:
+        yield remaining
+
+
+@admin_required
+def download_faculty_document(request, pk):
+    """
+    Streams or returns bytes for a faculty document stored on Google Drive.
+    Uses pk (FacultyDocument primary key).
+    Query param inline=1 requests inline preview (only honored for PDF/images).
+    """
+    doc = get_object_or_404(FacultyDocument, pk=pk)
+    file_id = doc.google_drive_id
+
+    drive = CentralGoogleDriveService()
+    want_inline = request.GET.get('inline', '0').lower() in ('1', 'true', 'yes')
+
+    # Get metadata
+    try:
+        meta = drive.service.files().get(fileId=file_id, fields='mimeType, name, size').execute()
+        mime_type = meta.get('mimeType')
+        name_on_drive = meta.get('name') or doc.document_name or f'document_{doc.id}'
+    except Exception:
+        raise Http404("Could not retrieve file metadata from Google Drive.")
+
+    def _finalize_response(resp: HttpResponse):
+        resp['X-Frame-Options'] = 'SAMEORIGIN'
+        resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return resp
+
+    # Google-native types -> export to PDF
+    if mime_type and mime_type.startswith('application/vnd.google-apps.'):
+        export_mime = 'application/pdf'
+        try:
+            exported_bytes = drive.service.files().export(fileId=file_id, mimeType=export_mime).execute()
+        except Exception:
+            raise Http404("File could not be exported from Google Drive.")
+
+        content_type = export_mime
+        disposition = 'inline' if (want_inline and content_type == 'application/pdf') else 'attachment'
+        resp = HttpResponse(exported_bytes, content_type=content_type)
+        resp['Content-Disposition'] = f'{disposition}; filename="{name_on_drive}"'
+        resp['Content-Length'] = str(len(exported_bytes))
+        return _finalize_response(resp)
+
+    # Binary files -> stream
+    content_type = mime_type or mimetypes.guess_type(name_on_drive)[0] or 'application/octet-stream'
+    inline_allowed = (content_type == 'application/pdf') or content_type.startswith('image/')
+
+    if want_inline and inline_allowed:
+        response = StreamingHttpResponse(_stream_drive_media(drive, file_id), content_type=content_type)
+        response['Content-Disposition'] = f'inline; filename="{name_on_drive}"'
+        return _finalize_response(response)
+
+    response = StreamingHttpResponse(_stream_drive_media(drive, file_id), content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{name_on_drive}"'
+    return _finalize_response(response)
+
+
+@admin_required
+@require_POST
+def change_faculty_document_status(request, pk):
+    """
+    Change status (Pending / Approved / Rejected) of a faculty document via AJAX.
+    """
+    doc = get_object_or_404(FacultyDocument, pk=pk)
+
+    new_status = request.POST.get('status')
+    remarks = request.POST.get('remarks', '')
+
+    if new_status not in ['Approved', 'Rejected', 'Pending']:
+        return JsonResponse({"error": "Invalid status"}, status=400)
+
+    with transaction.atomic():
+        doc.status = new_status
+        doc.admin_remarks = remarks
+        doc.save(update_fields=['status', 'admin_remarks'])
+
+    return JsonResponse({
+        "success": True,
+        "status": doc.status,
+        "admin_remarks": doc.admin_remarks or "",
+    })
+
+
+
+
+
+
+from django.db import transaction
+from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+
+from base.models import Account
+from faculty.models import FacultyProfile
+from base.forms import FacultyCreationForm  # ensure correct import
+from services.google_drive_service import CentralGoogleDriveService
 
 
 @admin_required
@@ -436,9 +577,10 @@ def create_faculty_view(request):
                         role='faculty'
                     )
 
-                    # 2. Create faculty profile
+                    # 2. Create faculty profile, including faculty_code
                     faculty = FacultyProfile.objects.create(
                         account=account,
+                        faculty_code=data.get('faculty_code'),  # NEW
                         name=data['name'],
                         department=data['department'],
                         birth_date=data['birth_date'],
@@ -454,7 +596,10 @@ def create_faculty_view(request):
                         faculty.save()
                         messages.success(request, f"✅ Faculty created. Folder ID: {folder_id}")
                     except Exception as e:
-                        messages.warning(request, f"⚠️ Faculty saved but Drive folder creation failed: {str(e)}")
+                        messages.warning(
+                            request,
+                            f"⚠️ Faculty saved but Drive folder creation failed: {str(e)}"
+                        )
 
                     # Optional: show password if auto-generated
                     if not data['password']:

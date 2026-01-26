@@ -1,152 +1,340 @@
 {% extends 'admin/admin_base.html' %}
-
 {% block content %}
-<div class="space-y-6 py-6 px-4 sm:px-6 max-w-4xl mx-auto bg-gradient-to-br from-gray-50 via-white to-gray-100 rounded-xl shadow-lg">
+<div class="max-w-5xl mx-auto space-y-8">
 
-  <!-- Header with Back Button -->
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-    <h2 class="text-2xl font-bold text-[#800505] tracking-wide">
-      👨‍🏫 {{ faculty.name }}'s Profile
-    </h2>
-    <div class="flex items-center gap-2">
+  <!-- Header -->
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Faculty Profile</h1>
+      <p class="mt-1 text-sm text-gray-500">
+        View and manage faculty information, employment status, documents, and attendance logs.
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      {% if faculty.faculty_code %}
+        <span class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
+          Code: <span class="ml-1 font-mono">{{ faculty.faculty_code }}</span>
+        </span>
+      {% endif %}
       <a href="{% url 'adminhub:faculty_list' %}"
-         class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#800505] hover:bg-[#a80707] text-white rounded-md shadow transition duration-200 select-none text-sm">
+         class="inline-flex items-center justify-center rounded-lg bg-[#800505] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="2" stroke="currentColor" class="w-4 h-4">
+             stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
         </svg>
-        <span>Back</span>
+        Back to Faculty
       </a>
-
-      <!-- Edit Button -->
-      <button 
-          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm shadow transition"
-          onclick="document.getElementById('editModal').classList.remove('hidden')">
-          Edit Profile
-      </button>
     </div>
   </div>
 
-  <!-- Profile Card -->
-  <section
-    class="bg-white rounded-2xl shadow-md border border-gray-200 p-5 hover:shadow-lg transition-shadow duration-200"
-  >
-    <h3 class="flex items-center gap-2 text-lg font-semibold text-[#800505] mb-4">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A7.966 7.966 0 0 1 12 15a7.966 7.966 0 0 1 6.879 2.804M15 11a3 3 0 1 0-6 0 3 3 0 0 0 6 0Z"/>
-      </svg>
-      Profile Details
-    </h3>
-    <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-gray-700 text-sm font-medium">
-      <li><span class="font-semibold text-gray-900">Name:</span> {{ faculty.name }}</li>
-      <li><span class="font-semibold text-gray-900">Email:</span> {{ faculty.account.email }}</li>
-      <li><span class="font-semibold text-gray-900">Status:</span> {{ faculty.status.name }}</li>
-      <li><span class="font-semibold text-gray-900">Department:</span> {{ faculty.department }}</li>
-      <li><span class="font-semibold text-gray-900">Contact Number:</span> {{ faculty.contact_number }}</li>
-      <li><span class="font-semibold text-gray-900">Birth Date:</span> {{ faculty.birth_date|date:"M d, Y" }}</li>
-      <li class="sm:col-span-2"><span class="font-semibold text-gray-900">Google Drive Folder ID:</span>
-        <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs select-all">{{ faculty.gdrive_folder_id }}</code>
-      </li>
-    </ul>
-  </section>
-
-
-
-  <!-- Attendance Logs -->
-  <section
-    class="bg-white rounded-2xl shadow-md border border-gray-200 p-5 hover:shadow-lg transition-shadow duration-200"
-  >
-    <h3 class="flex items-center gap-2 text-lg font-semibold text-[#800505] mb-4">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M8 17l4-4 4 4m0-8l-4 4-4-4"/>
-      </svg>
-      Recent Attendance Logs
-    </h3>
-    <ul class="divide-y divide-gray-200 text-gray-700 font-semibold text-sm max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-[#800505]/50 scrollbar-track-gray-100">
-      {% for log in attendance_logs %}
-        <li class="flex justify-between py-2 hover:bg-[#800505]/10 rounded px-2 transition-colors">
-          <span>{{ log.date|date:"M d, Y" }}</span>
-          <span>{{ log.time_in }} - {{ log.time_out }}</span>
-        </li>
-      {% empty %}
-        <li class="py-3 text-center text-gray-400 italic">No logs found.</li>
-      {% endfor %}
-    </ul>
-  </section>
-
-  <!-- Documents Section -->
-  <section
-    class="bg-white rounded-2xl shadow-md border border-gray-200 p-5 hover:shadow-lg transition-shadow duration-200"
-  >
-    <h3 class="flex items-center gap-2 text-lg font-semibold text-[#800505] mb-4">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m-4 4h10M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/>
-      </svg>
-      Documents
-    </h3>
-    <ul class="divide-y divide-gray-200 text-gray-700 font-medium text-sm">
-      {% for doc in documents %}
-        <li
-          class="flex justify-between items-center py-2 px-2 hover:bg-[#800505]/10 rounded transition-colors"
-          title="Click to view document"
-        >
-          <div>
-            <span class="font-semibold">{{ doc.document_name }}</span>
-            <span
-              class="ml-2 inline-block px-2 py-0.5 text-[10px] rounded-full font-semibold
-              {% if doc.status == 'Pending' %}
-                bg-yellow-100 text-yellow-800
-              {% elif doc.status == 'Approved' %}
-                bg-green-100 text-green-800
-              {% elif doc.status == 'Rejected' %}
-                bg-red-100 text-red-800
-              {% else %}
-                bg-gray-200 text-gray-700
-              {% endif %}">
-              {{ doc.status }}
+  <!-- Faculty Overview -->
+  <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+      <div class="space-y-1">
+        <div class="flex flex-wrap items-center gap-2">
+          <h2 class="text-xl font-semibold text-gray-900">
+            {{ faculty.name }}
+          </h2>
+          {% if faculty.status %}
+            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold
+              bg-blue-50 text-blue-800 ring-1 ring-blue-200">
+              {{ faculty.status.name }}
             </span>
+          {% endif %}
+        </div>
+        <p class="mt-1 text-sm text-gray-500">
+          Created on {{ faculty.created_at|date:"Y-m-d H:i" }}
+        </p>
+      </div>
+
+      <!-- Edit button (blue, more aesthetic) -->
+            <!-- Edit button (blue, more aesthetic) -->
+      <div class="flex items-center gap-2">
+        <button type="button"
+                onclick="document.getElementById('editModal').classList.remove('hidden');"
+                class="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm
+                       hover:bg-blue-600 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-300/70">
+          <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/15">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none"
+                 viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M16.862 3.487a2.25 2.25 0 0 1 3.182 3.182L8.25 18.463 4.5 19.5l1.037-3.75 11.325-12.263z" />
+            </svg>
+          </span>
+          <span>Edit Profile</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Email / Contact / Department -->
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 text-sm">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Email</div>
+        <div class="mt-1 text-gray-800 break-all font-mono text-xs">
+          {{ faculty.account.email }}
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Contact</div>
+        <div class="mt-1 text-gray-800">
+          {{ faculty.contact_number|default:"—" }}
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Department</div>
+        <div class="mt-1 text-gray-800">
+          {{ faculty.department|default:"—" }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Details Grid -->
+    <dl class="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-3 text-sm">
+      <div>
+        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Birth Date</dt>
+        <dd class="mt-1 text-gray-800">
+          {{ faculty.birth_date|date:"Y-m-d"|default:"—" }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Faculty Code</dt>
+        <dd class="mt-1 text-gray-800">
+          {{ faculty.faculty_code|default:"—" }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Google Drive Folder ID</dt>
+        <dd class="mt-1 text-xs">
+          {% if faculty.gdrive_folder_id %}
+            <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs select-all">{{ faculty.gdrive_folder_id }}</code>
+          {% else %}
+            <span class="text-gray-400">Not set</span>
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+  </section>
+
+  <!-- Recent Attendance Logs -->
+  <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+    <div class="flex items-center justify-between gap-2 mb-3">
+      <h3 class="text-sm font-semibold text-gray-900">Recent Attendance Logs</h3>
+      <p class="text-xs text-gray-500">Last 10 records for this faculty.</p>
+    </div>
+    <ul class="divide-y divide-gray-200 text-gray-700 text-sm max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-[#800505]/50 scrollbar-track-gray-100">
+      {% for log in attendance_logs %}
+        <li class="flex justify-between items-center py-2 px-2 hover:bg-[#800505]/5 rounded transition-colors">
+          <div>
+            <div class="font-medium text-gray-900">
+              {{ log.date|date:"M d, Y" }}
+            </div>
+            <div class="text-xs text-gray-500">
+              {% if log.teaching_assignments.all %}
+                {% for ta in log.teaching_assignments.all %}
+                  {{ ta }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              {% else %}
+                No teaching assignment linked
+              {% endif %}
+            </div>
           </div>
-          <a href="{{ doc.file_path }}" target="_blank"
-             class="text-[#800505] hover:text-[#a80707] font-semibold underline underline-offset-2 transition duration-200 text-sm">
-            View
-          </a>
+          <div class="text-right text-xs text-gray-700">
+            <div>
+              {% if log.time_in %}
+                In: {{ log.time_in|date:"H:i" }}
+              {% else %}
+                In: —
+              {% endif %}
+            </div>
+            <div>
+              {% if log.time_out %}
+                Out: {{ log.time_out|date:"H:i" }}
+              {% else %}
+                Out: —
+              {% endif %}
+            </div>
+          </div>
         </li>
       {% empty %}
-        <li class="py-3 text-center text-gray-400 italic">No documents uploaded.</li>
+        <li class="py-4 text-center text-gray-400 italic">No attendance logs found.</li>
       {% endfor %}
     </ul>
   </section>
 
-  <!-- DTR Records -->
-  <section
-    class="bg-white rounded-2xl shadow-md border border-gray-200 p-5 hover:shadow-lg transition-shadow duration-200"
-  >
-    <h3 class="flex items-center gap-2 text-lg font-semibold text-[#800505] mb-4">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M3 8h18M3 16h18M3 12h18M12 20v-8m0 0l3 3m-3-3-3 3"/>
-      </svg>
-      DTR Records
-    </h3>
-    <ul class="divide-y divide-gray-200 text-gray-700 font-semibold text-sm">
-      {% for dtr in dtr_records %}
-        <li class="flex justify-between py-2 px-2 hover:bg-[#800505]/10 rounded transition-colors">
-          <span>{{ dtr.month }}/{{ dtr.year }}</span>
-          <span>{{ dtr.total_hours }} hrs</span>
-        </li>
-      {% empty %}
-        <li class="py-3 text-center text-gray-400 italic">No DTR records found.</li>
-      {% endfor %}
-    </ul>
-  </section>
+  <!-- Uploaded Documents -->
+  <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h3 class="text-sm font-semibold text-gray-900">Uploaded Documents</h3>
+        <p class="mt-1 text-xs text-gray-500">Review and validate the faculty’s supporting documents.</p>
+      </div>
+    </div>
 
+    <!-- Desktop table -->
+    <div class="hidden sm:block overflow-x-auto">
+      <table class="min-w-full text-sm border border-gray-100 rounded-lg overflow-hidden">
+        <thead>
+          <tr class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
+            <th class="px-4 py-3 text-left border-b border-gray-100">Category</th>
+            <th class="px-4 py-3 text-left border-b border-gray-100">Document</th>
+            <th class="px-4 py-3 text-left border-b border-gray-100">Status</th>
+            <th class="px-4 py-3 text-left border-b border-gray-100">Expiry</th>
+            <th class="px-4 py-3 text-left border-b border-gray-100">Uploaded At</th>
+            <!-- New View column -->
+            <th class="px-4 py-3 text-center border-b border-gray-100 w-24">View</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for doc in documents %}
+          <tr class="hover:bg-gray-50/60 transition">
+            <!-- Category -->
+            <td class="px-4 py-3 align-top">
+              <div class="font-medium text-gray-900">
+                {{ doc.document_category.name|default:"Uncategorized" }}
+              </div>
+            </td>
+
+            <!-- Document name -->
+            <td class="px-4 py-3 align-top">
+              <div class="text-gray-800">
+                {{ doc.document_name }}
+              </div>
+            </td>
+
+            <!-- Status -->
+            <td class="px-4 py-3 align-top">
+              <button type="button" class="cursor-pointer"
+                      onclick="openDocModal('{{ doc.pk }}')"
+                      aria-label="Change status for {{ doc.document_name }}">
+                {% if doc.status == "Approved" %}
+                  <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-800 ring-1 ring-green-200">
+                    {{ doc.status }}
+                  </span>
+                {% elif doc.status == "Rejected" %}
+                  <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-800 ring-1 ring-red-200">
+                    {{ doc.status }}
+                  </span>
+                {% else %}
+                  <span class="inline-flex items-center rounded-full bg-yellow-50 px-2.5 py-1 text-xs font-semibold text-yellow-800 ring-1 ring-yellow-200">
+                    {{ doc.status }}
+                  </span>
+                {% endif %}
+              </button>
+            </td>
+
+            <!-- Expiry -->
+            <td class="px-4 py-3 align-top text-gray-800">
+              {% if doc.expiry_date %}
+                {{ doc.expiry_date }}
+                {% if not doc.is_valid %}
+                  <span class="ml-2 text-xs font-semibold text-red-600">(Expired)</span>
+                {% endif %}
+              {% else %}
+                <span class="text-gray-400">N/A</span>
+              {% endif %}
+            </td>
+
+            <!-- Uploaded at -->
+            <td class="px-4 py-3 align-top text-gray-800 whitespace-nowrap">
+              {{ doc.uploaded_at|date:"Y-m-d H:i" }}
+            </td>
+
+            <!-- View button column -->
+            <td class="px-4 py-3 align-top text-center">
+              {% if doc.google_drive_id %}
+                <a href="{% url 'adminhub:download_faculty_document' doc.pk %}?inline=1"
+                   target="_blank" rel="noopener noreferrer"
+                   class="inline-flex items-center gap-1 text-[#800505] hover:underline font-medium">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
+                       viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7.5 10.5 12 6m0 0 4.5 4.5M12 6v12" />
+                  </svg>
+                  <span>View</span>
+                </a>
+              {% else %}
+                <span class="text-gray-400 text-xs">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="px-4 py-10 text-center text-gray-500 font-medium">
+              No documents uploaded.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile cards -->
+    <div class="sm:hidden space-y-4">
+      {% for doc in documents %}
+      <div class="border border-gray-100 rounded-lg p-4 shadow-sm bg-white">
+        <div class="flex items-start justify-between gap-3 mb-2">
+          <div>
+            <div class="font-semibold text-gray-900">{{ doc.document_category.name|default:"Uncategorized" }}</div>
+            <div class="text-xs text-gray-600 break-all">{{ doc.document_name }}</div>
+          </div>
+          {% if doc.google_drive_id %}
+            <a href="{% url 'adminhub:download_faculty_document' doc.pk %}?inline=1"
+               target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-[#800505] shadow-sm
+                      hover:bg-[#800505]/5 hover:border-[#800505]/40">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
+                   viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7.5 10.5 12 6m0 0 4.5 4.5M12 6v12" />
+              </svg>
+              View
+            </a>
+          {% endif %}
+        </div>
+        <div class="text-xs text-gray-700 space-y-1.5">
+          <div>
+            <span class="text-gray-500">Status:</span>
+            <button type="button"
+                    class="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold border"
+                    onclick="openDocModal('{{ doc.pk }}')"
+                    {% if doc.status == "Approved" %}
+                      style="color:#166534;background:#f0fdf4;border-color:#bbf7d0"
+                    {% elif doc.status == "Rejected" %}
+                      style="color:#991b1b;background:#fef2f2;border-color:#fecaca"
+                    {% else %}
+                      style="color:#854d0e;background:#fffbeb;border-color:#fef3c7"
+                    {% endif %}
+            >{{ doc.status }}</button>
+          </div>
+          <div>
+            <span class="text-gray-500">Expiry:</span>
+            {% if doc.expiry_date %}
+              {{ doc.expiry_date }}
+              {% if not doc.is_valid %}
+                <span class="ml-1 text-[11px] font-semibold text-red-600">(Expired)</span>
+              {% endif %}
+            {% else %}
+              <span class="text-gray-400">N/A</span>
+            {% endif %}
+          </div>
+          <div>
+            <span class="text-gray-500">Uploaded:</span>
+            {{ doc.uploaded_at|date:"Y-m-d H:i" }}
+          </div>
+        </div>
+      </div>
+      {% empty %}
+        <p class="text-gray-500 text-sm text-center">No documents uploaded.</p>
+      {% endfor %}
+    </div>
+  </section>
 </div>
-
 
 <!-- Edit Faculty Modal -->
 <div id="editModal" class="hidden fixed inset-0 z-50 bg-gray-900/70 flex items-center justify-center">
-  <div class="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-[#800505]/10 p-0 overflow-hidden animate-fadein">
+  <div class="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-[#800505]/10 p-0 overflow-hidden">
 
-    <!-- Modal header with maroon card-banner style -->
+    <!-- Modal header -->
     <div class="flex items-center gap-2 px-6 py-4 bg-[#800505] border-b border-[#a80707]">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white opacity-85" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A7.966 7.966 0 0 1 12 15a7.966 7.966 0 0 1 6.879 2.804M15 11a3 3 0 1 0-6 0 3 3 0 0 0 6 0Z"/>
@@ -165,7 +353,7 @@
     <form method="POST" action="{% url 'adminhub:edit_faculty' faculty.uuid %}" class="p-6 space-y-5">
       {% csrf_token %}
 
-      <!-- Email field always first -->
+      <!-- Email field -->
       <div>
         <label class="block text-sm font-semibold text-[#800505] mb-1">Email</label>
         {{ form.email }}
@@ -176,7 +364,7 @@
 
       <hr class="my-2 border-gray-200">
 
-      <!-- Other Faculty Fields -->
+      <!-- Other fields (includes faculty_code) -->
       <div class="grid grid-cols-1 gap-4">
         {% for field in form %}
           {% if field.name != 'email' %}
@@ -203,4 +391,246 @@
     </form>
   </div>
 </div>
+
+<!-- Modals for each faculty document -->
+{% for doc in documents %}
+  <div id="modal-{{ doc.pk }}"
+       class="hidden fixed inset-0 z-50 bg-gray-900/60 items-center justify-center px-4 py-6 sm:p-0">
+    <div class="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 bg-[#800505] rounded-t-xl">
+        <div>
+          <h2 class="text-base sm:text-lg font-semibold text-white leading-tight">
+            Review Document
+          </h2>
+          <p class="mt-0.5 text-[11px] text-[#fee2e2]">
+            {{ doc.document_category.name|default:"Uncategorized" }}
+          </p>
+        </div>
+        <button type="button" aria-label="Close"
+                onclick="closeDocModal('{{ doc.pk }}')"
+                class="ml-auto p-2 rounded-md hover:bg-white/20 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none"
+               viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Content -->
+      <form id="doc-form-{{ doc.pk }}"
+            action="{% url 'adminhub:change_faculty_document_status' doc.pk %}"
+            method="post"
+            class="flex-1 overflow-y-auto">
+        {% csrf_token %}
+        <div class="p-4 sm:p-6 space-y-5">
+          <div class="grid grid-cols-1 gap-4">
+            <div class="flex flex-wrap items-end gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-[#800505] mb-1">Document Name</label>
+                <div class="text-sm text-gray-900 font-medium break-words">
+                  {{ doc.document_name }}
+                </div>
+              </div>
+              {% if doc.google_drive_id %}
+                <a href="{% url 'adminhub:download_faculty_document' doc.pk %}?inline=1"
+                   target="_blank" rel="noopener noreferrer"
+                   class="ml-auto inline-flex items-center rounded-md border border-white/60 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20">
+                  View File
+                </a>
+              {% endif %}
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label class="block text-xs font-semibold text-[#800505] mb-1">Uploaded Date</label>
+                <div class="text-sm text-gray-800">
+                  {{ doc.uploaded_at|date:"M d, Y H:i" }}
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[#800505] mb-1">Expiry</label>
+                <div class="text-sm text-gray-800">
+                  {% if doc.expiry_date %}
+                    {{ doc.expiry_date }}
+                    {% if not doc.is_valid %}
+                      <span class="ml-1 text-xs font-semibold text-red-600">(Expired)</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-gray-400">N/A</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-[#800505] mb-1">Current Status</label>
+              <div class="mt-0.5 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold
+                {% if doc.status == 'Pending' %}
+                  bg-yellow-50 text-yellow-800 ring-1 ring-yellow-200
+                {% elif doc.status == 'Approved' %}
+                  bg-green-50 text-green-800 ring-1 ring-green-200
+                {% else %}
+                  bg-red-50 text-red-800 ring-1 ring-red-200
+                {% endif %}
+              ">
+                {{ doc.status }}
+              </div>
+            </div>
+
+            {% if doc.admin_remarks %}
+              <div>
+                <label class="block text-xs font-semibold text-[#800505] mb-1">Previous Remarks</label>
+                <div class="text-sm text-gray-700 whitespace-pre-line bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                  {{ doc.admin_remarks }}
+                </div>
+              </div>
+            {% endif %}
+          </div>
+
+          <hr class="border-gray-200">
+
+          <!-- Remarks -->
+          <div>
+            <label class="block text-sm font-semibold text-[#800505] mb-1">Add Remarks</label>
+            <textarea name="remarks"
+                      class="w-full border border-gray-300 rounded-lg p-2 text-sm shadow-sm focus:border-[#800505] focus:ring-[#800505]"
+                      rows="3">{{ doc.admin_remarks }}</textarea>
+            <p class="mt-1 text-xs text-gray-400">
+              Remarks will be saved together with the selected action.
+            </p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="border-t border-gray-100 bg-gray-50 px-4 sm:px-6 py-3">
+          <div class="flex flex-col sm:flex-row sm:justify-between items-stretch sm:items-center gap-2 sm:gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full sm:w-auto">
+              <!-- Approve -->
+              <button type="button"
+                      class="w-full inline-flex items-center justify-center gap-2 rounded-lg border text-sm font-semibold px-3 py-2
+                        {% if doc.status == 'Approved' %}
+                          border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60
+                        {% else %}
+                          border-green-200 bg-green-50 text-green-700 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-300
+                        {% endif %}"
+                      {% if doc.status == 'Approved' %}
+                        disabled aria-disabled="true"
+                      {% else %}
+                        onclick="submitDocAction('{{ doc.pk }}','Approved')" aria-label="Approve"
+                      {% endif %}>
+                Approve
+              </button>
+
+              <!-- Reject -->
+              <button type="button"
+                      class="w-full inline-flex items-center justify-center gap-2 rounded-lg border text-sm font-semibold px-3 py-2
+                        {% if doc.status == 'Rejected' %}
+                          border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60
+                        {% else %}
+                          border-red-200 bg-red-50 text-[#800505] hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300
+                        {% endif %}"
+                      {% if doc.status == 'Rejected' %}
+                        disabled aria-disabled="true"
+                      {% else %}
+                        onclick="submitDocAction('{{ doc.pk }}','Rejected')" aria-label="Reject"
+                      {% endif %}>
+                Reject
+              </button>
+            </div>
+
+            <button type="button"
+                    class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-700 px-3 py-2 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                    onclick="closeDocModal('{{ doc.pk }}')">
+              Cancel
+            </button>
+          </div>
+          <div id="doc-error-{{ doc.pk }}" class="mt-2 text-xs text-red-600"></div>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endfor %}
+
+<script>
+  function openDocModal(pk) {
+    const m = document.getElementById('modal-' + pk);
+    if (!m) return;
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+  }
+
+  function closeDocModal(pk) {
+    const m = document.getElementById('modal-' + pk);
+    if (!m) return;
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+  }
+
+  // Close all modals on Escape
+  document.addEventListener('keydown', function (event) {
+    if (event.key === "Escape") {
+      document.querySelectorAll('[id^="modal-"]').forEach(function (modal) {
+        if (modal.classList.contains('flex')) {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+        }
+      });
+    }
+  });
+
+  // Click outside to close
+  document.addEventListener('click', function (event) {
+    document.querySelectorAll('[id^="modal-"]').forEach(function (modal) {
+      if (!modal.classList.contains('hidden') && event.target === modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    });
+  });
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + "=")) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  function submitDocAction(pk, newStatus) {
+    const form = document.getElementById('doc-form-' + pk);
+    const remarks = form.querySelector('textarea[name="remarks"]').value || '';
+    const csrfToken = getCookie('csrftoken');
+    const url = form.getAttribute('action');
+    const errorBox = document.getElementById('doc-error-' + pk);
+
+    errorBox.textContent = '';
+
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': csrfToken,
+      },
+      body: `status=${encodeURIComponent(newStatus)}&remarks=${encodeURIComponent(remarks)}`
+    }).then(resp => resp.json())
+      .then(data => {
+        if (data && data.success) {
+          window.location.reload();
+        } else {
+          errorBox.textContent = (data && data.error) ? data.error : 'Failed to update status.';
+        }
+      })
+      .catch(() => {
+        errorBox.textContent = 'Error saving status.';
+      });
+  }
+</script>
 {% endblock %}

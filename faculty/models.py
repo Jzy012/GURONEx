@@ -18,6 +18,7 @@ class EmploymentStatus(models.Model):
 class FacultyProfile(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)  
     account = models.OneToOneField(Account, on_delete=models.CASCADE, related_name='faculty_profile')
+    faculty_code = models.CharField(max_length=20,unique=True,null=True,blank=True,help_text="Unique faculty code, e.g. FA0018SP2023")
     name = models.CharField(max_length=255)
     department = models.CharField(max_length=100)
     birth_date = models.DateField(null=True, blank=True)
