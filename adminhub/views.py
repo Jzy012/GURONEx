@@ -3256,3 +3256,194 @@ def document_category_delete(request, id):
         )
 
     return JsonResponse({"success": False, "error": "Invalid request method."}, status=405)
+
+
+
+
+
+
+from django.http import JsonResponse
+from django.core.paginator import Paginator
+from django.db.models import Q
+
+from applicant.models import Applicant, ApplicantRequiredDocument
+from faculty.models import DocumentCategory
+from base.decorators import admin_required  # or wherever your admin_required is
+from base.forms import DocumentCategoryForm  # already used in your doc category views
+from base.forms import ApplicantRequiredDocumentForm
+
+
+
+
+
+@admin_required
+def applicant_required_document_list_view(request):
+    """
+    Global configuration for applicant required documents (all applicants).
+    Renders a page with a table and modals, uses AJAX for create/edit/delete.
+    """
+    search_query = request.GET.get("q", "")
+    qs = ApplicantRequiredDocument.objects.select_related("document_category")
+
+    if search_query:
+        qs = qs.filter(
+            Q(document_category__name__icontains=search_query) |
+            Q(document_category__description__icontains=search_query)
+        )
+
+    qs = qs.order_by("document_category__name")
+    paginator = Paginator(qs, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    all_document_categories = DocumentCategory.objects.all().order_by("name")
+
+    return render(
+        request,
+        "admin/admin_applicant_required_documents.html",
+        {
+            "page_obj": page_obj,
+            "search_query": search_query,
+            "all_document_categories": all_document_categories,
+        },
+    )
+
+
+@admin_required
+def applicant_required_document_create_or_edit_view(request, pk=None):
+    """
+    AJAX create/edit for ApplicantRequiredDocument (used by modal).
+    """
+    if request.method != "POST" or request.headers.get("X-Requested-With") != "XMLHttpRequest":
+        return JsonResponse({"success": False, "error": "Invalid request."}, status=400)
+
+    if pk:
+        instance = get_object_or_404(ApplicantRequiredDocument, pk=pk)
+        success_message = "Required document updated."
+    else:
+        instance = None
+        success_message = "Required document created."
+
+    form = ApplicantRequiredDocumentForm(request.POST, instance=instance)
+    if form.is_valid():
+        saved = form.save()
+        return JsonResponse(
+            {
+                "success": True,
+                "id": saved.pk,
+                "document_category": saved.document_category.name,
+                "document_category_id": saved.document_category.id,
+                "is_required": saved.is_required,
+                "validity_days": saved.validity_days,
+                "category_is_required": saved.document_category.is_required,
+                "message": success_message,
+            }
+        )
+    return JsonResponse({"success": False, "errors": form.errors}, status=400)
+
+
+@admin_required
+def applicant_required_document_delete_view(request, pk):
+    """
+    AJAX delete for ApplicantRequiredDocument (used by modal).
+    """
+    if request.method != "POST" or request.headers.get("X-Requested-With") != "XMLHttpRequest":
+        return JsonResponse({"success": False, "error": "Invalid request."}, status=400)
+
+    req_doc = get_object_or_404(ApplicantRequiredDocument, pk=pk)
+    req_doc.delete()
+    return JsonResponse({"success": True, "message": "Required document configuration deleted."})
+
+
+
+
+
+
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.core.paginator import Paginator
+from django.db.models import Q
+
+from faculty.models import EmploymentStatus
+from base.forms import EmploymentStatusForm
+from base.decorators import admin_required  # whatever you already use
+
+
+
+
+
+
+
+@admin_required
+def employment_status_list_view(request):
+    """
+    List/search EmploymentStatus entries.
+    The template uses modals + AJAX for create/edit/delete.
+    """
+    search_query = request.GET.get("q", "")
+    qs = EmploymentStatus.objects.all()
+
+    if search_query:
+        qs = qs.filter(name__icontains=search_query)
+
+    qs = qs.order_by("name")
+    paginator = Paginator(qs, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    return render(
+        request,
+        "admin/employment_status_list.html",
+        {
+            "page_obj": page_obj,
+            "search_query": search_query,
+        },
+    )
+
+
+@admin_required
+def employment_status_create_or_edit_view(request, pk=None):
+    """
+    AJAX create/edit for EmploymentStatus.
+    """
+    if request.method != "POST" or request.headers.get("X-Requested-With") != "XMLHttpRequest":
+        return JsonResponse({"success": False, "error": "Invalid request."}, status=400)
+
+    if pk:
+        instance = get_object_or_404(EmploymentStatus, pk=pk)
+        success_message = "Employment status updated successfully."
+    else:
+        instance = None
+        success_message = "Employment status created successfully."
+
+    form = EmploymentStatusForm(request.POST, instance=instance)
+    if form.is_valid():
+        status_obj = form.save()
+        return JsonResponse(
+            {
+                "success": True,
+                "id": status_obj.id,
+                "name": status_obj.name,
+                "is_active": status_obj.is_active,
+                "message": success_message,
+            }
+        )
+    return JsonResponse({"success": False, "errors": form.errors}, status=400)
+
+
+@admin_required
+def employment_status_delete_view(request, pk):
+    """
+    AJAX delete for EmploymentStatus.
+    """
+    if request.method != "POST" or request.headers.get("X-Requested-With") != "XMLHttpRequest":
+        return JsonResponse({"success": False, "error": "Invalid request."}, status=400)
+
+    status_obj = get_object_or_404(EmploymentStatus, pk=pk)
+    status_obj.delete()
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Employment status deleted successfully.",
+        }
+    )

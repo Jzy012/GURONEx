@@ -28,7 +28,10 @@ urlpatterns = [
     path('admin/faculty/<uuid:faculty_uuid>/', views.faculty_detail_view, name='faculty_detail'),
     path('admin/faculty/create/', views.create_faculty_view, name='create_faculty'),
     path('admin/faculty/<uuid:faculty_uuid>/edit/', views.edit_faculty_view, name='edit_faculty'),
-
+    path('admin/faculty/employment-status/',views.employment_status_list_view,name='employment_status_list',),
+    path('admin/faculty/employment-status/create/',views.employment_status_create_or_edit_view,name='employment_status_create',),
+    path('admin/faculty/employment-status/<int:pk>/edit/',views.employment_status_create_or_edit_view,name='employment_status_edit',),
+    path('admin/faculty/employment-status/<int:pk>/delete/',views.employment_status_delete_view,name='employment_status_delete',),
 
     path('admin/announcements/', views.announcements_view, name='announcements'),
     path('admin/announcements/create/', views.create_announcement_view, name='create_announcement'),
@@ -53,6 +56,10 @@ urlpatterns = [
     path('admin/applicants/document/change-status/<int:pk>/',views.change_applicant_document_status,name='change_applicant_document_status',),
     path('admin/applicants/account-creation/', views.account_creation_view, name='account_creation'),
     path('admin/applicants/account-creation/log/', views.created_account_log_view, name='account_creation_log'),
+    path('admin/applicants/required-documents/',views.applicant_required_document_list_view,name='applicant_required_document_list',),
+    path('admin/applicants/required-documents/create/',views.applicant_required_document_create_or_edit_view,name='applicant_required_document_create',),
+    path('admin/applicants/required-documents/<int:pk>/edit/',views.applicant_required_document_create_or_edit_view,name='applicant_required_document_edit',),
+    path('admin/applicants/required-documents/<int:pk>/delete/',views.applicant_required_document_delete_view,name='applicant_required_document_delete',),
 
     path("admin/request-types/",views.request_type_list_view,name="request_type_list"),
     path("admin/request-types/create/",views.request_type_create_view,name="request_type_create"),

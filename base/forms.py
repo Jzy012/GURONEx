@@ -1049,6 +1049,53 @@ class ApplicantDocumentUploadForm(forms.ModelForm):
 
 
 
+class ApplicantRequiredDocumentForm(forms.ModelForm):
+    class Meta:
+        model = ApplicantRequiredDocument
+        fields = ["document_category", "is_required", "validity_days"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for name, field in self.fields.items():
+            field.widget.attrs["class"] = field_class
+            field.widget.attrs["placeholder"] = field.label
+
+        self.fields["validity_days"].required = False
+
+        # Optional: when creating a new record, only show categories that
+        # don't already have ApplicantRequiredDocument
+        if not self.instance.pk:
+            used_ids = ApplicantRequiredDocument.objects.values_list(
+                "document_category_id", flat=True
+            )
+            self.fields["document_category"].queryset = DocumentCategory.objects.exclude(
+                id__in=used_ids
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        doc_cat = cleaned_data.get("document_category")
+
+        # Extra safety on uniqueness (in case of race conditions)
+        if doc_cat:
+            qs = ApplicantRequiredDocument.objects.filter(document_category=doc_cat)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(
+                    "This document category already has a required document configuration."
+                )
+
+        return cleaned_data
+
+
+
+
+
 from django import forms
 from faculty.models import TeachingAssignment
 
@@ -1455,3 +1502,27 @@ class DocumentCategoryForm(forms.ModelForm):
             "requires_expiry_date",
             "allowed_file_types",
         ]
+
+
+
+
+
+
+# base/forms.py
+from django import forms
+from faculty.models import EmploymentStatus  # adjust import path if needed
+
+class EmploymentStatusForm(forms.ModelForm):
+    class Meta:
+        model = EmploymentStatus
+        fields = ["name", "is_active"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#800505] "
+            "focus:outline-none text-sm"
+        )
+        for name, field in self.fields.items():
+            field.widget.attrs["class"] = field_class
+            field.widget.attrs["placeholder"] = field.label

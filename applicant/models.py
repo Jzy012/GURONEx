@@ -101,8 +101,40 @@ class ApplicantRequiredDocument(models.Model):
     is_required = models.BooleanField(default=True)  # False = Optional
     validity_days = models.IntegerField(null=True, blank=True)  # For required/optional alike
 
+    class Meta:
+        # Ensure only one ApplicantRequiredDocument per DocumentCategory
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document_category"],
+                name="unique_required_doc_per_category",
+            )
+        ]
+
     def __str__(self):
         return f"{self.document_category.name} ({'Required' if self.is_required else 'Optional'})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # After saving, update related DocumentCategory.is_required flag
+        has_required = ApplicantRequiredDocument.objects.filter(
+            document_category=self.document_category,
+            is_required=True,
+        ).exists()
+        if self.document_category.is_required != has_required:
+            self.document_category.is_required = has_required
+            self.document_category.save(update_fields=["is_required"])
+
+    def delete(self, *args, **kwargs):
+        doc_cat = self.document_category
+        super().delete(*args, **kwargs)
+        # After deletion, recalc if any required records remain
+        has_required = ApplicantRequiredDocument.objects.filter(
+            document_category=doc_cat,
+            is_required=True,
+        ).exists()
+        if doc_cat.is_required != has_required:
+            doc_cat.is_required = has_required
+            doc_cat.save(update_fields=["is_required"])
 
 
 class ApplicantDocument(models.Model):
