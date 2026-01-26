@@ -116,6 +116,7 @@
   </section>
 
   <!-- Recent Attendance Logs -->
+    <!-- Recent Attendance Logs -->
   <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
     <div class="flex items-center justify-between gap-2 mb-3">
       <h3 class="text-sm font-semibold text-gray-900">Recent Attendance Logs</h3>
@@ -123,38 +124,72 @@
     </div>
     <ul class="divide-y divide-gray-200 text-gray-700 text-sm max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-[#800505]/50 scrollbar-track-gray-100">
       {% for log in attendance_logs %}
-        <li class="flex justify-between items-center py-2 px-2 hover:bg-[#800505]/5 rounded transition-colors">
-          <div>
-            <div class="font-medium text-gray-900">
-              {{ log.date|date:"M d, Y" }}
+        {% with tas=log.teaching_assignments.all %}
+        {% if tas %}
+          {% with ta=tas.0 %}
+            <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 py-2 px-2 hover:bg-[#800505]/5 rounded transition-colors">
+              <div class="space-y-0.5">
+                <!-- Date + subject -->
+                <div class="font-medium text-gray-900">
+                  {{ log.date|date:"M d, Y" }} – {{ ta.subject_description }}
+                </div>
+                <!-- Schedule time -->
+                <div class="text-xs text-gray-500">
+                  {{ ta.start_time|time:"H:i" }}–{{ ta.end_time|time:"H:i" }}
+                </div>
+              </div>
+              <div class="text-xs text-gray-700 sm:text-right">
+                <div>
+                  <span class="font-semibold text-gray-600">Time In:</span>
+                  {% if log.time_in %}
+                    {{ log.time_in|time:"H:i" }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+                <div>
+                  <span class="font-semibold text-gray-600">Time Out:</span>
+                  {% if log.time_out %}
+                    {{ log.time_out|time:"H:i" }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+              </div>
+            </li>
+          {% endwith %}
+        {% else %}
+          <!-- Fallback when no teaching assignment is linked -->
+          <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 py-2 px-2 hover:bg-[#800505]/5 rounded transition-colors">
+            <div class="space-y-0.5">
+              <div class="font-medium text-gray-900">
+                {{ log.date|date:"M d, Y" }} – No subject linked
+              </div>
+              <div class="text-xs text-gray-500">
+                No schedule information
+              </div>
             </div>
-            <div class="text-xs text-gray-500">
-              {% if log.teaching_assignments.all %}
-                {% for ta in log.teaching_assignments.all %}
-                  {{ ta }}{% if not forloop.last %}, {% endif %}
-                {% endfor %}
-              {% else %}
-                No teaching assignment linked
-              {% endif %}
+            <div class="text-xs text-gray-700 sm:text-right">
+              <div>
+                <span class="font-semibold text-gray-600">Time In:</span>
+                {% if log.time_in %}
+                  {{ log.time_in|time:"H:i" }}
+                {% else %}
+                  —
+                {% endif %}
+              </div>
+              <div>
+                <span class="font-semibold text-gray-600">Time Out:</span>
+                {% if log.time_out %}
+                  {{ log.time_out|time:"H:i" }}
+                {% else %}
+                  —
+                {% endif %}
+              </div>
             </div>
-          </div>
-          <div class="text-right text-xs text-gray-700">
-            <div>
-              {% if log.time_in %}
-                In: {{ log.time_in|date:"H:i" }}
-              {% else %}
-                In: —
-              {% endif %}
-            </div>
-            <div>
-              {% if log.time_out %}
-                Out: {{ log.time_out|date:"H:i" }}
-              {% else %}
-                Out: —
-              {% endif %}
-            </div>
-          </div>
-        </li>
+          </li>
+        {% endif %}
+        {% endwith %}
       {% empty %}
         <li class="py-4 text-center text-gray-400 italic">No attendance logs found.</li>
       {% endfor %}
