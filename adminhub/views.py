@@ -550,14 +550,29 @@ def change_faculty_document_status(request, pk):
 
 
 
-from django.db import transaction
-from django.contrib import messages
-from django.shortcuts import render, redirect, get_object_or_404
+
 
 from base.models import Account
 from faculty.models import FacultyProfile
 from base.forms import FacultyCreationForm  # ensure correct import
 from services.google_drive_service import CentralGoogleDriveService
+
+
+import logging
+from django.db import transaction
+from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
+
+from base.models import Account
+from faculty.models import FacultyProfile
+from base.forms import FacultyCreationForm
+from services.google_drive_service import CentralGoogleDriveService
+
+# Adjust this import path to your actual util module
+from base.utils.email import send_html_email  # e.g. from base.utils.email import send_html_email
+
+logger = logging.getLogger(__name__)
 
 
 @admin_required
@@ -577,10 +592,10 @@ def create_faculty_view(request):
                         role='faculty'
                     )
 
-                    # 2. Create faculty profile, including faculty_code
+                    # 2. Create faculty profile
                     faculty = FacultyProfile.objects.create(
                         account=account,
-                        faculty_code=data.get('faculty_code'),  # NEW
+                        faculty_code=data.get('faculty_code'),
                         name=data['name'],
                         department=data['department'],
                         birth_date=data['birth_date'],
@@ -601,10 +616,33 @@ def create_faculty_view(request):
                             f"⚠️ Faculty saved but Drive folder creation failed: {str(e)}"
                         )
 
-                    # Optional: show password if auto-generated
+                    # 4. Queue credentials email after transaction commits
+                    def _send_credentials_email():
+                        try:
+                            login_url = request.build_absolute_uri(reverse('login'))  # adjust if your route differs
+                            send_html_email(
+                                subject="Your Faculty Account Credentials",
+                                to_emails=account.email,
+                                template_name="emails/faculty_welcome_credentials.html",
+                                context={
+                                    "name": faculty.name,
+                                    "email": account.email,
+                                    "password": password,
+                                    "faculty_code": faculty.faculty_code,
+                                    "department": faculty.department,
+                                    "login_url": login_url,
+                                },
+                            )
+                            logger.info("Sent credentials email to %s", account.email)
+                        except Exception as e:
+                            logger.exception("Failed to send credentials email: %s", e)
+
+                    transaction.on_commit(_send_credentials_email)
+
                     if not data['password']:
                         messages.info(request, f"🛡️ Auto-generated password: {password}")
 
+                    messages.success(request, "📧 Credentials will be emailed to the faculty. Please remind them to change their password immediately after logging in.")
                     return redirect('adminhub:faculty_list')
 
             except Exception as e:
