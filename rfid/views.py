@@ -69,16 +69,19 @@ def format_log(log):
 
 @api_view(['POST'])
 def log_attendance(request):
-    import logging
-    logger = logging.getLogger(__name__)
-
-    logger.info("log_attendance raw body: %r", request.body)
-    logger.info("log_attendance content_type: %s", request.content_type)
-    logger.info("log_attendance data: %r", getattr(request, 'data', None))
+    print("==== log_attendance CALLED ====")
+    print("content_type:", repr(request.content_type))
+    print("raw body:", repr(request.body))
+    try:
+        print("request.data:", repr(request.data))
+    except Exception as e:
+        print("ERROR reading request.data:", repr(e))
 
     uid = request.data.get('uid')
+    print("resolved uid:", repr(uid))
+
     if not uid:
-        logger.warning("log_attendance: UID missing; data=%r", request.data)
+        print("UID missing -> returning 400")
         return Response({"error": "UID missing"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
