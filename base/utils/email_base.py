@@ -16,6 +16,7 @@ def send_html_email(
     template_name: str,
     context: dict | None = None,
     from_email: str | None = None,
+    from_name: str | None = None,   # 👈 added
 ) -> None:
     """
     Generic HTML email sender for LINANG using Brevo HTTP API.
@@ -25,6 +26,7 @@ def send_html_email(
     - template_name: Django template path (e.g., 'emails/password_reset_otp.html')
     - context: dict of template vars
     - from_email: override settings.DEFAULT_FROM_EMAIL if needed
+    - from_name: override sender display name (e.g. "LINANG Support")
     """
     if context is None:
         context = {}
@@ -46,7 +48,7 @@ def send_html_email(
     api_key = getattr(settings, "BREVO_API_KEY", None)
     if not api_key:
         logger.error("BREVO_API_KEY is not configured")
-        return  # or raise an error if you want this to break loudly
+        return
 
     configuration = brevo_python.Configuration()
     configuration.api_key["api-key"] = api_key
@@ -57,12 +59,16 @@ def send_html_email(
     # Prepare recipients
     to_list = [{"email": email} for email in to_emails]
 
-    # Sender (must be a verified Brevo sender)
+    # Sender (can be your personal email, but must be a verified Brevo sender)
     sender_email = from_email or settings.DEFAULT_FROM_EMAIL
+    sender_name = from_name or getattr(settings, "DEFAULT_FROM_NAME", "LINANG System")
 
     send_email = brevo_python.SendSmtpEmail(
         to=to_list,
-        sender={"email": sender_email},
+        sender={
+            "email": sender_email,
+            "name": "LINANG",  # 👈 display name here
+        },
         subject=subject,
         html_content=html_content,
         text_content=text_content,
@@ -72,5 +78,3 @@ def send_html_email(
         api_instance.send_transac_email(send_email)
     except ApiException as e:
         logger.exception("Error sending email via Brevo API: %s", e)
-        # Optionally: raise to let the view fail instead of silently logging
-        # raise

@@ -595,13 +595,17 @@ def create_faculty_view(request):
                     # 2. Create faculty profile
                     faculty = FacultyProfile.objects.create(
                         account=account,
-                        faculty_code=data.get('faculty_code'),
-                        name=data['name'],
-                        department=data['department'],
-                        birth_date=data['birth_date'],
-                        contact_number=data['contact_number'],
-                        status=data['status'],
+                        faculty_code=data.get("faculty_code"),
+                        first_name=data.get("first_name"),
+                        middle_name=data.get("middle_name"),
+                        last_name=data.get("last_name"),
+                        suffix=data.get("suffix"),
+                        department=data.get("department"),
+                        birth_date=data.get("birth_date"),
+                        contact_number=data.get("contact_number"),
+                        status=data.get("status"),
                     )
+
 
                     # 3. Attempt to create Drive folder
                     try:
@@ -621,7 +625,7 @@ def create_faculty_view(request):
                         try:
                             login_url = request.build_absolute_uri(reverse('login'))  # adjust if your route differs
                             send_html_email(
-                                subject="Your Faculty Account Credentials",
+                                subject="[LINANG] Faculty Account Credentials",
                                 to_emails=account.email,
                                 template_name="emails/faculty_welcome_credentials.html",
                                 context={

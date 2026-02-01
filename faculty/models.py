@@ -6,6 +6,13 @@ import uuid
 
 # Create your models here.
 
+# faculty/models.py
+import uuid
+from django.db import models
+from django.core.validators import RegexValidator
+from base.models import Account
+
+
 class EmploymentStatus(models.Model):
     name = models.CharField(max_length=50, unique=True)  # e.g., Full-Time, On-Leave
     is_active = models.BooleanField(default=True)
@@ -14,19 +21,64 @@ class EmploymentStatus(models.Model):
         return self.name
 
 
+# Reusable validator for name parts: letters, spaces, apostrophes, periods, hyphens
+name_part_validator = RegexValidator(
+    regex=r"^[A-Za-zÀ-ÿÑñ\s\.\-']+$",
+    message="Names may only contain letters, spaces, apostrophes, periods, and hyphens.",
+)
+
+
+
+
+# PH mobile number validator (09XXXXXXXXX)
+phone_validator = RegexValidator(
+    regex=r'^09\d{9}$',
+    message="Enter a valid Philippine mobile number (e.g., 09171234567).",
+)
 
 class FacultyProfile(models.Model):
-    uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)  
-    account = models.OneToOneField(Account, on_delete=models.CASCADE, related_name='faculty_profile')
+    uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    account = models.OneToOneField(
+        Account,
+        on_delete=models.CASCADE,
+        related_name="faculty_profile"
+    )
+
+    # NEW structured name fields
+    first_name = models.CharField(max_length=100,null=True,blank=True,validators=[name_part_validator],)
+    middle_name = models.CharField(max_length=100,null=True,blank=True,validators=[name_part_validator],)
+    last_name = models.CharField(max_length=100,null=True,blank=True,validators=[name_part_validator],)
+    suffix = models.CharField(max_length=20,null=True,blank=True,validators=[name_part_validator],help_text="e.g., Jr., Sr., III (optional)",)
+
+    # Existing old field (KEEP THIS)
     faculty_code = models.CharField(max_length=20,unique=True,null=True,blank=True,help_text="Unique faculty code, e.g. FA0018SP2023")
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255,blank=True,null=True,validators=[name_part_validator])  # still used everywhere else
+
     department = models.CharField(max_length=100)
     birth_date = models.DateField(null=True, blank=True)
-    contact_number = models.CharField(max_length=11, null=True, blank=True)
-    status = models.ForeignKey(EmploymentStatus, on_delete=models.SET_NULL, null=True, blank=True)
+    contact_number = models.CharField(max_length=11,null=True,blank=True,validators=[phone_validator],)
+    status = models.ForeignKey(EmploymentStatus,on_delete=models.SET_NULL,null=True,blank=True,)
     created_at = models.DateTimeField(auto_now_add=True)
     gdrive_folder_id = models.CharField(max_length=100, null=True, blank=True)
 
+    def save(self, *args, **kwargs):
+        """
+        Auto-generate `name` from structured parts when they are present.
+        This keeps old code using `name` working as before.
+        """
+        parts = [
+            (self.first_name or "").strip(),
+            (self.middle_name or "").strip(),
+            (self.last_name or "").strip(),
+            (self.suffix or "").strip(),
+        ]
+        full_name = " ".join([p for p in parts if p])
+
+        # Only override if we actually have at least one structured part
+        if full_name:
+            self.name = full_name
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

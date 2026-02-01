@@ -135,8 +135,8 @@
                 </svg>
                 Choose File
               </label>
-              <span id="file-chosen-{{ forloop.counter0 }}"
-                    class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-3 sm:px-5 py-2 h-10 text-gray-700 text-xs sm:text-sm bg-gray-50 flex-1 min-w-0 truncate">
+              <span
+                class="file-chosen-display inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-3 sm:px-5 py-2 h-10 text-gray-700 text-xs sm:text-sm bg-gray-50 flex-1 min-w-0 truncate">
                 {% if form.file.value %}{{ form.file.value.name|default:"" }}{% else %}No file chosen{% endif %}
               </span>
               {{ form.file }}
@@ -221,8 +221,8 @@
                 </svg>
                 Choose File
               </label>
-              <span id="file-chosen-empty"
-                    class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-3 sm:px-5 py-2 h-10 text-gray-700 text-xs sm:text-sm bg-gray-50 flex-1 min-w-0 truncate">
+              <span
+                class="file-chosen-display inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-3 sm:px-5 py-2 h-10 text-gray-700 text-xs sm:text-sm bg-gray-50 flex-1 min-w-0 truncate">
                 No file chosen
               </span>
               {{ formset.empty_form.file }}
@@ -330,13 +330,11 @@ document.addEventListener('DOMContentLoaded', function() {
       if (input._fileChangeBound) return;
       input._fileChangeBound = true;
 
-      const match = input.id.match(/file_input_(\\d+|__empty)/);
-      const idx = match ? match[1] : 'empty';
-      const span = document.getElementById('file-chosen-' + idx) || document.getElementById('file-chosen-empty');
-      if (!span) return;
-
-      input.addEventListener('change', function(){
-        span.textContent = input.files.length ? input.files[0].name : "No file chosen";
+      input.addEventListener('change', function() {
+        const span = input.closest('.card-row').querySelector('.file-chosen-display');
+        if (span) {
+          span.textContent = input.files.length ? input.files[0].name : "No file chosen";
+        }
       });
     });
   }
@@ -346,24 +344,22 @@ document.addEventListener('DOMContentLoaded', function() {
     cards.forEach((card, idx) => {
       card.querySelectorAll('input, select, textarea').forEach(el => {
         if (el.name && el.name.includes('form-')) {
-          el.name = el.name.replace(/form-(\\d+)-/, `form-${idx}-`);
+          el.name = el.name.replace(/form-(\d+)-/, `form-${idx}-`);
         }
         if (el.id && el.id.includes('form-')) {
-          el.id = el.id.replace(/form-(\\d+)-/, `form-${idx}-`);
+          el.id = el.id.replace(/form-(\d+)-/, `form-${idx}-`);
         }
       });
 
       const fileInput = card.querySelector('input[type="file"]');
-      const fileLabel = card.querySelector('label[for^="file_input_"]');
-      const fileSpan = card.querySelector('span[id^="file-chosen-"]');
+      const fileLabel = card.querySelector('label[for^="file_input_"], label[for="file_input__empty"]');
+      const fileSpan = card.querySelector('.file-chosen-display');
 
       if (fileInput) fileInput.id = 'file_input_' + idx;
       if (fileLabel) fileLabel.htmlFor = 'file_input_' + idx;
-      if (fileSpan) {
-        fileSpan.id = 'file-chosen-' + idx;
-        if (!fileInput || !fileInput.files || !fileInput.files.length) {
-          fileSpan.textContent = 'No file chosen';
-        }
+
+      if (fileSpan && (!fileInput || !fileInput.files || !fileInput.files.length)) {
+        fileSpan.textContent = 'No file chosen';
       }
 
       const counterBadge = card.querySelector('span.inline-flex.w-7.h-7');

@@ -148,6 +148,18 @@ from faculty.models import FacultyProfile, EmploymentStatus
 import secrets
 
 
+# faculty/forms.py
+from django import forms
+from django.core.validators import RegexValidator
+
+from base.models import Account
+from faculty.models import EmploymentStatus, phone_validator, name_part_validator
+import secrets
+
+
+# Reuse the same rule as in the model for consistency
+
+
 class FacultyCreationForm(forms.Form):
     faculty_code = forms.CharField(
         max_length=20,
@@ -155,14 +167,37 @@ class FacultyCreationForm(forms.Form):
         help_text="Unique faculty code, e.g. FA0014SP2021"
     )
 
-    name = forms.CharField(max_length=255)
+    # NEW fields
+    first_name = forms.CharField(
+        max_length=100,
+        validators=[name_part_validator],
+        label="First Name",
+    )
+    middle_name = forms.CharField(
+        max_length=100,
+        required=False,
+        validators=[name_part_validator],
+        label="Middle Name",
+    )
+    last_name = forms.CharField(
+        max_length=100,
+        validators=[name_part_validator],
+        label="Last Name",
+    )
+    suffix = forms.CharField(
+        max_length=20,
+        required=False,
+        validators=[name_part_validator],
+        label="Suffix (optional)",
+    )
+
     email = forms.EmailField()
     department = forms.CharField(max_length=100)
     birth_date = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={'type': 'date'})
+        widget=forms.DateInput(attrs={"type": "date"})
     )
-    contact_number = forms.CharField(max_length=11, required=False)
+    contact_number = forms.CharField(max_length=11, required=False,validators=[phone_validator],)
     status = forms.ModelChoiceField(
         queryset=EmploymentStatus.objects.filter(is_active=True),
         required=False
@@ -171,9 +206,9 @@ class FacultyCreationForm(forms.Form):
         max_length=128,
         required=False,
         widget=forms.PasswordInput,
-        help_text="Leave blank to auto-generate."
+        help_text="Leave blank to auto-generate.",
     )
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         field_class = (
@@ -186,7 +221,7 @@ class FacultyCreationForm(forms.Form):
             field.widget.attrs["placeholder"] = field.label
 
     def clean_email(self):
-        email = self.cleaned_data['email']
+        email = self.cleaned_data["email"]
         if Account.objects.filter(email=email).exists():
             raise forms.ValidationError("An account with this email already exists.")
         return email
@@ -200,10 +235,11 @@ class FacultyCreationForm(forms.Form):
         return code
 
     def generate_random_password(self):
-        return ''.join(
-            secrets.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+        return "".join(
+            secrets.choice("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
             for _ in range(8)
         )
+
 
 
 
@@ -287,6 +323,7 @@ class FacultyDocumentUploadForm(forms.Form):
         queryset=DocumentCategory.objects.none(),  # set in __init__
         required=True,
         label="Category",
+        empty_label="Select a Category",
     )
     document_name = forms.CharField(
         max_length=255,
