@@ -3,39 +3,24 @@ from django.shortcuts import render
 # Create your views here.
 
 
-from faculty.models import FacultyProfile
+from datetime import datetime, time
+import calendar
+import pytz
+
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
-from django.utils.timezone import now, localtime
+from django.core.cache import cache
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import RFIDTag, AttendanceLog, FacultyProfile
-
-
-import calendar
-from datetime import datetime, time
-from django.core.cache import cache
-
-
-from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_exempt
-
-
-from django.shortcuts import render
 from faculty.models import FacultyProfile
-from django.utils import timezone
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
 from .models import RFIDTag, AttendanceLog
-from django.core.cache import cache
-from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_exempt
-import pytz
+
 
 @csrf_exempt
 @require_POST
@@ -84,8 +69,16 @@ def format_log(log):
 
 @api_view(['POST'])
 def log_attendance(request):
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info("log_attendance raw body: %r", request.body)
+    logger.info("log_attendance content_type: %s", request.content_type)
+    logger.info("log_attendance data: %r", getattr(request, 'data', None))
+
     uid = request.data.get('uid')
     if not uid:
+        logger.warning("log_attendance: UID missing; data=%r", request.data)
         return Response({"error": "UID missing"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
