@@ -49,6 +49,9 @@ def rfid_tap_api(request):
     uid = request.POST.get("uid")
     if not uid:
         return JsonResponse({"error": "No UID"}, status=400)
+
+    uid = uid.strip().upper()  # normalize hex from ESP32
+
     cache.set('last_rfid_uid', uid, timeout=10)
     tag, created = RFIDTag.objects.get_or_create(uid=uid)
     if tag.faculty is not None:
@@ -69,19 +72,8 @@ def format_log(log):
 
 @api_view(['POST'])
 def log_attendance(request):
-    print("==== log_attendance CALLED ====")
-    print("content_type:", repr(request.content_type))
-    print("raw body:", repr(request.body))
-    try:
-        print("request.data:", repr(request.data))
-    except Exception as e:
-        print("ERROR reading request.data:", repr(e))
-
     uid = request.data.get('uid')
-    print("resolved uid:", repr(uid))
-
     if not uid:
-        print("UID missing -> returning 400")
         return Response({"error": "UID missing"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:

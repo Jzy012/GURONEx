@@ -1741,6 +1741,34 @@ def attendance_logs_view(request):
 
 
 
+
+def normalize_uid_from_admin(rfid_uid_raw: str):
+    """
+    Normalize an RFID UID string coming from the admin form.
+
+    - If it's purely decimal digits, treat as decimal and convert to 8‑char hex.
+    - Otherwise, treat it as hex and uppercase.
+    """
+    if not rfid_uid_raw:
+        return None
+
+    rfid_uid_raw = rfid_uid_raw.strip()
+
+    # Case 1: purely decimal -> convert to hex (assuming 4‑byte UID)
+    if rfid_uid_raw.isdigit():
+        value = int(rfid_uid_raw)
+        return f"{value:08X}"
+
+    # Case 2: treat as hex: remove spaces, uppercase
+    cleaned = "".join(c for c in rfid_uid_raw if c not in " \t\r\n")
+    if all(c in "0123456789ABCDEFabcdef" for c in cleaned):
+        return cleaned.upper()
+
+    # Otherwise, invalid / mixed
+    return None
+
+
+
 from django.shortcuts import render
 from faculty.models import FacultyProfile
 from rfid.models import RFIDTag
@@ -1780,14 +1808,21 @@ def pair_rfid(request):
 
     if request.method == 'POST':
         faculty_id = request.POST.get('faculty_id')
-        rfid_uid = request.POST.get('rfid_uid', '').strip()
+        rfid_uid_raw = request.POST.get('rfid_uid', '')
+
+
+        normalized_uid = normalize_uid_from_admin(rfid_uid_raw)
+
         confirm_pair = request.POST.get('confirm_pair')
 
         faculty = next((f for f in faculties if f['uuid'] == faculty_id), None)
 
         # --- VALIDATION: Check errors first ---
-        if not (faculty_id and rfid_uid):
+        if not (faculty_id and rfid_uid_raw):
             message = "Faculty and RFID UID are required."
+            message_class = "bg-red-100 text-red-800"
+        elif normalized_uid is None:
+            message = f"Invalid UID format: {rfid_uid_raw!r}. Only hex or decimal digits are allowed."
             message_class = "bg-red-100 text-red-800"
         elif not faculty:
             message = "Faculty not found."
@@ -1796,36 +1831,53 @@ def pair_rfid(request):
             try:
                 with transaction.atomic():
                     faculty_obj = FacultyProfile.objects.get(pk=faculty['pk'])
+
+                    # Use normalized UID (canonical hex) for DB
+                    rfid_uid = normalized_uid
                     tag, created = RFIDTag.objects.get_or_create(uid=rfid_uid)
 
                     # Block if this RFID is already active for another faculty
                     if tag.faculty and tag.faculty != faculty_obj and tag.is_active:
-                        message = f"RFID <b>{rfid_uid}</b> is already actively paired to <b>{tag.faculty.name}</b>. Unpair it there before pairing it here."
+                        message = (
+                            f"RFID <b>{rfid_uid}</b> is already actively paired to "
+                            f"<b>{tag.faculty.name}</b>. Unpair it there before pairing it here."
+                        )
                         message_class = "bg-red-100 text-red-800"
 
                     # --- PASSED VALIDATION: Ready for confirmation modal ---
                     else:
-                        existing_active = RFIDTag.objects.filter(faculty=faculty_obj, is_active=True).exclude(uid=rfid_uid).first()
+                        existing_active = RFIDTag.objects.filter(
+                            faculty=faculty_obj, is_active=True
+                        ).exclude(uid=rfid_uid).first()
                         if not confirm_pair:
                             show_confirm_modal = True
                             confirm_context = {
                                 'faculty_id': faculty_id,
                                 'faculty_name': faculty_obj.name,
+                                # Show canonical hex in confirm modal
                                 'rfid_uid': rfid_uid,
                                 'has_previous': bool(existing_active),
                                 'prev_uid': existing_active.uid if existing_active else None,
                             }
                         else:
                             # Actually execute pairing
-                            RFIDTag.objects.filter(faculty=faculty_obj, is_active=True).exclude(uid=rfid_uid).update(is_active=False)
+                            RFIDTag.objects.filter(
+                                faculty=faculty_obj, is_active=True
+                            ).exclude(uid=rfid_uid).update(is_active=False)
                             tag.faculty = faculty_obj
                             tag.is_active = True
                             tag.save()
                             rfid_map[faculty_obj.pk] = tag.uid
                             if created or not tag.is_active:
-                                message = f"RFID <b>{rfid_uid}</b> successfully paired to <b>{faculty_obj.name}</b>!"
+                                message = (
+                                    f"RFID <b>{rfid_uid}</b> successfully paired to "
+                                    f"<b>{faculty_obj.name}</b>!"
+                                )
                             else:
-                                message = f"RFID <b>{rfid_uid}</b> is now set as the active card for <b>{faculty_obj.name}</b>."
+                                message = (
+                                    f"RFID <b>{rfid_uid}</b> is now set as the active card for "
+                                    f"<b>{faculty_obj.name}</b>."
+                                )
                             message_class = "bg-green-100 text-green-800"
             except Exception as exc:
                 message = f"An unexpected error occurred: {exc}"
