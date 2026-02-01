@@ -1744,27 +1744,48 @@ def attendance_logs_view(request):
 
 def normalize_uid_from_admin(rfid_uid_raw: str):
     """
-    Normalize an RFID UID string coming from the admin form.
+    Normalize an RFID UID string from the admin form to match ESP32's UID.
 
-    - If it's purely decimal digits, treat as decimal and convert to 8‑char hex.
-    - Otherwise, treat it as hex and uppercase.
+    It handles two cases:
+    - USB reader outputs DECIMAL (e.g. '3828859619'): convert to 4-byte int,
+      reverse bytes, return hex (e.g. '4773C366').
+    - On confirm POST, the form may contain HEX we already normalized
+      (e.g. '4773C366'): accept it as canonical and return uppercase hex.
+
+    For 4-byte UIDs.
     """
     if not rfid_uid_raw:
         return None
 
-    rfid_uid_raw = rfid_uid_raw.strip()
+    cleaned = rfid_uid_raw.strip()
+    if not cleaned:
+        return None
 
-    # Case 1: purely decimal -> convert to hex (assuming 4‑byte UID)
-    if rfid_uid_raw.isdigit():
-        value = int(rfid_uid_raw)
-        return f"{value:08X}"
+    # Case 1: purely decimal (first POST from USB reader)
+    if cleaned.isdigit():
+        try:
+            value = int(cleaned)
+        except ValueError:
+            return None
 
-    # Case 2: treat as hex: remove spaces, uppercase
-    cleaned = "".join(c for c in rfid_uid_raw if c not in " \t\r\n")
-    if all(c in "0123456789ABCDEFabcdef" for c in cleaned):
-        return cleaned.upper()
+        try:
+            # interpret as 4-byte big-endian
+            usb_bytes = value.to_bytes(4, byteorder='big', signed=False)
+        except OverflowError:
+            # not a 32-bit value
+            return None
 
-    # Otherwise, invalid / mixed
+        # reverse bytes to match ESP32
+        esp32_bytes = usb_bytes[::-1]
+        return esp32_bytes.hex().upper()
+
+    # Case 2: looks like hex (confirm POST or someone typed hex)
+    cleaned_no_space = "".join(cleaned.split())
+    if all(c in "0123456789ABCDEFabcdef" for c in cleaned_no_space):
+        # accept as canonical hex; just uppercase
+        return cleaned_no_space.upper()
+
+    # Otherwise invalid
     return None
 
 
