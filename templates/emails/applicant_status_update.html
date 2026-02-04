@@ -1,0 +1,35 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ subject }}{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    This is an update regarding your application to
+    <strong>LINANG</strong>.
+  </p>
+
+  <p>
+    Your current application status is now:
+    <span class="badge">{{ new_status }}</span>
+  </p>
+
+  {% if status_url %}
+    <p>
+      You can check your application status any time using the link below:
+    </p>
+    <p>
+      <a href="{{ status_url }}" class="btn">
+        View Application Status
+      </a>
+    </p>
+  {% endif %}
+
+  <div class="divider"></div>
+
+  <p class="muted">
+    If you have any questions or concerns, you can reach us at
+    <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+{% endblock %}

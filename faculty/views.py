@@ -1361,33 +1361,6 @@ def faculty_deliverable_upload(request):
 
 
 
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from faculty.models import FacultyRequest, RequestType
-from base.forms import RequestTypeForm, FacultyRequestForm, AdminFacultyRequestForm
-
-
-
-@faculty_required
-def faculty_request_list_view(request):
-    requests = FacultyRequest.objects.filter(faculty=request.user.faculty_profile).order_by("-created_at")
-    return render(request, "faculty/faculty_request_list.html", {"requests": requests})
-
-
-@faculty_required
-def faculty_request_create_view(request):
-    if request.method == "POST":
-        form = FacultyRequestForm(request.POST)
-        if form.is_valid():
-            faculty_request = form.save(commit=False)
-            faculty_request.faculty = request.user.faculty_profile
-            faculty_request.save()
-            messages.success(request, "Your request has been submitted.")
-            return redirect("faculty:faculty_request_list")
-    else:
-        form = FacultyRequestForm()
-
-    return render(request, "faculty/faculty_request_form.html", {"form": form})
 
 
 

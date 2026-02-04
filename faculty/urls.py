@@ -27,8 +27,7 @@ urlpatterns = [
     path('faculty/deliverables/', views.faculty_deliverables_view, name='faculty_deliverables'),
     path('faculty/deliverables/upload/', views.faculty_deliverable_upload, name='faculty_deliverables_upload'),
 
-    path("faculty/requests/", views.faculty_request_list_view, name="faculty_request_list"),
-    path("faculty/requests/create/", views.faculty_request_create_view, name="faculty_request_create"),
+   
 
 
     path('faculty/settings/', views.faculty_settings_view, name='faculty_settings'),

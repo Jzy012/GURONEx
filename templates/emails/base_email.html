@@ -4,9 +4,13 @@
 <head>
   <meta charset="UTF-8">
   <title>{% block title %}{{ subject|default:"LINANG" }}{% endblock %}</title>
-  <style>
-    /* Tailwind-inspired, email-safe light theme for LINANG */
 
+  <!-- Hint for some clients that we support light & dark -->
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+
+  <style>
+    /* Base reset / layout */
     body {
       margin: 0;
       padding: 0;
@@ -30,8 +34,9 @@
       border: 1px solid #e5e7eb; /* gray-200 */
     }
 
+    /* HEADER – SOLID COLOR, NO GRADIENT */
     .header {
-      background: linear-gradient(135deg, #800505, #b91c1c); /* brand red gradient */
+      background-color: #800505; /* solid brand red */
       color: #f9fafb;
       padding: 18px 24px;
       border-bottom: 1px solid rgba(254, 242, 242, 0.3);
@@ -44,7 +49,7 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
 
-      display: inline-flex;         /* for logo + text */
+      display: inline-flex;
       align-items: center;
       gap: 8px;
     }
@@ -52,15 +57,18 @@
     .header-subtitle {
       margin: 4px 0 0;
       font-size: 12px;
-      opacity: 0.9;
+      opacity: 0.95; /* slightly stronger than 0.9 so it doesn't look washed out */
     }
 
+    /* BODY */
     .body {
       padding: 24px 24px 12px;
       font-size: 14px;
       line-height: 1.6;
+      color: #111827;
     }
 
+    /* FOOTER */
     .footer {
       padding: 14px 24px 20px;
       font-size: 12px;
@@ -113,7 +121,7 @@
       padding: 8px 11px;
       border-radius: 9999px;
       background-color: #800505; /* brand red pill */
-      color: #ffffff;            /* white text */
+      color: #ffffff;
       font-weight: 700;
       letter-spacing: 0.18em;
       font-size: 14px;
@@ -152,6 +160,82 @@
       color: #b91c1c;
       font-weight: 600;
     }
+
+    /* -----------------------------
+       BASIC DARK MODE SUPPORT
+       (Clients that ignore this will just see the light theme above)
+       ----------------------------- */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #020617; /* slate-950 */
+        color: #e5e7eb; /* gray-200 */
+      }
+
+      .container {
+        background-color: #020617; /* very dark */
+        border-color: #1f2937; /* gray-800 */
+        box-shadow: none;
+      }
+
+      .header {
+        background-color: #b91c1c; /* slightly brighter red for dark mode */
+        color: #f9fafb;
+        border-bottom-color: rgba(248, 250, 252, 0.16);
+      }
+
+      .header-subtitle {
+        opacity: 0.9;
+      }
+
+      .body {
+        color: #e5e7eb;
+      }
+
+      h1, h2, h3 {
+        color: #f9fafb;
+      }
+
+      .footer {
+        background-color: #020617;
+        color: #9ca3af; /* gray-400 */
+        border-top-color: #1f2937;
+      }
+
+      .muted {
+        color: #9ca3af;
+      }
+
+      .divider {
+        background-color: #1f2937;
+      }
+
+      .btn {
+        background-color: #dc2626; /* brighter red in dark mode */
+        box-shadow: none;
+      }
+
+      .btn-secondary {
+        background-color: #1f2937;
+        color: #e5e7eb !important;
+      }
+
+      .code {
+        background-color: #dc2626;
+        color: #fef2f2;
+      }
+
+      a {
+        color: #f97373; /* softer red link for dark background */
+      }
+
+      .badge {
+        background-color: #4b0000;
+        color: #fecaca;
+      }
+    }
+
+    /* Some Outlook / legacy clients ignore media queries – this is fine:
+       they will just use the light theme (solid header color still works). */
   </style>
 </head>
 <body>
@@ -159,13 +243,15 @@
     <div class="container">
       <div class="header">
         <p class="header-title">
-          <!-- Adjust the logo path to your actual static file -->
-          <!-- <img src="{% static 'images/pup-logo.png' %}" alt="LINANG logo"
-               style="height: 24px; width: 24px; border-radius: 6px; object-fit: cover;"> -->
+          <!-- Optional logo -->
+          <!--
+          <img src="{% static 'images/pup-logo.png' %}" alt="LINANG logo"
+               style="height: 24px; width: 24px; border-radius: 6px; object-fit: cover;">
+          -->
           <span>LINANG</span>
         </p>
         <p class="header-subtitle">
-          {% block header_subtitle %}Faculty & Document Management System{% endblock %}
+          {% block header_subtitle %}Faculty &amp; Document Management System{% endblock %}
         </p>
       </div>
 
