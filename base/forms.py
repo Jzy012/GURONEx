@@ -192,7 +192,6 @@ class FacultyCreationForm(forms.Form):
     )
 
     email = forms.EmailField()
-    department = forms.CharField(max_length=100)
     birth_date = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={"type": "date"})
