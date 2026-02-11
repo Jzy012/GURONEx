@@ -1,0 +1,27 @@
+{% extends "emails/base_email.html" %}
+{% block title %}Login Verification Code{% endblock %}
+{% block header_subtitle %}Login verification required{% endblock %}
+
+{% block content %}
+  <h2>Login verification</h2>
+
+  <p>
+    We received a request to log in to your LINANG account.
+  </p>
+
+  <p>
+    Use the following one-time code to verify your login:
+  </p>
+
+  <p style="margin: 20px 0;">
+    <span class="code">{{ otp }}</span>
+  </p>
+
+  <p>
+    This code will expire in {{ expiry_minutes }} minutes.
+  </p>
+
+  <p class="muted">
+    If you didn’t try to log in, you can safely ignore this email.
+  </p>
+{% endblock %}
