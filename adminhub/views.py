@@ -991,7 +991,7 @@ def create_deliverable_template_view(request):
         if form.is_valid():
             form.save()
             messages.success(request, "Deliverable template created.")
-            return redirect('adminhub:deliverable_templates')
+            return redirect('adminhub:deliverable_template')
     else:
         form = DeliverableTemplateForm()
 

@@ -748,49 +748,62 @@ from faculty.models import FacultyDocument, Deliverable, Semester, TeachingAssig
 
 
 from django import forms
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+import os
+
 from faculty.models import FacultyDocument, Deliverable, Semester, TeachingAssignment
-    
+
 
 class FacultyDeliverableUploadForm(forms.Form):
+    # Make fields NOT required at field-level so empty formset rows can be ignored cleanly.
     teaching_assignment = forms.ModelChoiceField(
         queryset=TeachingAssignment.objects.none(),
+        required=False,
         label="Teaching Assignment",
         empty_label="Select Subject / Section",
     )
     deliverable = forms.ModelChoiceField(
         queryset=Deliverable.objects.none(),
+        required=False,
         label="Deliverable",
         empty_label="Select Deliverable",
     )
-    file = forms.FileField(label="File")
+    file = forms.FileField(
+        required=False,
+        label="File",
+    )
 
     def __init__(self, *args, **kwargs):
         faculty = kwargs.pop("faculty", None)
-        index = kwargs.pop('index', None)
-        request = kwargs.pop('request', None)  # to read ?ta=&deliverable=
+        index = kwargs.pop("index", None)
+        request = kwargs.pop("request", None)  # to read ?ta=&deliverable=
         super().__init__(*args, **kwargs)
+
+        # Keep for clean() checks
+        self.faculty = faculty
 
         # Styling
         base_select_classes = (
-            'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm '
-            'focus:outline-none focus:ring-2 focus:ring-[#800505]'
+            "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505]"
         )
 
-        self.fields['teaching_assignment'].widget.attrs.update({
-            'class': base_select_classes,
+        self.fields["teaching_assignment"].widget.attrs.update({
+            "class": base_select_classes,
         })
-        self.fields['deliverable'].widget.attrs.update({
-            'class': base_select_classes,
+        self.fields["deliverable"].widget.attrs.update({
+            "class": base_select_classes,
         })
 
-        file_id = f'file_input_{index}' if index is not None else 'file_input__empty'
-        self.fields['file'].widget.attrs.update({
-            'class': 'hidden',
-            'id': file_id,
+        file_id = f"file_input_{index}" if index is not None else "file_input__empty"
+        self.fields["file"].widget.attrs.update({
+            "class": "hidden",
+            "id": file_id,
         })
 
         # IMPORTANT: custom label just for this form (no model change)
-        self.fields['teaching_assignment'].label_from_instance = (
+        self.fields["teaching_assignment"].label_from_instance = (
             lambda obj: f"{obj.subject_code} – {obj.subject_description} ({obj.year_section})"
         )
 
@@ -798,121 +811,146 @@ class FacultyDeliverableUploadForm(forms.Form):
         ta_prefill = None
         deliverable_prefill = None
         if request is not None and index == 0 and request.method == "GET":
-            ta_id = request.GET.get('ta')
-            deliverable_id = request.GET.get('deliverable')
+            ta_id = request.GET.get("ta")
+            deliverable_id = request.GET.get("deliverable")
             if ta_id and ta_id.isdigit():
                 ta_prefill = int(ta_id)
             if deliverable_id and deliverable_id.isdigit():
                 deliverable_prefill = int(deliverable_id)
 
-        self.fields['deliverable'].queryset = Deliverable.objects.none()  # default: empty
+        # Default: empty deliverables until TA is selected
+        self.fields["deliverable"].queryset = Deliverable.objects.none()
 
-        if faculty:
-            active_semester = Semester.objects.filter(is_active=True).first()
-            if active_semester:
-                # Teaching assignments for active semester
-                ta_qs = TeachingAssignment.objects.filter(
-                    faculty=faculty,
-                    semester=active_semester
-                ).order_by('subject_code', 'year_section')
-                self.fields['teaching_assignment'].queryset = ta_qs
+        if not faculty:
+            self.fields["teaching_assignment"].queryset = TeachingAssignment.objects.none()
+            return
 
-                # Determine current TA:
-                # 1) if bound (POST), use the bound value
-                # 2) else, if GET prefill provided, use that
+        active_semester = Semester.objects.filter(is_active=True).first()
+        self.active_semester = active_semester  # stash for clean()
+
+        if not active_semester:
+            self.fields["teaching_assignment"].queryset = TeachingAssignment.objects.none()
+            return
+
+        # Teaching assignments for active semester
+        ta_qs = TeachingAssignment.objects.filter(
+            faculty=faculty,
+            semester=active_semester
+        ).order_by("subject_code", "year_section")
+        self.fields["teaching_assignment"].queryset = ta_qs
+
+        # Determine current TA:
+        # 1) if bound (POST), use the bound value
+        # 2) else, if GET prefill provided, use that
+        ta_obj = None
+
+        ta_value = self.data.get(self.add_prefix("teaching_assignment")) if self.is_bound else None
+        if ta_value:
+            try:
+                ta_obj = ta_qs.get(pk=ta_value)
+            except (TeachingAssignment.DoesNotExist, ValueError, TypeError):
+                ta_obj = None
+        elif ta_prefill:
+            try:
+                ta_obj = ta_qs.get(pk=ta_prefill)
+                self.fields["teaching_assignment"].initial = ta_obj
+            except TeachingAssignment.DoesNotExist:
                 ta_obj = None
 
-                ta_value = self.data.get(self.add_prefix('teaching_assignment')) if self.is_bound else None
-                if ta_value:
-                    try:
-                        ta_obj = ta_qs.get(pk=ta_value)
-                    except (TeachingAssignment.DoesNotExist, ValueError):
-                        ta_obj = None
-                elif ta_prefill:
-                    try:
-                        ta_obj = ta_qs.get(pk=ta_prefill)
-                        self.fields['teaching_assignment'].initial = ta_obj
-                    except TeachingAssignment.DoesNotExist:
-                        ta_obj = None
+        # Only if we have a TA selected, populate deliverables
+        if ta_obj:
+            base_deliverables_qs = Deliverable.objects.filter(
+                semester=active_semester
+            ).select_related("document_category")
 
-                # Only if we have a TA selected, populate deliverables
-                if ta_obj:
-                    base_deliverables_qs = Deliverable.objects.filter(
-                        semester=active_semester
-                    ).select_related('document_category')
+            # Exclude deliverables already APPROVED for this faculty + TA + semester
+            approved_ids = FacultyDocument.objects.filter(
+                faculty=faculty,
+                semester=active_semester,
+                teaching_assignment=ta_obj,
+                status="Approved",
+            ).values_list("deliverable_id", flat=True)
 
-                    # Exclude deliverables already APPROVED for this TA
-                    approved_ids = FacultyDocument.objects.filter(
-                        faculty=faculty,
-                        semester=active_semester,
-                        teaching_assignment=ta_obj,
-                        status='Approved'
-                    ).values_list('deliverable_id', flat=True)
+            d_qs = base_deliverables_qs.exclude(id__in=approved_ids)
+            self.fields["deliverable"].queryset = d_qs.order_by("document_category__name")
 
-                    d_qs = base_deliverables_qs.exclude(id__in=approved_ids)
-                    self.fields['deliverable'].queryset = d_qs.order_by('document_category__name')
-
-                    # Pre-select deliverable if passed via GET and still valid
-                    if deliverable_prefill and not self.is_bound:
-                        try:
-                            d_obj = self.fields['deliverable'].queryset.get(pk=deliverable_prefill)
-                            self.fields['deliverable'].initial = d_obj
-                        except Deliverable.DoesNotExist:
-                            pass
-            else:
-                self.fields['teaching_assignment'].queryset = TeachingAssignment.objects.none()
-                # deliverables already set to none above
+            # Pre-select deliverable if passed via GET and still valid
+            if deliverable_prefill and not self.is_bound:
+                try:
+                    d_obj = self.fields["deliverable"].queryset.get(pk=deliverable_prefill)
+                    self.fields["deliverable"].initial = d_obj
+                except Deliverable.DoesNotExist:
+                    pass
 
     def clean(self):
         """
         Enforce:
           - A completely empty row is allowed and ignored.
           - If any field in the row is filled, all three are required.
-          - Block upload if there is already an APPROVED document.
+          - Block upload if there is already an APPROVED document (scoped to faculty + active semester).
+          - Validate file extension against deliverable.document_category.allowed_file_types.
         """
         cleaned = super().clean()
         teaching_assignment = cleaned.get("teaching_assignment")
         deliverable = cleaned.get("deliverable")
         file = cleaned.get("file")
 
-        # Check if the row is completely empty
         row_is_empty = not teaching_assignment and not deliverable and not file
-
-        # If the row is fully empty, we treat it as optional and don't raise errors here
         if row_is_empty:
-            # Remove any field errors that might have been added by default 'required' validation
-            for field in ["teaching_assignment", "deliverable", "file"]:
-                if field in self._errors:
-                    del self._errors[field]
             return cleaned
 
-        # If we reach here, it means at least one of the fields has a value,
-        # so we require ALL of them to be present.
-        errors = {}
+        # Require all if any is provided
         if not teaching_assignment:
-            errors["teaching_assignment"] = "Please select a teaching assignment."
+            self.add_error("teaching_assignment", "Please select a teaching assignment.")
         if not deliverable:
-            errors["deliverable"] = "Please select a deliverable."
+            self.add_error("deliverable", "Please select a deliverable.")
         if not file:
-            errors["file"] = "Please choose a file to upload."
+            self.add_error("file", "Please choose a file to upload.")
 
-        if errors:
-            # Raise field-specific errors
-            raise ValidationError(errors)
+        # If required checks already failed, stop early
+        if self.errors:
+            raise ValidationError("Please correct the errors below.")
 
-        # Existing approval check (keep your logic)
-        if deliverable and teaching_assignment:
-            exists_approved = FacultyDocument.objects.filter(
-                deliverable=deliverable,
-                teaching_assignment=teaching_assignment,
-                status='Approved'
-            ).exists()
+        # Safety: ensure we can scope checks properly
+        active_semester = getattr(self, "active_semester", None)
+        if not active_semester:
+            raise ValidationError("No active semester is set. Please contact the administrator.")
+        if not self.faculty:
+            raise ValidationError("Only faculty can upload deliverables.")
 
-            if exists_approved:
-                raise ValidationError(
-                    "This deliverable is already approved for this teaching assignment. "
-                    "You can no longer upload a new version."
-                )
+        # Block if already approved for this faculty + semester + TA + deliverable
+        exists_approved = FacultyDocument.objects.filter(
+            faculty=self.faculty,
+            semester=active_semester,
+            teaching_assignment=teaching_assignment,
+            deliverable=deliverable,
+            status="Approved",
+        ).exists()
+        if exists_approved:
+            raise ValidationError(
+                "This deliverable is already approved for this teaching assignment. "
+                "You can no longer upload a new version."
+            )
+
+        # File type validation based on deliverable's document category
+        category = deliverable.document_category  # non-null per your model
+
+        ext = os.path.splitext(file.name)[1].lower().lstrip(".")  # e.g. ".PDF" -> "pdf"
+        allowed = set(category.allowed_file_types.values_list("extension", flat=True))
+        allowed = {e.strip().lower().lstrip(".") for e in allowed}
+
+        if not allowed:
+            self.add_error("file", f"No allowed file types are configured for {category.name}.")
+            raise ValidationError("Please correct the errors below.")
+
+        if ext not in allowed:
+            self.add_error(
+                "file",
+                f"File type '.{ext}' is not allowed for {category.name}. "
+                f"Allowed: {', '.join(sorted(allowed))}."
+            )
+            raise ValidationError("Please correct the errors below.")
+
 
         return cleaned
 
