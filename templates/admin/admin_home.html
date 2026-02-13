@@ -3,17 +3,28 @@
 <div class="space-y-8">
 
   <!-- Page Title + Google Drive Status -->
-<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-  <h2 class="text-3xl font-bold text-gray-900">Welcome, {{ name }}</h2>
-  <a href="{% url 'storage_status' %}" class="text-sm flex items-center gap-2 px-3 py-2 rounded-full shadow-sm border border-gray-200 bg-white transition hover:shadow-md group">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-blue-700 group-hover:text-blue-900 transition">
-      <path stroke-linecap="round" stroke-linejoin="round"
-        d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
-    </svg>
-    <span class="flex flex-col items-start font-semibold px-2 py-0.5">
-      <span>
-        Google Drive Status:
-        <span class="font-semibold px-2 py-0.5 rounded-full
+   <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 truncate">
+        Welcome, {{ name }}
+      </h2>
+      <p class="mt-1 text-sm text-gray-500">
+        Here's a quick overview of your system activity.
+      </p>
+    </div>
+
+    <a href="{% url 'storage_status' %}"
+       class="w-full sm:w-auto text-xs flex items-center gap-2 px-3 py-2 rounded-lg shadow-sm border border-gray-200 bg-white transition hover:shadow-md group">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+           stroke="currentColor"
+           class="w-4 h-4 shrink-0 text-blue-700 group-hover:text-blue-900 transition">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+      </svg>
+
+      <span class="min-w-0 flex items-center gap-1.5 flex-wrap">
+        <span class="text-gray-700 font-medium whitespace-nowrap">Google Drive:</span>
+        <span class="font-semibold px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap
           {% if status.label == 'Connected' %}
             bg-green-100 text-green-800
           {% elif status.label == 'Expired' %}
@@ -24,17 +35,14 @@
           {{ status.icon }} {{ status.label }}
         </span>
       </span>
-      <span class="text-xs font-normal text-gray-600 mt-0.5">
-        {{ status.message }}
-      </span>
-    </span>
-  </a>
-</div>
+    </a>
+  </div>
 
   <!-- ================= Stats Cards ================= -->
-  <div class="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2 lg:grid-cols-5">
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
     <!-- Total Applicants -->
-    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+    <div class="flex justify-between items-center p-5 sm:p-6 bg-white shadow rounded-xl">
       <div>
         <h2 class="text-sm text-gray-500">Total Applicants</h2>
         <p class="text-2xl font-semibold">{{ total_applicants }}</p>
@@ -45,8 +53,9 @@
         </svg>
       </div>
     </div>
+
     <!-- Total Faculty -->
-    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+    <div class="flex justify-between items-center p-5 sm:p-6 bg-white shadow rounded-xl">
       <div>
         <h2 class="text-sm text-gray-500">Total Faculty</h2>
         <p class="text-2xl font-semibold">{{ total_faculty }}</p>
@@ -59,8 +68,9 @@
         </svg>
       </div>
     </div>
+
     <!-- Pending Documents -->
-    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+    <div class="flex justify-between items-center p-5 sm:p-6 bg-white shadow rounded-xl">
       <div>
         <h2 class="text-sm text-gray-500">Pending Documents</h2>
         <p class="text-2xl font-semibold">{{ total_pending_docs }}</p>
@@ -73,20 +83,9 @@
         </svg>
       </div>
     </div>
-    <!-- Requests -->
-    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
-      <div>
-        <h2 class="text-sm text-gray-500">Requests</h2>
-        <p class="text-2xl font-semibold">{{ total_requests }}</p>
-      </div>
-      <div class="p-3 bg-purple-100 rounded-xl">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-purple-500">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" />
-        </svg>
-      </div>
-    </div>
+
     <!-- Storage Used -->
-    <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
+    <div class="flex justify-between items-center p-5 sm:p-6 bg-white shadow rounded-xl">
       <div>
         <h2 class="text-sm text-gray-500">Storage Used</h2>
         <p class="text-2xl font-semibold">{{ total_storage }}</p>
@@ -99,201 +98,246 @@
         </svg>
       </div>
     </div>
+
   </div>
 
   <!-- ================= Quick Access & Actions Grid ================= -->
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5 ">
-    <!-- Quick Access (3 columns on desktop) -->
+  <!-- Stack on mobile/tablet; 5-col only on lg+ -->
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-5">
+
+    <!-- Quick Access -->
     <div class="lg:col-span-3 lg:row-span-2">
-      <div class="bg-white shadow rounded-lg p-6 h-full flex flex-col">
+      <div class="bg-white shadow rounded-xl p-5 sm:p-6 h-full flex flex-col">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">Quick Access Modules</h3>
-        <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+
           <!-- Documents -->
-          <a href="{% url 'adminhub:documents' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-1">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-yellow-500 mb-2">
+          <a href="{% url 'adminhub:documents' %}"
+             class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-xl shadow-sm transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                 stroke="currentColor" class="w-6 h-6 text-yellow-500 mb-2">
               <path stroke-linecap="round" stroke-linejoin="round"
-                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 
-                  1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25
-                  m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 
-                  1.125v17.25c0 .621.504 1.125 1.125 
-                  1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 
-                  9 0 0 0-9-9Z" />
+                    d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25 m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
             </svg>
             <span class="text-sm font-medium text-gray-700">Documents</span>
             <span class="text-xs text-gray-500 mt-1 text-center">Browse, upload, and manage files and folders.</span>
           </a>
+
           <!-- Faculty -->
-          <a href="{% url 'adminhub:faculty_list' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-1">
+          <a href="{% url 'adminhub:faculty_list' %}"
+             class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-xl shadow-sm transition">
             <svg class="w-6 h-6 text-blue-500 mb-2" fill="none" stroke="currentColor" stroke-width="2"
-              viewBox="0 0 24 24">
+                 viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round"
-                d="M5.121 17.804A3 3 0 017 17h10a3 3 0 011.879.804M15 
-                  10a3 3 0 11-6 0 3 3 0 016 0z" />
+                    d="M5.121 17.804A3 3 0 017 17h10a3 3 0 011.879.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             <span class="text-sm font-medium text-gray-700">Faculty</span>
             <span class="text-xs text-gray-500 mt-1 text-center">View and manage faculty profiles and info.</span>
           </a>
+
           <!-- Attendance Logs -->
-          <a href="{% url 'adminhub:attendance_logs' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-1">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-green-600 mb-2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
+          <a href="{% url 'adminhub:attendance_logs' %}"
+             class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-xl shadow-sm transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                 stroke="currentColor" class="w-6 h-6 text-green-600 mb-2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Z" />
             </svg>
             <span class="text-sm font-medium text-gray-700">Attendance Logs</span>
             <span class="text-xs text-gray-500 mt-1 text-center">Track and review faculty attendance records.</span>
           </a>
+
           <!-- Announcements -->
-          <a href="{% url 'adminhub:announcements' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-1">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-red-500 mb-2">
+          <a href="{% url 'adminhub:announcements' %}"
+             class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-xl shadow-sm transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                 stroke="currentColor" class="w-6 h-6 text-red-500 mb-2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46" />
             </svg>
             <span class="text-sm font-medium text-gray-700">Announcements</span>
             <span class="text-xs text-gray-500 mt-1 text-center">Post and manage campus-wide announcements.</span>
           </a>
+
           <!-- Deliverables -->
-          <a href="{% url 'adminhub:deliverables' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-1">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none"
-                viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
-                class="w-6 h-6 text-purple-500 mb-2">
+          <a href="{% url 'adminhub:deliverables' %}"
+             class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-xl shadow-sm transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                 stroke="currentColor" class="w-6 h-6 text-purple-500 mb-2">
               <path stroke-linecap="round" stroke-linejoin="round"
                     d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
             </svg>
             <span class="text-sm font-medium text-gray-700">Deliverables</span>
             <span class="text-xs text-gray-500 mt-1 text-center">Assign and review required submissions.</span>
           </a>
-          <!-- Requests -->
-          <a href="{% url 'adminhub:request_list' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-1">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-purple-500 mb-2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" />
-            </svg>
-            <span class="text-sm font-medium text-gray-700">Requests</span>
-            <span class="text-xs text-gray-500 mt-1 text-center">Process and monitor user requests.</span>
-          </a>
+
           <!-- Applicants -->
-          <a href="{% url 'adminhub:applicant_list' %}" class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-lg shadow-sm transition col-span-2 md:col-span-3">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-red-500 mb-2">
+          <a href="{% url 'adminhub:applicant_list' %}"
+             class="flex flex-col items-center p-4 bg-gray-50 hover:bg-gray-100 rounded-xl shadow-sm transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                stroke="currentColor" class="w-6 h-6 text-red-500 mb-2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />
             </svg>
             <span class="text-sm font-medium text-gray-700">Applicants</span>
             <span class="text-xs text-gray-500 mt-1 text-center">Browse and manage applicant records.</span>
           </a>
+
         </div>
       </div>
     </div>
-    <!-- Quick Actions (2 columns on desktop) -->
+
+    <!-- Quick Actions -->
     <div class="lg:col-span-2 lg:col-start-4">
-      <div class="bg-white shadow rounded-lg p-6 h-full flex flex-col">
+      <div class="bg-white shadow rounded-xl p-5 sm:p-6 h-full flex flex-col">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
-        <div class="grid grid-cols-2 gap-4">
-          <a href="{% url 'adminhub:create_announcement' %}" class="flex items-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 text-white">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46" />
-            </svg>
+
+        <!-- 1 col on mobile, 2 col on sm+ -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+
+          <a href="{% url 'adminhub:create_announcement' %}"
+             class="flex items-center justify-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
             New Announcement
           </a>
-          <a href="{% url 'adminhub:assign_deliverables' %}" class="flex items-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none"
-                viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
-                class="w-5 h-5 mr-2 text-white">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
-            </svg>
+
+          <a href="{% url 'adminhub:assign_deliverables' %}"
+             class="flex items-center justify-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
             Assign Deliverables
           </a>
-          <a href="{% url 'adminhub:account_creation' %}" class="flex items-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 text-white">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />
-            </svg>
+
+          <a href="{% url 'adminhub:account_creation' %}"
+             class="flex items-center justify-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
             Create Account for Applicant
           </a>
-          <a href="{% url 'adminhub:pair_rfid' %}" class="flex items-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
-            <svg class="w-5 h-5 mr-2 text-white" fill="none" stroke="currentColor" stroke-width="2"
-              viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M17 16l4-4m0 0l-4-4m4 4H7" />
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M3 12a9 9 0 0118 0" />
-            </svg>
+
+          <a href="{% url 'adminhub:pair_rfid' %}"
+             class="flex items-center justify-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
             Pair RFID
           </a>
+
         </div>
       </div>
     </div>
+
     <!-- Recent Announcements -->
     <div class="lg:col-span-2 lg:col-start-4 lg:row-start-2">
-      <div class="bg-white shadow rounded-lg p-6 h-full flex flex-col">
-        <div class="flex items-center justify-between mb-4">
+      <div class="bg-white shadow rounded-xl p-5 sm:p-6 h-full flex flex-col">
+        <div class="flex items-center justify-between mb-4 gap-3">
           <h3 class="text-lg font-semibold text-gray-800">Recent Announcements</h3>
-          <a href="{% url 'adminhub:announcements' %}" class="text-[#800505] text-sm font-semibold hover:underline">View All</a>
+          <a href="{% url 'adminhub:announcements' %}"
+             class="text-[#800505] text-sm font-semibold hover:underline whitespace-nowrap">View All</a>
         </div>
+
         {% if recent_announcements %}
           <ul class="divide-y">
             {% for a in recent_announcements %}
-              <li class="py-2 flex items-center gap-2">
+              <li class="py-3 flex items-start gap-2">
                 <button type="button"
-                        class="text-[#800505] font-semibold hover:underline text-left"
+                        class="text-[#800505] font-semibold hover:underline text-left min-w-0 flex-1 break-words"
                         onclick="openAnnouncementModal('{{ a.uuid }}')">
                   {{ a.title }}
-                </button> 
-                <span class="text-xs text-gray-500"> - {{ a.created_at|date:"M d, Y H:i" }}</span>
+                </button>
+
+                <span class="text-xs text-gray-500 whitespace-nowrap mt-1">
+                  {{ a.created_at|date:"M d, Y H:i" }}
+                </span>
+
                 {% if a.is_important %}
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                    stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-red-700 bg-red-100 rounded-full p-0.5 border border-red-300">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                          d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                  </svg>
+                  <span class="mt-1 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                         stroke="currentColor"
+                         class="w-4 h-4 text-red-700 bg-red-100 rounded-full p-0.5 border border-red-300">
+                      <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                    </svg>
+                  </span>
                 {% endif %}
               </li>
             {% endfor %}
           </ul>
+
+          <!-- Responsive Modals -->
           {% for a in recent_announcements %}
-          <div id="announcement-modal-{{ a.uuid }}" class="fixed inset-0 z-50 hidden bg-black bg-opacity-40 flex items-center justify-center">
-            <div class="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
-              <button type="button" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700" onclick="closeAnnouncementModal('{{ a.uuid }}')">&times;</button>
-              <div class="mb-2 flex items-center gap-2">
-                <h3 class="text-xl font-bold text-[#800505]">{{ a.title }}</h3>
-                {% if a.is_important %}
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                    stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-red-700 bg-red-100 rounded-full p-0.5 border border-red-300">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                          d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                  </svg>
-                {% endif %}
-              </div>
-              <div class="mb-4 text-gray-800 whitespace-pre-line">{{ a.content|linebreaksbr }}</div>
-              {% if a.attachment_link %}
-                <div class="mb-4">
-                  <a href="{{ a.attachment_link }}" target="_blank" rel="noopener noreferrer"
-                    class="inline-flex items-center gap-1 text-xs text-[#800505] hover:underline font-semibold break-all">
-                    <span>{{ a.attachment_link }}</span>
-                  </a>
+            <div id="announcement-modal-{{ a.uuid }}"
+                 class="fixed inset-0 z-50 hidden">
+              <!-- overlay -->
+              <div class="absolute inset-0 bg-black/40" onclick="closeAnnouncementModal('{{ a.uuid }}')"></div>
+
+              <!-- modal panel -->
+              <div class="relative w-full h-full flex items-center justify-center p-4 sm:p-6">
+                <div class="bg-white rounded-2xl shadow-lg w-full max-w-lg max-h-[85vh] overflow-y-auto p-5 sm:p-6 relative">
+                  <button type="button"
+                          class="absolute top-3 right-3 w-9 h-9 inline-flex items-center justify-center rounded-full bg-gray-50 hover:bg-gray-100 text-gray-600"
+                          onclick="closeAnnouncementModal('{{ a.uuid }}')"
+                          aria-label="Close">
+                    &times;
+                  </button>
+
+                  <div class="mb-3 flex items-start gap-2 pr-10">
+                    <h3 class="text-lg sm:text-xl font-bold text-[#800505] break-words">
+                      {{ a.title }}
+                    </h3>
+
+                    {% if a.is_important %}
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                           stroke="currentColor"
+                           class="w-6 h-6 shrink-0 text-red-700 bg-red-100 rounded-full p-0.5 border border-red-300 mt-0.5">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                      </svg>
+                    {% endif %}
+                  </div>
+
+                  <div class="mb-4 text-sm text-gray-800 whitespace-pre-line break-words">
+                    {{ a.content|linebreaksbr }}
+                  </div>
+
+                  {% if a.attachment_link %}
+                    <div class="mb-4">
+                      <a href="{{ a.attachment_link }}" target="_blank" rel="noopener noreferrer"
+                         class="inline-flex items-center gap-1 text-xs text-[#800505] hover:underline font-semibold break-all">
+                        <span>{{ a.attachment_link }}</span>
+                      </a>
+                    </div>
+                  {% endif %}
+
+                  <div class="text-xs text-gray-600 mb-4">
+                    {{ a.created_at|date:"M d, Y H:i" }}
+                    {% if a.creator %}
+                      &mdash; {{ a.creator.get_full_name|default:a.creator.email|default:"[Deleted]" }}
+                    {% endif %}
+                  </div>
+
+                  <div class="flex justify-end">
+                    <button type="button"
+                            class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                            onclick="closeAnnouncementModal('{{ a.uuid }}')">
+                      Close
+                    </button>
+                  </div>
                 </div>
-              {% endif %}
-                <div class="text-xs text-gray-600 mb-3">
-                {{ a.created_at|date:"M d, Y H:i" }}
-                {% if a.creator %}
-                  &mdash; {{ a.creator.get_full_name|default:a.creator.email|default:"[Deleted]" }}
-                {% endif %}
-              </div>
-              <div class="text-right">
-                <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" onclick="closeAnnouncementModal('{{ a.uuid }}')">Close</button>
               </div>
             </div>
-          </div>
           {% endfor %}
+
         {% else %}
           <span class="text-gray-400 text-sm">No recent announcements.</span>
         {% endif %}
       </div>
     </div>
+
   </div>
 </div>
 
 <script>
   function openAnnouncementModal(uuid) {
-    document.getElementById('announcement-modal-' + uuid).classList.remove('hidden');
+    const el = document.getElementById('announcement-modal-' + uuid);
+    if (!el) return;
+    el.classList.remove('hidden');
   }
+
   function closeAnnouncementModal(uuid) {
-    document.getElementById('announcement-modal-' + uuid).classList.add('hidden');
+    const el = document.getElementById('announcement-modal-' + uuid);
+    if (!el) return;
+    el.classList.add('hidden');
   }
 </script>
 {% endblock %}

@@ -48,9 +48,7 @@ urlpatterns = [
     path('admin/faculty/<uuid:faculty_uuid>/deliverables/',views.faculty_deliverables,name='faculty_deliverables',),
 
 
-    path("admin/requests/", views.admin_request_list_view, name="request_list"),
-    path("admin/requests/create/",views.admin_request_create_view,name="request_create"),
-    path("admin/requests/<uuid:uuid>/action/", views.admin_request_action_view, name="request_action"),
+ 
 
     path('admin/applicants/', views.applicant_list_view, name='applicant_list'),
     path('admin/applicants/<uuid:uuid>/', views.applicant_detail_view, name='applicant_detail'),
@@ -63,10 +61,7 @@ urlpatterns = [
     path('admin/applicants/required-documents/<int:pk>/edit/',views.applicant_required_document_create_or_edit_view,name='applicant_required_document_edit',),
     path('admin/applicants/required-documents/<int:pk>/delete/',views.applicant_required_document_delete_view,name='applicant_required_document_delete',),
 
-    path("admin/request-types/",views.request_type_list_view,name="request_type_list"),
-    path("admin/request-types/create/",views.request_type_create_view,name="request_type_create"),
-    path("admin/request-types/<int:pk>/edit/",views.request_type_edit_view,name="request_type_edit"),
-    path("admin/request-types/<int:pk>/delete/",views.request_type_delete_view,name="request_type_delete"),
+  
     
 
 
