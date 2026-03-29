@@ -1,36 +1,116 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from base.decorators import admin_required, faculty_required
-from base.forms import TwoFactorToggleForm
+# Standard Library Imports
+import calendar
+import datetime
+import io
+import json
+import logging
+import mimetypes
+import os
+import re
+from datetime import date, timedelta
+from io import BytesIO
+from pathlib import Path
+
+# Django Imports
+from django.conf import settings
 from django.contrib import messages
-from base.utils.admin_data import get_admin_data, get_all_faculty_data
-
-
-
-from django.shortcuts import render
-from django.db.models import Q
-from faculty.models import FacultyDocument, DocumentCategory
-from faculty.models import FacultyProfile
-
-# Create Faculty View
-from django.contrib import messages
-from base.models import Account
-from base.forms import FacultyCreationForm
-from services.google_drive_service import CentralGoogleDriveService
-from django.db import transaction
 from django.contrib.auth.decorators import login_required
-
+from django.core.cache import cache
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.mail import send_mail
 from django.core.paginator import Paginator
-
-
-from django.shortcuts import render
-from base.decorators import admin_required
-from base.utils.admin_data import get_admin_data
-from applicant.models import Applicant
-from faculty.models import FacultyProfile, FacultyDocument, FacultyRequest
-from adminhub.models import Announcement
-from django.db.models import Sum
-from base.models import GoogleStorageAccount  # adjust import if needed
+from django.db import transaction
+from django.db.models import Count, Prefetch, Q, Sum
+from django.forms import modelformset_factory
+from django.http import (
+    Http404,
+    HttpResponse,
+    HttpResponseBadRequest,
+    JsonResponse,
+    StreamingHttpResponse,
+)
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.crypto import get_random_string
+from django.utils.functional import cached_property
+from django.utils.timezone import localtime
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext as gettext_func
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+# Third-party Imports (ReportLab)
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.pdfgen import canvas
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
+
+# Third-party Imports (Google API)
+from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
+
+# Local Imports
+from adminhub.models import Announcement, DocumentTemplate, PUPSite, DocumentCategory, CreatedAccountLog
+from applicant.models import Applicant, ApplicantDocument, ApplicantRequiredDocument
+from base.decorators import admin_required, faculty_required
+from base.forms import (
+    AnnouncementForm,
+    AcademicYearForm,
+    ApplicantRequiredDocumentForm,
+    AssignDeliverablesForm,
+    BackgroundUploadForm,
+    BaseSemesterFormSet,
+    DeliverableTemplateForm,
+    DocumentCategoryForm,
+    DocumentTemplateForm,
+    DTRLogEditForm,
+    EmploymentStatusForm,
+    FacultyCreationForm,
+    FacultyEditForm,
+    ManualAttendanceLogForm,
+    SemesterForm,
+    TeachingAssignmentBulkUploadForm,
+    TeachingAssignmentForm,
+    TwoFactorToggleForm,
+    PUPSiteForm
+)
+from base.models import Account, GoogleStorageAccount, LandingAppearance
+from base.utils.admin_data import get_admin_data, get_all_faculty_data
+from base.utils.dtr_workinghours import calculate_total_working_hours
+from base.utils.email import (
+    send_applicant_status_email,
+    send_applicant_status_rescheduled_email,
+    send_html_email,
+)
+from base.utils.teaching_assignment import (
+    get_all_faculty_list,
+    get_all_semesters,
+    read_file_to_rows,
+)
+from faculty.models import (
+    AcademicYear,
+    Deliverable,
+    DeliverableTemplate,
+    EmploymentStatus,
+    FacultyDocument,
+    FacultyProfile,
+    FacultyRequest,
+    FileType,
+    Semester,
+    TeachingAssignment,
+)
+from rfid.models import AttendanceLog, RFIDTag
+from rfid.views import format_log
+from services.dtr_service import DTRCalculator
+from services.google_drive_service import CentralGoogleDriveService
+
+# Logger Setup
+logger = logging.getLogger(__name__)
+
+
+
 
 @admin_required
 def home(request):
@@ -91,10 +171,7 @@ def home(request):
 
     return render(request, 'admin/admin_home.html', context)
 
-    
 
-from django.db.models import Count, Sum, Q
-from django.utils.functional import cached_property
 
 @admin_required
 def documents(request):
@@ -185,10 +262,6 @@ def documents(request):
     return render(request, 'admin/admin_documents_storage.html', context)
 
 
-from django.views.decorators.http import require_POST
-from django.http import JsonResponse, HttpResponseBadRequest
-from django.views.decorators.csrf import csrf_exempt   # Use csrf_protect in production
-
 @admin_required
 @require_POST
 def change_document_status(request, uid):
@@ -214,15 +287,6 @@ def change_document_status(request, uid):
         "admin_remarks": doc.admin_remarks,
     })
 
-from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponse, StreamingHttpResponse, Http404
-from django.urls import reverse
-import mimetypes
-import io
-
-from faculty.models import FacultyDocument
-from services.google_drive_service import CentralGoogleDriveService
-from googleapiclient.http import MediaIoBaseDownload
 
 def view_document(request, uid):
     """
@@ -321,11 +385,6 @@ def download_document(request, uid):
     return _finalize_response(response)
 
 
-from django.shortcuts import render
-from django.db.models import Count, Q
-from django.core.paginator import Paginator
-from faculty.models import FacultyProfile, EmploymentStatus, FacultyDocument
-
 @admin_required
 def faculty_list_view(request):
     search = request.GET.get('search', '')
@@ -394,15 +453,6 @@ def admin_2fa(request):
 
 
 
-from datetime import timedelta
-from django.utils import timezone
-from django.db.models import Prefetch
-
-from faculty.models import FacultyProfile, FacultyDocument
-from rfid.models import AttendanceLog
-from base.forms import FacultyEditForm  # adjust import if needed
-
-
 @admin_required
 def faculty_detail_view(request, faculty_uuid):
     faculty = get_object_or_404(
@@ -435,17 +485,6 @@ def faculty_detail_view(request, faculty_uuid):
 
     return render(request, 'admin/admin_faculty_detail.html', context)
 
-
-
-from django.http import HttpResponse, StreamingHttpResponse, Http404, JsonResponse
-from django.views.decorators.http import require_POST
-from django.db import transaction
-import mimetypes
-import io
-
-from faculty.models import FacultyDocument
-from services.google_drive_service import CentralGoogleDriveService
-from googleapiclient.http import MediaIoBaseDownload
 
 
 def _stream_drive_media(drive_service: CentralGoogleDriveService, file_id: str, chunk_size: int = 1024 * 256):
@@ -552,29 +591,6 @@ def change_faculty_document_status(request, pk):
 
 
 
-from base.models import Account
-from faculty.models import FacultyProfile
-from base.forms import FacultyCreationForm  # ensure correct import
-from services.google_drive_service import CentralGoogleDriveService
-
-
-import logging
-from django.db import transaction
-from django.contrib import messages
-from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse
-
-from base.models import Account
-from faculty.models import FacultyProfile
-from base.forms import FacultyCreationForm
-from services.google_drive_service import CentralGoogleDriveService
-
-# Adjust this import path to your actual util module
-from base.utils.email import send_html_email  # e.g. from base.utils.email import send_html_email
-
-logger = logging.getLogger(__name__)
-
-
 @admin_required
 def create_faculty_view(request):
     if request.method == "POST":
@@ -658,9 +674,6 @@ def create_faculty_view(request):
 
 
 
-from base.forms import FacultyEditForm
-
-
 @admin_required
 def edit_faculty_view(request, faculty_uuid):
     faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
@@ -686,13 +699,9 @@ def edit_faculty_view(request, faculty_uuid):
     
     return render(request, 'admin/admin_faculty_edit.html', {'form': form, 'faculty': faculty})
 
-#Announcements View
 
 
 
-from datetime import date, datetime
-from django.shortcuts import render
-from django.contrib import messages
 
 @admin_required
 def announcements_view(request):
@@ -706,13 +715,6 @@ def announcements_view(request):
 
 
 
-
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from base.forms import AnnouncementForm
-from .models import Announcement
-from base.models import Account  # adjust as needed
 
 @admin_required
 def create_announcement_view(request):
@@ -742,8 +744,6 @@ def create_announcement_view(request):
 
 
 
-from django.shortcuts import get_object_or_404
-
 @admin_required
 def edit_announcement_view(request, uuid):
     announcement = get_object_or_404(Announcement, uuid=uuid)
@@ -767,29 +767,18 @@ def edit_announcement_view(request, uuid):
 
 
 
-from django.shortcuts import get_object_or_404, redirect
-
+@require_POST
 @admin_required
 def delete_announcement_view(request, uuid):
     announcement = get_object_or_404(Announcement, uuid=uuid)
+    title = announcement.title
     announcement.delete()
-    messages.success(request, f"'{announcement.title}' has been permanently deleted.")
+    messages.success(request, f"'{title}' has been permanently deleted.")
     return redirect('adminhub:announcements')
 
 
 
 
-
-
-# views.py
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from base.forms import AssignDeliverablesForm
-from faculty.models import Deliverable, DeliverableTemplate
-from django.utils import timezone
-from django.db.models import Q
-from django.core.paginator import Paginator
-from faculty.models import FacultyProfile, FacultyDocument, Deliverable, Semester, TeachingAssignment
 
 @admin_required
 def deliverables_view(request):
@@ -973,11 +962,6 @@ def assign_deliverables_view(request):
 
 
 
-from django.contrib import messages
-from django.shortcuts import render, redirect
-from base.forms import DeliverableTemplateForm
-
-
 @admin_required
 def deliverable_templates_view(request):
     templates = DeliverableTemplate.objects.all()
@@ -998,12 +982,37 @@ def create_deliverable_template_view(request):
     return render(request, 'admin/admin_create_deliverable_template.html', {'form': form})
 
 
+@admin_required
+def edit_deliverable_template_view(request, pk):
+    template = get_object_or_404(DeliverableTemplate, pk=pk)
+
+    if request.method == "POST":
+        form = DeliverableTemplateForm(request.POST, instance=template)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Deliverable template updated successfully.")
+            return redirect("adminhub:deliverable_template")
+        messages.error(request, "There was an error in your submission.")
+    else:
+        form = DeliverableTemplateForm(instance=template)
+
+    # Reuse the create template
+    return render(request, "admin/admin_create_deliverable_template.html", {
+        "form": form,
+        "template": template,
+        "page_title": "Edit Deliverable Template",
+        "submit_label": "Update Template",
+    })
 
 
-# in your admin views module
-from django.shortcuts import render, get_object_or_404
-from django.utils import timezone
-from faculty.models import FacultyProfile,TeachingAssignment,Deliverable,FacultyDocument,Semester
+@require_POST
+@admin_required
+def delete_deliverable_template_view(request, pk):
+    template = get_object_or_404(DeliverableTemplate, pk=pk)
+    name = template.name
+    template.delete()
+    messages.success(request, f"'{name}' has been permanently deleted.")
+    return redirect("adminhub:deliverable_template")
 
 
 @admin_required
@@ -1084,11 +1093,6 @@ def faculty_deliverables(request, faculty_uuid):
 
 
 
-# views.py
-from django.forms import modelformset_factory
-from base.forms import AcademicYearForm, SemesterForm, BaseSemesterFormSet
-from faculty.models import AcademicYear, Semester
-
 @admin_required
 def academic_years_view(request):
     academic_years = AcademicYear.objects.all()
@@ -1150,13 +1154,6 @@ def create_academic_year_view(request):
 
 
 
-from django.shortcuts import render
-from django.core.paginator import Paginator
-from applicant.models import Applicant
-
-from django.db.models import Count, Q
-
-
 @admin_required
 def applicant_list_view(request):
     search = request.GET.get('search', '')
@@ -1214,12 +1211,6 @@ def applicant_list_view(request):
 
 
 
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib import messages
-from applicant.models import Applicant, ApplicantDocument
-from django.db import transaction
-from base.utils.email import send_applicant_status_email
-
 # Statuses in order for the stepper visualization
 STEPPER_STATUSES = [
     ('pending', "Pending"),
@@ -1230,59 +1221,160 @@ STEPPER_STATUSES = [
     ('failed', "Failed"),
 ]
 
+STEPPER_DATE_FIELDS = {
+    'demo_scheduled': 'demo_scheduled_date',
+    'for_interview': 'for_interview_date',
+    'psych_test': 'psych_test_date',
+    'hired': 'hired_date',
+    'failed': 'failed_date',
+}
+
+REQUIRED_STATUS_DATES = {
+    'demo_scheduled',
+    'for_interview',
+    'psych_test',
+}
+
+
+def _get_next_status(current_status: str):
+    values = [value for value, _label in STEPPER_STATUSES]
+    try:
+        idx = values.index(current_status)
+    except ValueError:
+        return None
+    if idx + 1 >= len(values):
+        return None
+    return values[idx + 1]
+
+
+def _get_status_date(applicant: Applicant, status_value: str):
+    field_name = STEPPER_DATE_FIELDS.get(status_value)
+    if not field_name:
+        return None
+    return getattr(applicant, field_name, None)
+
+
+def _parse_input_date(date_raw: str):
+    if not date_raw:
+        return None
+    return datetime.datetime.strptime(date_raw, "%Y-%m-%d").date()
+
 @admin_required
 def applicant_detail_view(request, uuid):
     applicant = get_object_or_404(Applicant, uuid=uuid)
     documents = ApplicantDocument.objects.filter(applicant=applicant)
-    status_choices = Applicant._meta.get_field('status').choices
+
+    status_labels = dict(STEPPER_STATUSES)
+    current_status_label = status_labels.get(applicant.status, applicant.status)
+    current_status_date = _get_status_date(applicant, applicant.status)
+    can_reschedule_current_step = bool(STEPPER_DATE_FIELDS.get(applicant.status))
+
+    next_status = _get_next_status(applicant.status)
+    transition_choices = []
+    if next_status:
+        transition_choices.append((next_status, status_labels.get(next_status, next_status)))
+
+    next_status_requires_date = bool(next_status and next_status in REQUIRED_STATUS_DATES)
 
     if request.method == "POST":
-        new_status = request.POST.get("status")
-        if new_status and new_status != applicant.status:
+        action = (request.POST.get("action") or "advance").strip()
+
+        if action == "reschedule":
+            if not can_reschedule_current_step:
+                messages.error(request, "Current step has no schedulable date.")
+                return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+            reschedule_date_raw = (request.POST.get("reschedule_date") or "").strip()
+            if not reschedule_date_raw:
+                messages.error(request, "Please provide a new date to reschedule.")
+                return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+            try:
+                reschedule_date = _parse_input_date(reschedule_date_raw)
+            except ValueError:
+                messages.error(request, "Invalid reschedule date format. Please use YYYY-MM-DD.")
+                return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
             with transaction.atomic():
-                applicant.status = new_status
-                applicant.save()
-                send_applicant_status_email(applicant, new_status)
-                messages.success(request, "Status updated.")
+                current_date_field = STEPPER_DATE_FIELDS[applicant.status]
+                setattr(applicant, current_date_field, reschedule_date)
+                applicant.save(update_fields=[current_date_field])
+                send_applicant_status_rescheduled_email(applicant, current_status_label, reschedule_date)
+                messages.success(request, "Step date rescheduled and applicant notified.")
+
             return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
         else:
-            messages.warning(request, "No status change detected.")
+            new_status = (request.POST.get("status") or "").strip()
+            status_date_raw = (request.POST.get("status_date") or "").strip()
+
+            if not new_status:
+                messages.warning(request, "Please choose a status.")
+            elif new_status == applicant.status:
+                messages.warning(request, "No status change detected.")
+            elif new_status != next_status:
+                messages.error(request, "You can only move to the next immediate step.")
+            else:
+                status_date = None
+                if status_date_raw:
+                    try:
+                        status_date = _parse_input_date(status_date_raw)
+                    except ValueError:
+                        messages.error(request, "Invalid date format. Please use YYYY-MM-DD.")
+                        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+                if new_status in REQUIRED_STATUS_DATES and not status_date:
+                    messages.error(request, "A date is required for this step.")
+                else:
+                    with transaction.atomic():
+                        update_fields = ['status']
+                        applicant.status = new_status
+
+                        status_date_field = STEPPER_DATE_FIELDS.get(new_status)
+                        if status_date_field and status_date:
+                            setattr(applicant, status_date_field, status_date)
+                            update_fields.append(status_date_field)
+
+                        applicant.save(update_fields=update_fields)
+                        send_applicant_status_email(applicant, new_status, status_date=status_date)
+                        messages.success(request, "Status updated.")
+                    return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
     # For stepper: build steps with current progress
+    status_values = [value for value, _label in STEPPER_STATUSES]
+    try:
+        current_idx = status_values.index(applicant.status)
+    except ValueError:
+        current_idx = -1
+
     stepper = []
-    found_active = False
-    for value, label in STEPPER_STATUSES:
-        is_active = (applicant.status == value)
+    for idx, (value, label) in enumerate(STEPPER_STATUSES):
+        is_active = applicant.status == value
+        step_date = _get_status_date(applicant, value)
+        if value == 'pending':
+            step_date = applicant.created_at.date()
+
         stepper.append({
             "value": value,
             "label": label,
-            "completed": not found_active and not is_active,
+            "completed": idx < current_idx,
             "active": is_active,
+            "date": step_date,
         })
-        if is_active:
-            found_active = True
 
     return render(request, 'admin/admin_applicant_detail.html', {
         'applicant': applicant,
         'documents': documents,
-        'status_choices': status_choices,
+        'current_status_label': current_status_label,
+        'current_status_date': current_status_date,
+        'can_reschedule_current_step': can_reschedule_current_step,
+        'transition_choices': transition_choices,
+        'next_status': next_status,
+        'next_status_requires_date': next_status_requires_date,
         'stepper': stepper,
     })
 
 
-
-
-from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponse, StreamingHttpResponse, Http404, JsonResponse
-from django.views.decorators.http import require_POST
-from django.db import transaction
-from django.urls import reverse
-import mimetypes
-import io
-
-from applicant.models import ApplicantDocument
-from services.google_drive_service import CentralGoogleDriveService
-from googleapiclient.http import MediaIoBaseDownload
 
 
 def _stream_drive_media(drive_service: CentralGoogleDriveService, file_id: str, chunk_size: int = 1024 * 256):
@@ -1387,18 +1479,6 @@ def change_applicant_document_status(request, pk):
 
 
 
-
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.db import transaction
-from applicant.models import Applicant, ApplicantDocument
-from faculty.models import FacultyProfile, EmploymentStatus, FacultyDocument
-from base.models import Account
-from .models import CreatedAccountLog
-from services.google_drive_service import CentralGoogleDriveService
-from django.utils.crypto import get_random_string
-from django.core.mail import send_mail
-from django.conf import settings
 
 @admin_required
 def account_creation_view(request):
@@ -1544,12 +1624,6 @@ def created_account_log_view(request):
 
 
 
-from rfid.models import RFIDTag, AttendanceLog
-from rfid.views import format_log
-from django.utils import timezone
-import calendar
-from django.core.paginator import Paginator
-
 @admin_required
 def attendance_logs_view(request):
     faculty_id = request.GET.get('faculty_id')
@@ -1643,11 +1717,6 @@ def normalize_uid_from_admin(rfid_uid_raw: str):
     return None
 
 
-
-from django.shortcuts import render
-from faculty.models import FacultyProfile
-from rfid.models import RFIDTag
-from django.db import transaction
 
 @admin_required
 def pair_rfid(request):
@@ -1769,9 +1838,6 @@ def pair_rfid(request):
 
 
 
-from django.http import JsonResponse
-from django.core.cache import cache
-
 def rfid_pairing_tap_api(request):
     uid = cache.get('last_rfid_uid')
     return JsonResponse({"uid": uid if uid else ""})
@@ -1782,22 +1848,6 @@ def rfid_pairing_tap_api(request):
 
 
 
-
-from django.shortcuts import render, redirect
-from django.urls import reverse
-from django.contrib import messages
-from base.forms import ManualAttendanceLogForm
-from rfid.models import  RFIDTag
-from django.utils import timezone
-
-from django.shortcuts import render, redirect
-from django.urls import reverse
-from django.contrib import messages
-from base.forms import ManualAttendanceLogForm
-from rfid.models import FacultyProfile, RFIDTag
-from faculty.models import TeachingAssignment, Semester
-from django.utils import timezone
-import datetime
 
 @admin_required
 def manual_attendance_log_view(request):
@@ -1894,9 +1944,6 @@ def manual_attendance_log_view(request):
 
 
 
-from django.core.paginator import Paginator
-from django.db.models import Q
-
 @admin_required
 def teaching_assignment_view(request):
     search_query = request.GET.get('search', '').strip()
@@ -1917,10 +1964,6 @@ def teaching_assignment_view(request):
 
 
 
-from django.shortcuts import render, redirect, get_object_or_404
-from faculty.models import TeachingAssignment, FacultyProfile
-from base.forms import TeachingAssignmentForm, TeachingAssignmentBulkUploadForm
-
 @admin_required
 def teaching_assignment_list(request, faculty_uuid):
     faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
@@ -1928,20 +1971,7 @@ def teaching_assignment_list(request, faculty_uuid):
     return render(request, 'admin/admin_faculty_teaching_assignment.html', {'faculty': faculty, 'assignments': assignments})
 
 
-# ... imports unchanged ...
-# Adjust the path/name to your real file. Only the bulk_confirm view changed significantly.
 
-import json
-import datetime
-import logging
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.db import transaction
-from django.utils.translation import gettext as _
-from base.forms import TeachingAssignmentBulkUploadForm
-from faculty.models import TeachingAssignment, FacultyProfile, Semester
-from base.utils.teaching_assignment import read_file_to_rows, get_all_faculty_list, get_all_semesters
-from base.decorators import admin_required
 
 logger = logging.getLogger(__name__)
 SESSION_KEY = 'ta_bulk_upload_rows'
@@ -1992,26 +2022,6 @@ def teaching_assignment_bulk_upload(request):
                 return redirect('adminhub:teaching_assignment_bulk_confirm')
 
     return render(request, 'admin/admin_teaching_assignment_upload.html', {'form': form})
-
-
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.db import transaction
-from django.utils.translation import gettext as gettext_func
-import json
-import datetime
-import logging
-import re
-
-from django.core.exceptions import ValidationError as DjangoValidationError
-
-from base.forms import TeachingAssignmentBulkUploadForm
-from faculty.models import TeachingAssignment, FacultyProfile, Semester
-from base.utils.teaching_assignment import read_file_to_rows, get_all_faculty_list, get_all_semesters
-from base.decorators import admin_required
-
-logger = logging.getLogger(__name__)
-SESSION_KEY = 'ta_bulk_upload_rows'
 
 
 def clean_uuid_string(s: str) -> str:
@@ -2424,10 +2434,6 @@ def teaching_assignment_bulk_confirm(request):
         }
     )
 
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib import messages
-from faculty.models import FacultyProfile, TeachingAssignment
-from base.forms import TeachingAssignmentForm
 
 @admin_required
 def teaching_assignment_create(request, faculty_uuid):
@@ -2475,14 +2481,6 @@ def teaching_assignment_delete(request, faculty_uuid, pk):
 
 
 
-
-from django.shortcuts import render, get_object_or_404, redirect
-from datetime import date
-import calendar
-from faculty.models import FacultyProfile
-from rfid.models import AttendanceLog
-from services.dtr_service import DTRCalculator
-from base.forms import DTRLogEditForm
 
 @admin_required
 def dtr_tab_view(request, faculty_uuid):
@@ -2600,21 +2598,6 @@ def dtr_tab_view(request, faculty_uuid):
 
 
 
-from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponse
-from datetime import date
-import calendar
-from django.utils.timezone import localtime
-from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import cm
-
-from faculty.models import FacultyProfile
-from services.dtr_service import DTRCalculator
-from base.decorators import admin_required
-from base.utils.dtr_workinghours import calculate_total_working_hours
-
 @admin_required
 def admin_dtr_export_preview(request, faculty_uuid):
     faculty = get_object_or_404(FacultyProfile, uuid=faculty_uuid)
@@ -2673,29 +2656,6 @@ def admin_dtr_export_preview(request, faculty_uuid):
 
 
 
-
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
-import calendar
-from datetime import date
-from io import BytesIO
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
-from reportlab.lib import colors
-from django.utils.timezone import localtime
-
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
-import calendar
-from datetime import date
-from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-from reportlab.lib import colors
-from reportlab.lib.units import cm
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from django.utils.timezone import localtime
 
 @admin_required
 def admin_dtr_export_view(request, faculty_uuid):
@@ -2854,26 +2814,6 @@ def admin_dtr_export_view(request, faculty_uuid):
 
 
 
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib import messages
-
-from adminhub.models import PUPSite
-from base.forms import PUPSiteForm
-
-# you already have this for admin_settings, reuse it
-from base.decorators import admin_required 
-
-
-
-
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib import messages
-
-from base.decorators import admin_required
-from adminhub.models import PUPSite
-from base.forms import PUPSiteForm
-
-
 @admin_required
 def pup_sites_admin_list(request):
     """
@@ -2943,27 +2883,6 @@ def pup_site_delete(request, uid):
 
 
 
-
-
-import os
-from pathlib import Path
-from django.conf import settings
-from django.shortcuts import render, redirect
-from django.contrib import messages
-
-from base.decorators import admin_required
-from base.forms import BackgroundUploadForm
-from base.models import LandingAppearance
-
-
-from pathlib import Path
-from django.conf import settings
-from django.shortcuts import render, redirect
-from django.contrib import messages
-
-from base.decorators import admin_required
-from base.forms import BackgroundUploadForm
-from base.models import LandingAppearance
 
 
 @admin_required
@@ -3045,24 +2964,6 @@ def landing_background_settings(request):
 
 
 # adminhub/views.py
-
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.core.paginator import Paginator
-from django.db.models import Q
-from django.views.decorators.http import require_POST
-from django.http import StreamingHttpResponse, Http404
-
-from base.decorators import admin_required
-from faculty.models import DocumentCategory
-from adminhub.models import DocumentTemplate
-from services.google_drive_service import CentralGoogleDriveService
-from base.forms import DocumentTemplateForm
-
-import io
-import mimetypes
-from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
-
 
 @admin_required
 def document_templates(request):
@@ -3179,8 +3080,6 @@ def _finalize_response(resp: HttpResponse):
     resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return resp
 
-from django.http import StreamingHttpResponse, Http404, HttpResponse
-import mimetypes
 
 @admin_required  # OR remove this if you want faculty to call it too
 def download_document_template(request, uid):
@@ -3234,15 +3133,6 @@ def download_document_template(request, uid):
 
 
 
-from django.shortcuts import get_object_or_404, redirect
-from django.contrib import messages
-from django.views.decorators.http import require_POST
-
-from base.decorators import admin_required
-from adminhub.models import DocumentTemplate
-from services.google_drive_service import CentralGoogleDriveService
-
-
 @admin_required
 @require_POST
 def delete_document_template(request, uid):
@@ -3271,16 +3161,6 @@ def delete_document_template(request, uid):
 
 
 
-
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.core.paginator import Paginator
-from .models import DocumentCategory
-from base.forms import DocumentCategoryForm
-from django.db.models import Q
-from django.http import JsonResponse
-
-from faculty.models import DocumentCategory, FileType
 
 @admin_required
 def document_category_list(request):
@@ -3557,3 +3437,5 @@ def employment_status_delete_view(request, pk):
             "message": "Employment status deleted successfully.",
         }
     )
+
+    

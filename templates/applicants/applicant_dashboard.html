@@ -1,0 +1,337 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
+  <title>LINANG - My Application</title>
+  <link rel="stylesheet" href="{% static 'css/output.css' %}" />
+  <style>
+    body { font-family: 'Karla', sans-serif; }
+  </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+  <div class="max-w-5xl mx-auto space-y-8 py-10 px-4">
+
+    <!-- Header -->
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 tracking-tight">My Application</h1>
+        <p class="mt-1 text-sm text-gray-500">
+          Review your submitted information, documents, and current application status.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700">
+          ID: <span class="ml-1 font-mono">{{ applicant.applicant_id }}</span>
+        </span>
+
+        <a href="{% url 'applicants:logout' %}"
+           class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200">
+          Logout
+        </a>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+      <div class="space-y-2">
+        {% for message in messages %}
+          <div class="text-sm px-4 py-3 rounded-lg border
+            {% if message.tags == 'error' %}bg-red-50 text-red-700 border-red-200
+            {% elif message.tags == 'success' %}bg-green-50 text-green-700 border-green-200
+            {% elif message.tags == 'warning' %}bg-yellow-50 text-yellow-800 border-yellow-200
+            {% else %}bg-gray-50 text-gray-800 border-gray-200{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- Applicant Overview -->
+    <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
+      <div>
+        <div class="flex flex-wrap items-center gap-2">
+          <h2 class="text-xl font-semibold text-gray-900">
+            {{ applicant.first_name }}
+            {% if applicant.middle_name %} {{ applicant.middle_name }}{% endif %}
+            {{ applicant.last_name }}
+            {% if applicant.suffix %} {{ applicant.suffix }}{% endif %}
+          </h2>
+
+          <!-- Status chip -->
+          <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold
+            {% if applicant.status == 'pending' %}
+              bg-yellow-50 text-yellow-800 ring-1 ring-yellow-200
+            {% elif applicant.status == 'demo_scheduled' %}
+              bg-blue-50 text-blue-800 ring-1 ring-blue-200
+            {% elif applicant.status == 'for_interview' %}
+              bg-indigo-50 text-indigo-800 ring-1 ring-indigo-200
+            {% elif applicant.status == 'psych_test' %}
+              bg-purple-50 text-purple-800 ring-1 ring-purple-200
+            {% elif applicant.status == 'hired' %}
+              bg-green-50 text-green-800 ring-1 ring-green-200
+            {% elif applicant.status == 'failed' %}
+              bg-red-50 text-red-800 ring-1 ring-red-200
+            {% else %}
+              bg-gray-50 text-gray-700 ring-1 ring-gray-200
+            {% endif %}
+          ">
+            {{ applicant.get_status_display }}
+          </span>
+        </div>
+
+        <p class="mt-1 text-sm text-gray-500">
+          Applied on {{ applicant.created_at|date:"Y-m-d H:i" }}
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 text-sm">
+        <div>
+          <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Email</div>
+          <div class="mt-1 text-gray-800 break-all font-mono text-xs">{{ applicant.email }}</div>
+        </div>
+        <div>
+          <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Contact</div>
+          <div class="mt-1 text-gray-800">{{ applicant.contact_number|default:"—" }}</div>
+        </div>
+        <div>
+          <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Department</div>
+          <div class="mt-1 text-gray-800">{{ applicant.department|default:"—" }}</div>
+        </div>
+      </div>
+
+      <dl class="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-3 text-sm pt-2 border-t border-gray-100">
+        <div>
+          <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Birth Date</dt>
+          <dd class="mt-1 text-gray-800">{{ applicant.birth_date|date:"Y-m-d"|default:"—" }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Emergency Contact</dt>
+          <dd class="mt-1 text-gray-800">
+            {% if applicant.emergency_contact_name or applicant.emergency_contact_number %}
+              {{ applicant.emergency_contact_name|default:"N/A" }}
+              <span class="text-gray-500">({{ applicant.emergency_contact_number|default:"N/A" }})</span>
+            {% else %}
+              <span class="text-gray-400">Not provided</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Status</dt>
+          <dd class="mt-1 text-gray-800">{{ applicant.get_status_display }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <!-- Application Progress (responsive, NO horizontal scroll) -->
+    <!-- Application Progress (Option 1: mobile vertical, sm+ one line; no horizontal scroll) -->
+<section class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+  <div class="flex items-center justify-between gap-2 mb-4">
+    <h3 class="text-sm font-semibold text-gray-900">Application Progress</h3>
+    <p class="text-xs text-gray-500">Track the current step of the hiring process.</p>
+  </div>
+
+  <!-- Mobile: vertical list -->
+  <div class="sm:hidden space-y-3">
+    {% for step in stepper %}
+      <div class="flex items-center gap-3 p-3 rounded-lg border
+        {% if step.active %}border-[#800505]/30 bg-[#800505]/5
+        {% elif step.completed %}border-green-200 bg-green-50
+        {% else %}border-gray-200 bg-white{% endif %}">
+        <div class="flex items-center justify-center rounded-full w-8 h-8 text-xs font-bold border shrink-0
+          {% if step.completed %}
+            bg-green-500 text-white border-green-500
+          {% elif step.active %}
+            bg-[#800505] text-white border-[#800505]
+          {% else %}
+            bg-gray-100 text-gray-400 border-gray-200
+          {% endif %}">
+          {{ forloop.counter }}
+        </div>
+        <div class="min-w-0">
+          <div class="text-sm font-semibold
+            {% if step.active %}text-[#800505]
+            {% elif step.completed %}text-gray-800
+            {% else %}text-gray-500{% endif %}">
+            {{ step.label }}
+          </div>
+          <div class="text-[11px] text-gray-500">
+            {% if step.active %}Current step{% elif step.completed %}Completed{% else %}Upcoming{% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- sm+ : one line -->
+  <div class="hidden sm:flex items-start gap-0">
+    {% for step in stepper %}
+      <div class="flex items-center flex-1 min-w-0">
+        <div class="relative flex flex-col items-center">
+          <div class="flex items-center justify-center rounded-full w-8 h-8 text-xs font-bold border
+            {% if step.completed %}
+              bg-green-500 text-white border-green-500
+            {% elif step.active %}
+              bg-[#800505] text-white border-[#800505]
+            {% else %}
+              bg-gray-100 text-gray-400 border-gray-200
+            {% endif %}
+          ">
+            {{ forloop.counter }}
+          </div>
+          <div class="mt-2 text-[11px] text-center w-24 leading-snug
+            {% if step.active %}font-semibold text-[#800505]{% elif step.completed %}text-gray-700{% else %}text-gray-400{% endif %}
+          ">
+            {{ step.label }}
+          </div>
+        </div>
+
+        {% if not forloop.last %}
+          <div class="mx-1 sm:mx-2 h-px flex-1
+            {% if step.completed %}bg-green-400{% elif step.active %}bg-[#800505]{% else %}bg-gray-200{% endif %}">
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+    <!-- Uploaded Documents -->
+    <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 class="text-sm font-semibold text-gray-900">Uploaded Documents</h3>
+          <p class="mt-1 text-xs text-gray-500">
+            View your uploaded documents. You may upload additional required documents if allowed.
+          </p>
+        </div>
+      </div>
+
+      <!-- Desktop table -->
+      <div class="hidden sm:block overflow-x-auto">
+        <table class="min-w-full text-sm border border-gray-100 rounded-lg overflow-hidden">
+          <thead>
+            <tr class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
+              <th class="px-4 py-3 text-left border-b border-gray-100">Category</th>
+              <th class="px-4 py-3 text-left border-b border-gray-100">File</th>
+              <th class="px-4 py-3 text-left border-b border-gray-100">Status</th>
+              <th class="px-4 py-3 text-left border-b border-gray-100">Expiry</th>
+              <th class="px-4 py-3 text-left border-b border-gray-100">Uploaded At</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            {% for doc in documents %}
+            <tr class="hover:bg-gray-50/60 transition">
+              <td class="px-4 py-3 align-top">
+                <div class="font-medium text-gray-900">{{ doc.document_category.name }}</div>
+              </td>
+              <td class="px-4 py-3 align-top">
+                {% if doc.google_drive_id %}
+                  <a href="{% url 'applicants:download_document' doc.pk %}?inline=1"
+                     target="_blank" rel="noopener noreferrer"
+                     class="inline-flex items-center gap-1 text-[#800505] hover:underline font-medium">
+                    View
+                  </a>
+                {% else %}
+                  <span class="text-gray-400">No file</span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3 align-top">
+                {% if doc.status == "Approved" %}
+                  <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-800 ring-1 ring-green-200">
+                    {{ doc.status }}
+                  </span>
+                {% elif doc.status == "Rejected" %}
+                  <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-800 ring-1 ring-red-200">
+                    {{ doc.status }}
+                  </span>
+                {% else %}
+                  <span class="inline-flex items-center rounded-full bg-yellow-50 px-2.5 py-1 text-xs font-semibold text-yellow-800 ring-1 ring-yellow-200">
+                    {{ doc.status }}
+                  </span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3 align-top text-gray-800">
+                {% if doc.expiry_date %}
+                  {{ doc.expiry_date }}
+                  {% if not doc.is_valid %}
+                    <span class="ml-2 text-xs font-semibold text-red-600">(Expired)</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-gray-400">N/A</span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3 align-top text-gray-800 whitespace-nowrap">
+                {{ doc.submitted_at|date:"Y-m-d H:i" }}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" class="px-4 py-10 text-center text-gray-500 font-medium">
+                No documents uploaded.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile cards -->
+      <div class="sm:hidden space-y-4">
+        {% for doc in documents %}
+        <div class="border border-gray-100 rounded-lg p-4 shadow-sm bg-white">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <div class="font-semibold text-gray-900">{{ doc.document_category.name }}</div>
+            </div>
+            {% if doc.google_drive_id %}
+              <a href="{% url 'applicants:download_document' doc.pk %}?inline=1"
+                 target="_blank" rel="noopener noreferrer"
+                 class="text-xs font-semibold text-[#800505] hover:underline">
+                View
+              </a>
+            {% endif %}
+          </div>
+          <div class="text-xs text-gray-700 space-y-1.5">
+            <div>
+              <span class="text-gray-500">Status:</span>
+              <span class="ml-1 font-semibold">{{ doc.status }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Expiry:</span>
+              {% if doc.expiry_date %}
+                {{ doc.expiry_date }}
+                {% if not doc.is_valid %}
+                  <span class="ml-1 text-[11px] font-semibold text-red-600">(Expired)</span>
+                {% endif %}
+              {% else %}
+                <span class="text-gray-400">N/A</span>
+              {% endif %}
+            </div>
+            <div>
+              <span class="text-gray-500">Uploaded:</span>
+              {{ doc.submitted_at|date:"Y-m-d H:i" }}
+            </div>
+          </div>
+        </div>
+        {% empty %}
+          <p class="text-gray-500 text-sm text-center">No documents uploaded.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Upload button BELOW the documents section -->
+    <div class="flex flex-col sm:flex-row gap-2">
+      <a href="{% url 'applicants:upload_documents' %}"
+         class="inline-flex items-center justify-center rounded-lg bg-[#800505] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50 w-full sm:w-auto">
+        Upload Documents
+      </a>
+    </div>
+
+  </div>
+</body>
+</html>

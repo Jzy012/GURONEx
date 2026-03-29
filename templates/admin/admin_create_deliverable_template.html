@@ -7,7 +7,11 @@
     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white opacity-85" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
       <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
     </svg>
-    <h2 class="text-base font-semibold text-white tracking-wide flex-1">Create Deliverable Template</h2>
+
+    <h2 class="text-base font-semibold text-white tracking-wide flex-1">
+      {{ page_title|default:"Create Deliverable Template" }}
+    </h2>
+
     <a href="{% url 'adminhub:deliverable_template' %}" class="p-1.5 rounded-md hover:bg-white/20 transition" title="Back to Templates">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -59,9 +63,10 @@
          class="bg-gray-200 hover:bg-gray-300 text-[#800505] font-semibold px-3 py-1.5 rounded-lg border border-gray-300 shadow-sm text-sm transition">
         Cancel
       </a>
+
       <button type="submit"
         class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold px-3 py-1.5 rounded-lg shadow text-sm transition">
-        Save Template
+        {{ submit_label|default:"Save Template" }}
       </button>
     </div>
   </form>

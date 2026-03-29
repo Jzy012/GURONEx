@@ -8,7 +8,7 @@
   <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
   <title>LINANG</title>
 
-  <!-- Tailwind CLI-compiled CSS -->
+ 
   <link href="{% static 'css/output.css' %}" rel="stylesheet" />
 
   <style>
@@ -46,48 +46,48 @@
 
     {% landing_background_url as bg_url %}
     {% if bg_url %}
-      <!-- Background image wrapper -->
+      
       <div
         style="background: url('{{ bg_url }}') center/cover no-repeat fixed;"
         class="absolute inset-0 -z-20">
       </div>
     {% endif %}
 
-    <!-- Overlay: style chosen in admin (none / dark / silhouette) -->
+    
     <div class="absolute inset-0 -z-10 {% landing_background_overlay_classes %}"></div>
 
-    <!-- Mobile side padding wrapper -->
+    
     <div class="w-full px-4 md:px-0">
-      <!-- Foreground card content -->
+      
       <div class="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-5xl mx-auto p-8 md:p-16 flex flex-col items-start justify-center space-y-6 fade-in text-gray-800">
         
-        <!-- Logo -->
+     
         <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo"
           class="w-20 h-20 mb-2 rounded-full bg-white object-contain" />
 
-        <!-- Heading -->
+       
         <h1 class="text-4xl md:text-5xl font-bold leading-snug">
           Welcome to LINANG
         </h1>
 
         <div class="divider"></div>
 
-        <!-- Subtitle -->
+      
         <p class="text-lg md:text-2xl font-light max-w-3xl text-left w-full">
           Linking Information Networks for Administration and Narrative Gathering
         </p>
 
-        <!-- Description -->
+       
         <p class="text-base md:text-lg text-gray-700 max-w-3xl text-left w-full">
           LINANG streamlines PUP-SPC Faculty Management with a modern, secure, and user-friendly platform designed for efficiency and clarity.
         </p>
 
-        <!-- Main Button -->
+    
         <a href="{% url 'login' %}" class="inline-block bg-[#800505] hover:bg-[#a80707] text-white font-semibold py-3 px-8 rounded-lg transition duration-200 text-base shadow-md mt-2">
           Log In
         </a>
 
-        <!-- Small Applicant Link -->
+    
         <a href="{% url 'applicants:home' %}" class="text-[#800505] hover:text-[#a80707] text-sm font-medium mt-3 transition duration-200">
           Want to be a part of PUP-SPC? Apply now!
         </a>

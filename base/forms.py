@@ -1,5 +1,39 @@
+import os
+import secrets
+import datetime
+
 from django import forms
-from .models import Account
+from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
+from django.forms import BaseFormSet, BaseModelFormSet
+from django.utils import timezone
+from django.contrib.auth.forms import SetPasswordForm, PasswordChangeForm
+
+from base.models import Account, LandingAppearance
+
+from faculty.models import (
+    FacultyProfile,
+    EmploymentStatus,
+    DocumentCategory,
+    FileType,
+    DeliverableTemplate,
+    Deliverable,
+    FacultyDocument,
+    Semester,
+    AcademicYear,
+    TeachingAssignment,
+    RequestType,
+    FacultyRequest,
+    phone_validator,
+    name_part_validator,
+)
+
+from applicant.models import Applicant, ApplicantDocument, ApplicantRequiredDocument
+
+from rfid.models import AttendanceLog
+
+from adminhub.models import Announcement, PUPSite
+
 
 class LoginForm(forms.Form):
     email = forms.EmailField(label='Email', max_length=255)
@@ -40,7 +74,7 @@ class OTPVerificationForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super(OTPVerificationForm, self).__init__(*args, **kwargs)
         self.fields['otp'].widget.attrs.update({
-            'class': 'hidden',  # Still required so it's included in the form POST
+            'class': 'hidden', 
         })
 
     def clean_otp(self):
@@ -51,8 +85,6 @@ class OTPVerificationForm(forms.Form):
        
 
 
-
-
 class TwoFactorOTPVerificationForm(forms.Form):
     otp = forms.CharField(
         label='Enter OTP',
@@ -61,7 +93,6 @@ class TwoFactorOTPVerificationForm(forms.Form):
     )
 
 
-from django.contrib.auth.forms import SetPasswordForm
 
 class CustomSetPasswordForm(SetPasswordForm):
     def __init__(self, *args, **kwargs):
@@ -71,7 +102,6 @@ class CustomSetPasswordForm(SetPasswordForm):
                 'class': 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]',
                 'placeholder': field.label
             })
-
 
 
 
@@ -99,11 +129,9 @@ class PasswordResetForm(forms.Form):
         confirm = cleaned_data.get("confirm_password")
         if password and confirm and password != confirm:
             raise forms.ValidationError("Passwords do not match.")
-        return cleaned_data
-    
+        return cleaned_data   
 
 
-from django.contrib.auth.forms import PasswordChangeForm
 
 class StyledPasswordChangeForm(PasswordChangeForm):
     def __init__(self, *args, **kwargs):
@@ -112,8 +140,6 @@ class StyledPasswordChangeForm(PasswordChangeForm):
             visible.field.widget.attrs.update({
                 'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#800505] text-base'
             })
-
-
 
 
 
@@ -127,37 +153,10 @@ class TwoFactorToggleForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Style the checkbox with Tailwind classes for a modern look
         self.fields['two_factor_authentication'].widget.attrs.update({
             'class': 'h-5 w-5 text-[#800505] focus:ring-[#800505] border-gray-300 rounded'
         })
 
-
-
-
-# faculty/forms.py
-from django import forms
-from base.models import Account
-from faculty.models import FacultyProfile, EmploymentStatus
-import secrets
-
-# faculty/forms.py
-from django import forms
-from base.models import Account
-from faculty.models import FacultyProfile, EmploymentStatus
-import secrets
-
-
-# faculty/forms.py
-from django import forms
-from django.core.validators import RegexValidator
-
-from base.models import Account
-from faculty.models import EmploymentStatus, phone_validator, name_part_validator
-import secrets
-
-
-# Reuse the same rule as in the model for consistency
 
 
 class FacultyCreationForm(forms.Form):
@@ -167,7 +166,6 @@ class FacultyCreationForm(forms.Form):
         help_text="Unique faculty code, e.g. FA0014SP2021"
     )
 
-    # NEW fields
     first_name = forms.CharField(
         max_length=100,
         validators=[name_part_validator],
@@ -241,12 +239,6 @@ class FacultyCreationForm(forms.Form):
 
 
 
-
-from django import forms
-from base.models import Account
-from faculty.models import FacultyProfile, EmploymentStatus
-
-
 class FacultyEditForm(forms.ModelForm):
     email = forms.EmailField(
         label='Email',
@@ -256,7 +248,6 @@ class FacultyEditForm(forms.ModelForm):
 
     class Meta:
         model = FacultyProfile
-        # NEW: add faculty_code to editable fields
         fields = ['faculty_code', 'name', 'department', 'birth_date', 'contact_number', 'status']
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
@@ -269,14 +260,14 @@ class FacultyEditForm(forms.ModelForm):
         if account_instance:
             self.fields['email'].initial = account_instance.email
 
-        # Style each field
+
         common_class = 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]'
 
         self.fields['email'].widget.attrs.update({
             'class': common_class,
             'placeholder': 'Email',
         })
-        self.fields['faculty_code'].widget.attrs.update({     # NEW
+        self.fields['faculty_code'].widget.attrs.update({   
             'class': common_class,
             'placeholder': 'Faculty Code',
         })
@@ -308,18 +299,9 @@ class FacultyEditForm(forms.ModelForm):
 
 
 
-
-
-
-
-from django import forms
-from django.core.exceptions import ValidationError
-from faculty.models import DocumentCategory
-import os
-
 class FacultyDocumentUploadForm(forms.Form):
     document_category = forms.ModelChoiceField(
-        queryset=DocumentCategory.objects.none(),  # set in __init__
+        queryset=DocumentCategory.objects.none(),  
         required=True,
         label="Category",
         empty_label="Select a Category",
@@ -344,8 +326,6 @@ class FacultyDocumentUploadForm(forms.Form):
         self.faculty = kwargs.pop('faculty', None)
         super().__init__(*args, **kwargs)
 
-        # EXCLUDE all categories that are used in ANY Deliverable
-        # i.e. document upload is only for non-deliverable categories
         self.fields['document_category'].queryset = (
             DocumentCategory.objects
             .filter(deliverables__isnull=True)
@@ -394,7 +374,6 @@ class FacultyDocumentUploadForm(forms.Form):
         row_is_empty = not category and not name and not file and not expiry
 
         if row_is_empty:
-            # Clear default 'required' errors so empty rows are truly ignored
             for field in ["document_category", "document_name", "file", "expiry_date"]:
                 if field in self._errors:
                     del self._errors[field]
@@ -410,11 +389,9 @@ class FacultyDocumentUploadForm(forms.Form):
             errors["file"] = "Please choose a file to upload."
 
         if category:
-            # Expiry requirement
             if category.requires_expiry_date and not expiry:
                 errors["expiry_date"] = "Expiry date is required for this document category."
 
-            # File extension validation
             if file:
                 ext = os.path.splitext(file.name)[1].lower().lstrip('.')
                 allowed = category.allowed_file_types.values_list("extension", flat=True)
@@ -427,13 +404,6 @@ class FacultyDocumentUploadForm(forms.Form):
         return cleaned_data
 
 
-
-
-
-# adminhub/forms.py
-
-from django import forms
-from adminhub.models import Announcement
 
 ROLE_CHOICES = [
     ('admin', 'Admin'),
@@ -467,23 +437,15 @@ class AnnouncementForm(forms.ModelForm):
             "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
         )
         for fname, field in self.fields.items():
-            # Don't style CheckboxSelectMultiple as input
             if not isinstance(field.widget, forms.CheckboxSelectMultiple):
                 field.widget.attrs["class"] = field_class
                 field.widget.attrs["placeholder"] = field.label
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs["class"] = "rounded text-[#800505] focus:ring-[#800505]"
-        # Add custom class to checklist for template targeting
         if "visible_to_roles" in self.fields:
             self.fields["visible_to_roles"].widget.attrs["class"] = "custom-checklist"
 
 
-
-
-
-# forms.py
-from django import forms
-from faculty.models import DeliverableTemplate, Semester
 
 class AssignDeliverablesForm(forms.Form):
     semester = forms.ModelChoiceField(queryset=Semester.objects.all())
@@ -500,7 +462,6 @@ class AssignDeliverablesForm(forms.Form):
         )
         for fname, field in self.fields.items():
             if fname == "deadline":
-                # Ensure the date input gets the same styling
                 field.widget.attrs["class"] = field_class
                 field.widget.attrs["placeholder"] = field.label
             else:
@@ -511,11 +472,7 @@ class AssignDeliverablesForm(forms.Form):
 
 
 
-from django import forms
-from django.forms import BaseModelFormSet
-from django.core.exceptions import ValidationError
-from faculty.models import AcademicYear, Semester
-import datetime
+
 
 
 CURRENT_YEAR = datetime.datetime.now().year
@@ -569,7 +526,7 @@ class AcademicYearForm(forms.ModelForm):
         cleaned_data = super().clean()
         academic_year_value = cleaned_data.get('academic_year')
         if academic_year_value is None:
-            return cleaned_data  # field-level errors will handle this
+            return cleaned_data 
 
         year_start = int(academic_year_value)
         if AcademicYear.objects.filter(year_start=year_start, year_end=year_start + 1).exists():
@@ -595,7 +552,6 @@ class SemesterForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Exclude "full" option
         filtered_choices = [choice for choice in Semester.SEMESTER_CHOICES if choice[0] != "full"]
         self.fields["semester_type"].choices = filtered_choices
 
@@ -630,7 +586,6 @@ class BaseSemesterFormSet(BaseModelFormSet):
         super().clean()
 
         if any(self.errors):
-            # field-level errors already present
             return
 
         semesters = []
@@ -647,7 +602,6 @@ class BaseSemesterFormSet(BaseModelFormSet):
             end = form.cleaned_data.get("end_date")
 
             if not sem_type or not start or not end:
-                # Required field errors already handled on form level
                 continue
 
             semesters.append((sem_type, start, end, form))
@@ -695,8 +649,7 @@ class BaseSemesterFormSet(BaseModelFormSet):
                         f"{prev_type} semester must end on or before the start of {sem_type} semester."
                     )
 
-from django import forms
-from faculty.models import DeliverableTemplate, DocumentCategory
+
 
 class DeliverableTemplateForm(forms.ModelForm):
     document_categories = forms.ModelMultipleChoiceField(
@@ -723,40 +676,21 @@ class DeliverableTemplateForm(forms.ModelForm):
         if "document_categories" in self.fields:
             self.fields["document_categories"].widget.attrs["class"] = "custom-checklist"
 
-from django.forms import BaseFormSet
 
 class IndexedFormSet(BaseFormSet):
     def add_fields(self, form, index):
         super().add_fields(form, index)
-        form.index = index  # Optional, for debugging or template use
+        form.index = index 
 
     def _construct_form(self, i, **kwargs):
         kwargs['index'] = i
         return super()._construct_form(i, **kwargs)
 
 
-from django import forms
-from faculty.models import FacultyDocument, Deliverable, Semester
-from django.utils import timezone
 
-from django import forms
-from faculty.models import FacultyDocument, Deliverable, Semester, TeachingAssignment
-from django.utils import timezone
-
-from django import forms
-from faculty.models import FacultyDocument, Deliverable, Semester, TeachingAssignment
-
-
-from django import forms
-from django.core.exceptions import ValidationError
-from django.utils import timezone
-import os
-
-from faculty.models import FacultyDocument, Deliverable, Semester, TeachingAssignment
 
 
 class FacultyDeliverableUploadForm(forms.Form):
-    # Make fields NOT required at field-level so empty formset rows can be ignored cleanly.
     teaching_assignment = forms.ModelChoiceField(
         queryset=TeachingAssignment.objects.none(),
         required=False,
@@ -777,7 +711,7 @@ class FacultyDeliverableUploadForm(forms.Form):
     def __init__(self, *args, **kwargs):
         faculty = kwargs.pop("faculty", None)
         index = kwargs.pop("index", None)
-        request = kwargs.pop("request", None)  # to read ?ta=&deliverable=
+        request = kwargs.pop("request", None) 
         super().__init__(*args, **kwargs)
 
         # Keep for clean() checks
@@ -956,8 +890,7 @@ class FacultyDeliverableUploadForm(forms.Form):
 
 
 
-from django import forms
-from faculty.models import RequestType, FacultyRequest, FacultyProfile
+
 
 class RequestTypeForm(forms.ModelForm):
     class Meta:
@@ -1020,16 +953,11 @@ class AdminFacultyRequestForm(forms.ModelForm):
 ##################
 
 
-from django import forms
-from applicant.models import Applicant, ApplicantDocument, ApplicantRequiredDocument
-from faculty.models import DocumentCategory
 
 
-
-from django import forms
-from applicant.models import Applicant
-# import other forms you already have in this file as needed
-
+class ApplicantLoginForm(forms.Form):
+    applicant_id = forms.CharField(max_length=20)
+    email = forms.EmailField()
 
 class ApplicantForm(forms.ModelForm):
     class Meta:
@@ -1037,7 +965,7 @@ class ApplicantForm(forms.ModelForm):
         fields = [
             # Basic info
             "first_name",
-            "middle_name",               # NEW
+            "middle_name",              
             "last_name",
             "suffix",
             "email",
@@ -1045,8 +973,6 @@ class ApplicantForm(forms.ModelForm):
             "department",
             "birth_date",
 
-
-            # Emergency contact
             "emergency_contact_name",
             "emergency_contact_number",
         ]
@@ -1064,7 +990,6 @@ class ApplicantForm(forms.ModelForm):
             field.widget.attrs["class"] = field_class
             field.widget.attrs["placeholder"] = field.label
 
-        # Optional / helpful placeholders
         self.fields['contact_number'].widget.attrs["placeholder"] = "e.g. 09XXXXXXXXX"
         self.fields['middle_name'].required = False
         self.fields['suffix'].required = False
@@ -1072,17 +997,14 @@ class ApplicantForm(forms.ModelForm):
   
 
 
-from django import forms
-from applicant.models import ApplicantDocument
-# If DocumentCategory has the `is_required` flag, we can rely on that.
-# from faculty.models import DocumentCategory  # only if you need it
 
-MAX_FILE_SIZE = 15 * 1024 * 1024  # 15MB
+
+
+MAX_FILE_SIZE = 15 * 1024 * 1024  
 ALLOWED_CONTENT_TYPES = [
     "application/pdf",
     "image/jpeg",
     "image/png",
-    # add more if needed
 ]
 
 
@@ -1206,8 +1128,6 @@ class ApplicantRequiredDocumentForm(forms.ModelForm):
 
 
 
-from django import forms
-from faculty.models import TeachingAssignment
 
 CONFLICT_MESSAGE = (
     "This time range overlaps another assignment for this faculty on this day in this semester."
@@ -1295,14 +1215,7 @@ class TeachingAssignmentBulkUploadForm(forms.Form):
 
 
 
-from django import forms
-from rfid.models import AttendanceLog, FacultyProfile
-from django.core.exceptions import ValidationError
 
-
-from django import forms
-from rfid.models import AttendanceLog
-from faculty.models import FacultyProfile, TeachingAssignment
 
 class ManualAttendanceLogForm(forms.ModelForm):
     faculty = forms.ModelChoiceField(queryset=FacultyProfile.objects.all(), widget=forms.HiddenInput())
@@ -1359,9 +1272,6 @@ class ManualAttendanceLogForm(forms.ModelForm):
 
 
 
-from django import forms
-from rfid.models import AttendanceLog
-
 class DTRLogEditForm(forms.ModelForm):
     time_in = forms.DateTimeField(
         required=True,
@@ -1387,7 +1297,6 @@ class DTRLogEditForm(forms.ModelForm):
         if time_in and time_out and time_out <= time_in:
             self.add_error('time_out', "Time Out must be after Time In.")
 
-        # Only one log per faculty per day allowed (except this instance)
         if time_in:
             faculty = self.instance.faculty
             date = time_in.date()
@@ -1399,7 +1308,6 @@ class DTRLogEditForm(forms.ModelForm):
 
         return cleaned
 
-from django import forms
 
 
 class MultipleFileInput(forms.ClearableFileInput):
@@ -1429,21 +1337,11 @@ class TeachingAssignmentBulkUploadForm(forms.Form):
     )
 
     def clean_files(self):
-        # When using multiple files the view should call request.FILES.getlist('files').
         files = self.files.getlist('files') if hasattr(self, 'files') else None
         if not files:
             raise forms.ValidationError("Please select at least one file.")
         return files
     
-
-
-
-
-
-
-from django import forms
-from adminhub.models import PUPSite
-
 
 
 class PUPSiteForm(forms.ModelForm):
@@ -1471,15 +1369,6 @@ class PUPSiteForm(forms.ModelForm):
                     "placeholder": field.label,
                 })
 
-
-
-
-
-from django import forms
-
-
-from django import forms
-from base.models import LandingAppearance
 
 
 class BackgroundUploadForm(forms.Form):
@@ -1524,12 +1413,6 @@ class BackgroundUploadForm(forms.Form):
     
 
 
-
-
-
-
-
-# adminhub/forms.py
 class DocumentTemplateForm(forms.Form):
     document_category = forms.ModelChoiceField(
         queryset=DocumentCategory.objects.all().order_by("name"),
@@ -1563,7 +1446,6 @@ class DocumentTemplateForm(forms.Form):
             'class': input_class,
             'placeholder': 'Template Name',
         })
-        # Hide the file field itself; we trigger it by label click
         self.fields['file'].widget.attrs.update({
             'class': 'hidden',
             'id': 'id_file',
@@ -1573,7 +1455,6 @@ class DocumentTemplateForm(forms.Form):
         from adminhub.models import DocumentTemplate
         category = self.cleaned_data["document_category"]
 
-        # Hard-delete model: any existing template for this category blocks new one
         existing = (
             DocumentTemplate.objects
             .filter(document_category=category)
@@ -1587,10 +1468,6 @@ class DocumentTemplateForm(forms.Form):
             )
         return category
     
-
-
-from django import forms
-from faculty.models import DocumentCategory, FileType
 
 
 class DocumentCategoryForm(forms.ModelForm):
@@ -1615,13 +1492,6 @@ class DocumentCategoryForm(forms.ModelForm):
 
 
 
-
-
-
-# base/forms.py
-from django import forms
-from faculty.models import EmploymentStatus  # adjust import path if needed
-
 class EmploymentStatusForm(forms.ModelForm):
     class Meta:
         model = EmploymentStatus
@@ -1636,3 +1506,4 @@ class EmploymentStatusForm(forms.ModelForm):
         for name, field in self.fields.items():
             field.widget.attrs["class"] = field_class
             field.widget.attrs["placeholder"] = field.label
+

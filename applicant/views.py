@@ -1,39 +1,32 @@
+import io
+import mimetypes
+
 from django.shortcuts import render, redirect, get_object_or_404
-from django.forms import formset_factory
 from django.contrib import messages
+from django.forms import formset_factory, BaseFormSet
 from django.db import transaction
+from django.http import HttpResponse, StreamingHttpResponse, Http404
+from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 
 from .models import Applicant, ApplicantDocument, ApplicantRequiredDocument, ApplicantTimeline
-from base.forms import ApplicantForm
-from base.forms import ApplicantDocumentUploadForm
-from faculty.models import DocumentCategory
-from services.google_drive_service import CentralGoogleDriveService
-from googleapiclient.http import MediaIoBaseUpload
+from .decorators import applicant_login_required
+from base.forms import ApplicantLoginForm
+from .forms_upload import ApplicantRequiredOnlyDocumentUploadForm
+
+from base.forms import ApplicantForm, ApplicantDocumentUploadForm
 from base.utils.email import send_applicant_submission_receipt
 
-import io
+from faculty.models import DocumentCategory
+from services.google_drive_service import CentralGoogleDriveService
+from services.applicant_document_service import process_applicant_documents_sync
+from applicant.tasks import process_applicant_documents_task
+
 
 
 def applicant_home(request):
     return render(request, "applicants/applicant_home.html")
 
 
-# applicants/views.py
-
-from django.shortcuts import render, redirect, get_object_or_404
-from django.forms import formset_factory
-from django.contrib import messages
-from django.db import transaction
-
-from .models import Applicant, ApplicantDocument, ApplicantRequiredDocument, ApplicantTimeline
-from base.forms import ApplicantForm
-from base.forms import ApplicantDocumentUploadForm
-from faculty.models import DocumentCategory
-from base.utils.email import send_applicant_submission_receipt
-
-from services.applicant_document_service import process_applicant_documents_sync  # NEW import
-from services.applicant_document_service import process_applicant_documents_sync
-from applicant.tasks import process_applicant_documents_task
 
 def applicant_apply(request):
     required_docs = ApplicantRequiredDocument.objects.all()
@@ -56,7 +49,6 @@ def applicant_apply(request):
             with transaction.atomic():
                 applicant = basic_form.save()
 
-                # Build docs_payload instead of uploading here
                 docs_payload = []
                 for form, category in zip(forms, doc_categories):
                     file = form.cleaned_data["file"]
@@ -82,18 +74,14 @@ def applicant_apply(request):
                     note="Initial application and document upload.",
                 )
 
-            # AFTER the transaction, do the upload synchronously (current behavior)
-                        # Prefer Celery; fall back to sync if Celery/Redis is not available
             try:
                 process_applicant_documents_task.delay(applicant.id, docs_payload)
             except Exception:
                 process_applicant_documents_sync(applicant.id, docs_payload)
 
-            # Send receipt email (summary + Applicant ID)
             try:
                 send_applicant_submission_receipt(applicant)
             except Exception:
-                # Optionally log this; don't block submission if email fails
                 pass
 
             messages.success(
@@ -123,92 +111,142 @@ def applicant_apply(request):
     return render(request, "applicants/applicant_apply.html", context)
 
 
+
 def applicant_registration_confirmed(request):
     return render(request, "applicants/applicant_registration_confirmed.html")
 
 
-def applicant_check_status(request):
+
+def applicant_login(request):
     if request.method == "POST":
-        applicant_id = request.POST.get("applicant_id")
-        email = request.POST.get("email")
-        try:
-            applicant = Applicant.objects.get(applicant_id=applicant_id, email=email)
-            return redirect("applicants:status_page", pk=applicant.pk)
-        except Applicant.DoesNotExist:
-            messages.error(request, "Applicant not found. Please check your ID and email.")
-    return render(request, "applicants/applicant_check_status.html")
+        form = ApplicantLoginForm(request.POST)
+        if form.is_valid():
+            applicant_id = form.cleaned_data["applicant_id"].strip()
+            email = form.cleaned_data["email"].strip()
+            try:
+                applicant = Applicant.objects.get(applicant_id=applicant_id, email=email)
+            except Applicant.DoesNotExist:
+                messages.error(request, "Applicant not found. Please check your Applicant ID and email.")
+            else:
+                request.session["applicant_pk"] = applicant.pk
+                request.session.cycle_key()
+                return redirect("applicants:dashboard")
+    else:
+        form = ApplicantLoginForm()
+
+    return render(request, "applicants/applicant_check_status.html", {"form": form})
 
 
-def applicant_status_page(request, pk):
-    applicant = get_object_or_404(Applicant, pk=pk)
-    docs = applicant.documents.all()
-    required_docs = ApplicantRequiredDocument.objects.all()
+
+def applicant_logout(request):
+    request.session.pop("applicant_pk", None)
+    messages.success(request, "Logged out.")
+    return redirect("applicants:check_status")
+
+
+
+@applicant_login_required
+def applicant_dashboard(request):
+    applicant = get_object_or_404(Applicant, pk=request.session["applicant_pk"])
+    docs = applicant.documents.select_related("document_category").order_by("-submitted_at")
+    required_docs = ApplicantRequiredDocument.objects.select_related("document_category").all()
     timeline = applicant.timeline.order_by("timestamp")
 
-    from adminhub.models import Announcement
-    announcements = Announcement.objects.filter(
-        visible_to_roles__contains=["applicant"],
-        is_active=True
-    )
+    STEPPER_STATUSES = [
+        ("pending", "Pending"),
+        ("demo_scheduled", "Demo Scheduled"),
+        ("for_interview", "For Interview"),
+        ("psych_test", "Psych Test"),
+        ("hired", "Hired"),
+        ("failed", "Failed"),
+    ]
+    stepper = []
+    found_active = False
+    for value, label in STEPPER_STATUSES:
+        is_active = (applicant.status == value)
+        stepper.append({
+            "value": value,
+            "label": label,
+            "completed": (not found_active and not is_active),
+            "active": is_active,
+        })
+        if is_active:
+            found_active = True
 
-    context = {
+    return render(request, "applicants/applicant_dashboard.html", {
         "applicant": applicant,
-        "docs": docs,
+        "documents": docs,
         "required_docs": required_docs,
         "timeline": timeline,
-        "announcements": [a for a in announcements if a.is_visible()],
-    }
-    return render(request, "applicants/applicant_status_page.html", context)
+        "stepper": stepper,
+    })
 
 
-def applicant_upload_doc(request, pk):
-    applicant = get_object_or_404(Applicant, pk=pk)
 
-    # Only allow if not hired/failed
+class IndexedFormSet(BaseFormSet):
+    def _construct_form(self, i, **kwargs):
+        kwargs["index"] = i
+        return super()._construct_form(i, **kwargs)
+
+
+
+@applicant_login_required
+def applicant_upload_documents(request):
+    applicant = get_object_or_404(Applicant, pk=request.session["applicant_pk"])
+
     if applicant.status in ["hired", "failed"]:
         messages.error(request, "Cannot upload documents at this stage.")
-        return redirect("applicants:status_page", pk=pk)
-
-    required_docs = ApplicantRequiredDocument.objects.all()
-    doc_categories = [doc.document_category for doc in required_docs]
+        return redirect("applicants:dashboard")
 
     DocumentFormSet = formset_factory(
-        ApplicantDocumentUploadForm,
-        extra=0,
-        max_num=len(doc_categories)
+        ApplicantRequiredOnlyDocumentUploadForm,
+        formset=IndexedFormSet,
+        extra=1,
+        max_num=10,
+        validate_max=True,
     )
 
     if request.method == "POST":
-        formset = DocumentFormSet(
-            request.POST,
-            request.FILES,
-            form_kwargs={
-                "required_doc_cats": DocumentCategory.objects.filter(id__in=[cat.id for cat in doc_categories]),
-                "applicant": applicant
-            }
-        )
+        formset = DocumentFormSet(request.POST, request.FILES)
+
         if formset.is_valid():
-            drive_service = CentralGoogleDriveService()
+            non_empty = 0
             for form in formset:
-                if not form.cleaned_data or not form.cleaned_data.get("file"):
+                cd = form.cleaned_data
+                if cd.get("document_category") or cd.get("file") or cd.get("expiry_date") or cd.get("remarks"):
+                    non_empty += 1
+
+            if non_empty == 0:
+                formset._non_form_errors = formset.error_class(
+                    ["Please fill out at least one document card before submitting."]
+                )
+                return render(request, "applicants/applicant_upload_documents.html", {
+                    "applicant": applicant,
+                    "formset": formset,
+                })
+
+            service = CentralGoogleDriveService()
+            success_count = 0
+
+            for form in formset:
+                cd = form.cleaned_data
+                category = cd.get("document_category")
+                file = cd.get("file")
+                expiry = cd.get("expiry_date")
+                remarks = cd.get("remarks", "")
+
+                if not category and not file and not expiry and not remarks:
                     continue
-                file = form.cleaned_data["file"]
-                category = form.cleaned_data["document_category"]
-                expiry = form.cleaned_data.get("expiry_date")
-                remarks = form.cleaned_data.get("remarks", "")
 
                 media = MediaIoBaseUpload(
                     io.BytesIO(file.read()),
                     mimetype=file.content_type,
-                    resumable=False
+                    resumable=False,
                 )
-                upload = drive_service.service.files().create(
-                    body={
-                        "name": file.name,
-                        "parents": [applicant.google_drive_folder_id],
-                    },
+                upload = service.service.files().create(
+                    body={"name": file.name, "parents": [applicant.google_drive_folder_id]},
                     media_body=media,
-                    fields="id,webViewLink"
+                    fields="id,webViewLink",
                 ).execute()
 
                 ApplicantDocument.objects.create(
@@ -219,28 +257,97 @@ def applicant_upload_doc(request, pk):
                     file_size=file.size,
                     expiry_date=expiry,
                     remarks=remarks,
-                    status="Pending"
+                    status="Pending",
                 )
                 ApplicantTimeline.objects.create(
                     applicant=applicant,
                     action="Uploaded document",
-                    note=f"Uploaded document: {category.name}"
+                    note=f"Uploaded document: {category.name}",
                 )
-            messages.success(request, "Documents uploaded successfully.")
-            return redirect("applicants:status_page", pk=pk)
-        else:
-            messages.error(request, "Please correct errors in your document uploads.")
-    else:
-        formset = DocumentFormSet(
-            form_kwargs={
-                "required_doc_cats": DocumentCategory.objects.filter(id__in=[cat.id for cat in doc_categories]),
-                "applicant": applicant
-            }
-        )
+                success_count += 1
 
-    context = {
-        "formset": formset,
+            messages.success(request, f"{success_count} document(s) uploaded successfully.")
+            return redirect("applicants:dashboard")
+
+        messages.error(request, "Please fix the errors in the form before uploading.")
+    else:
+        formset = DocumentFormSet()
+
+    return render(request, "applicants/applicant_upload_documents.html", {
         "applicant": applicant,
-        "required_docs": required_docs,
-    }
-    return render(request, "applicants/applicant_upload_doc.html", context)
+        "formset": formset,
+    })
+
+
+
+def _stream_drive_media(drive_service: CentralGoogleDriveService, file_id: str, chunk_size: int = 1024 * 256):
+    request = drive_service.service.files().get_media(fileId=file_id)
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request, chunksize=chunk_size)
+    done = False
+    last_pos = 0
+    while not done:
+        status, done = downloader.next_chunk()
+        data = fh.getvalue()[last_pos:]
+        if data:
+            yield data
+            last_pos = len(fh.getvalue())
+    remaining = fh.getvalue()[last_pos:]
+    if remaining:
+        yield remaining
+
+
+@applicant_login_required
+def applicant_download_document(request, pk):
+    """
+    Streams an applicant document stored on Google Drive.
+    Access is restricted to the logged-in applicant via session.
+    Query param inline=1 allows inline view for PDF/images.
+    """
+    doc = get_object_or_404(ApplicantDocument, pk=pk)
+
+    applicant_pk = request.session.get("applicant_pk")
+    if doc.applicant_id != applicant_pk:
+        raise Http404("Document not found.")
+
+    file_id = doc.google_drive_id
+    drive = CentralGoogleDriveService()
+    want_inline = request.GET.get('inline', '0').lower() in ('1', 'true', 'yes')
+
+    try:
+        meta = drive.service.files().get(fileId=file_id, fields='mimeType, name, size').execute()
+        mime_type = meta.get('mimeType')
+        name_on_drive = meta.get('name') or f'document_{doc.id}'
+    except Exception:
+        raise Http404("Could not retrieve file metadata from Google Drive.")
+
+    def _finalize_response(resp: HttpResponse):
+        resp['X-Frame-Options'] = 'SAMEORIGIN'
+        resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return resp
+
+    if mime_type and mime_type.startswith('application/vnd.google-apps.'):
+        export_mime = 'application/pdf'
+        try:
+            exported_bytes = drive.service.files().export(fileId=file_id, mimeType=export_mime).execute()
+        except Exception:
+            raise Http404("File could not be exported from Google Drive.")
+
+        content_type = export_mime
+        disposition = 'inline' if (want_inline and content_type == 'application/pdf') else 'attachment'
+        resp = HttpResponse(exported_bytes, content_type=content_type)
+        resp['Content-Disposition'] = f'{disposition}; filename="{name_on_drive}"'
+        resp['Content-Length'] = str(len(exported_bytes))
+        return _finalize_response(resp)
+
+    content_type = mime_type or mimetypes.guess_type(name_on_drive)[0] or 'application/octet-stream'
+    inline_allowed = (content_type == 'application/pdf') or content_type.startswith('image/')
+
+    if want_inline and inline_allowed:
+        response = StreamingHttpResponse(_stream_drive_media(drive, file_id), content_type=content_type)
+        response['Content-Disposition'] = f'inline; filename="{name_on_drive}"'
+        return _finalize_response(response)
+
+    response = StreamingHttpResponse(_stream_drive_media(drive, file_id), content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{name_on_drive}"'
+    return _finalize_response(response)

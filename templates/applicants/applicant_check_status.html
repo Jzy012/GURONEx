@@ -1,18 +1,121 @@
-{% extends 'applicants/applicant_base.html' %}
-{% block content %}
-<div class="max-w-md mx-auto my-12">
-  <h1 class="text-2xl font-bold mb-4">Check Application Status</h1>
-  <form method="post" class="space-y-4 bg-white shadow p-6 rounded">
-    {% csrf_token %}
-    <div>
-      <label for="applicant_id" class="font-semibold">Applicant ID</label>
-      <input type="text" name="applicant_id" id="applicant_id" required class="mt-1 block w-full rounded border-gray-300 shadow-sm"/>
+{% load static %}
+{% load appearance_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
+  <title>LINANG - Applicant Login</title>
+  <link rel="stylesheet" href="{% static 'css/output.css' %}" />
+  <style>
+    body { font-family: 'Karla', sans-serif; }
+  </style>
+</head>
+
+<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen relative">
+  <div class="relative min-h-screen flex items-center justify-center">
+
+    {% landing_background_url as bg_url %}
+    {% if bg_url %}
+      <div style="background: url('{{ bg_url }}') center/cover no-repeat fixed;"
+           class="absolute inset-0 -z-20"></div>
+    {% endif %}
+    <div class="absolute inset-0 -z-10 {% landing_background_overlay_classes %}"></div>
+
+    <!-- Back Button -->
+    <a href="{% url 'applicants:home' %}"
+       class="absolute top-6 left-6 flex items-center gap-2 text-white font-semibold text-lg px-3 py-2 rounded-full transition duration-300 ease-in-out hover:bg-white/20 hover:backdrop-blur-md hover:shadow-md z-10">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      <span>Back</span>
+    </a>
+
+    <div class="w-full px-4 md:px-0">
+      <div class="relative z-10 bg-white shadow-2xl rounded-xl w-full max-w-md mx-auto p-8 md:p-10 space-y-6 text-center">
+
+        <!-- Logo + Text -->
+        <div class="text-gray-800">
+          <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo" class="w-20 h-20 mx-auto mb-2" />
+          <h1 class="text-3xl md:text-4xl font-bold leading-snug mb-1">
+            Applicant Portal
+          </h1>
+          <p class="text-sm font-light mb-2">
+            Log in using your Applicant ID and Email to view your application.
+          </p>
+        </div>
+
+        <div class="space-y-6 text-left">
+
+          <!-- Messages -->
+          {% if messages %}
+            {% for message in messages %}
+              <div class="relative flex items-center justify-between p-4 rounded-lg text-sm
+                {% if message.tags == 'error' %}
+                  bg-red-100 text-red-800
+                {% elif message.tags == 'success' %}
+                  bg-green-100 text-green-800
+                {% elif message.tags == 'warning' %}
+                  bg-yellow-100 text-yellow-800
+                {% else %}
+                  bg-blue-100 text-blue-800
+                {% endif %}">
+                <span>{{ message }}</span>
+                <button type="button" onclick="this.parentElement.style.display='none'"
+                        class="text-xl font-bold leading-none focus:outline-none">&times;</button>
+              </div>
+            {% endfor %}
+          {% endif %}
+
+          <form method="POST" class="space-y-4">
+            {% csrf_token %}
+
+            <!-- Applicant ID -->
+            <div>
+              <input
+                type="text"
+                name="applicant_id"
+                id="applicant_id"
+                required
+                value="{{ form.applicant_id.value|default:'' }}"
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+                placeholder="Applicant ID"
+              />
+              {% if form.applicant_id.errors %}
+                <p class="text-sm text-red-500 mt-1">{{ form.applicant_id.errors.0 }}</p>
+              {% endif %}
+            </div>
+
+            <!-- Email -->
+            <div>
+              <input
+                type="email"
+                name="email"
+                id="email"
+                required
+                value="{{ form.email.value|default:'' }}"
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+                placeholder="Email"
+              />
+              {% if form.email.errors %}
+                <p class="text-sm text-red-500 mt-1">{{ form.email.errors.0 }}</p>
+              {% endif %}
+            </div>
+
+            <button type="submit"
+              class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold w-full py-3 rounded-lg transition duration-200 text-base">
+              Log In
+            </button>
+          </form>
+
+          <p class="text-center text-[11px] text-gray-500 pt-2">
+            Need help? Please contact the HR office and include your Applicant ID.
+          </p>
+        </div>
+
+      </div>
     </div>
-    <div>
-      <label for="email" class="font-semibold">Email</label>
-      <input type="email" name="email" id="email" required class="mt-1 block w-full rounded border-gray-300 shadow-sm"/>
-    </div>
-    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Lookup Status</button>
-  </form>
-</div>
-{% endblock %}
+  </div>
+</body>
+</html>

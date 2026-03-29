@@ -1,0 +1,467 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
+  <title>LINANG - Upload Documents</title>
+  <link rel="stylesheet" href="{% static 'css/output.css' %}" />
+  <style>
+    body { font-family: 'Karla', sans-serif; }
+    textarea { resize: vertical; }
+  </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+<div class="max-w-3xl mx-auto space-y-8 py-10 px-4">
+
+  <!-- Title & Back -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
+        Upload Documents
+      </h2>
+      <p class="mt-1 text-sm text-gray-600">
+        Add one or more required documents, and upload the corresponding file.
+      </p>
+    </div>
+    <a href="{% url 'applicants:dashboard' %}"
+       class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+      Back to Dashboard
+    </a>
+  </div>
+
+  <!-- Messages -->
+  {% if messages %}
+    <ul class="space-y-2">
+      {% for message in messages %}
+        <li class="px-4 py-2 rounded text-sm
+          {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
+          {% elif message.tags == 'success' %}bg-green-50 text-green-700 border border-green-200
+          {% else %}bg-gray-50 text-gray-800 border border-gray-200
+          {% endif %}">
+          {{ message }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if formset.non_form_errors %}
+    <div class="bg-red-50 border border-red-200 rounded p-3 mb-4 text-sm text-red-700">
+      <ul class="list-disc pl-5">
+        {% for error in formset.non_form_errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" id="uploadForm" class="space-y-6">
+    {% csrf_token %}
+    {{ formset.management_form }}
+
+    <div id="formset-cards" class="space-y-5">
+      {% for form in formset %}
+      <div class="relative bg-white rounded-xl shadow-sm px-5 py-5 border border-gray-200 card-row">
+        <!-- Card header -->
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#800505]/10 text-[#800505] text-xs font-semibold">
+              {{ forloop.counter }}
+            </span>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">Document #{{ forloop.counter }}</p>
+              <p class="text-xs text-gray-500">Select category, file, and expiry (if required).</p>
+            </div>
+          </div>
+          {% if not forloop.first %}
+          <button type="button"
+                  class="remove-row inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-full"
+                  title="Remove this document card">
+            Remove
+          </button>
+          {% endif %}
+        </div>
+
+        <!-- Fields -->
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            <!-- Category (styled dropdown + custom arrow) -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">
+                Category
+              </label>
+
+              <div class="relative">
+                {{ form.document_category }}
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                  <svg class="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none"
+                       viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9l3.75 3.75L15.75 9" />
+                  </svg>
+                </div>
+              </div>
+
+              <p class="mt-1 text-[11px] text-gray-500">
+                Determines allowed file types and expiry requirement.
+              </p>
+
+              {% if form.document_category.errors %}
+                <div class="text-xs text-red-600 mt-1">{{ form.document_category.errors.0 }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Expiry -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">
+                Expiry Date
+              </label>
+              {{ form.expiry_date }}
+              <p class="mt-1 text-[11px] text-gray-500">
+                Required only for document types that expire.
+              </p>
+              {% if form.expiry_date.errors %}
+                <div class="text-xs text-red-600 mt-1">{{ form.expiry_date.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- File -->
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">
+              File
+            </label>
+            <div class="flex w-full items-center">
+              <label for="file_input_{{ forloop.counter0 }}"
+                     class="inline-flex items-center cursor-pointer px-3 py-2 h-10 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg text-xs sm:text-sm rounded-r-none shadow font-semibold transition duration-200">
+                Choose File
+              </label>
+              <span
+                class="file-chosen-display inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-3 sm:px-5 py-2 h-10 text-gray-700 text-xs sm:text-sm bg-gray-50 flex-1 min-w-0 truncate">
+                {% if form.file.value %}{{ form.file.value.name|default:"" }}{% else %}No file chosen{% endif %}
+              </span>
+              {{ form.file }}
+            </div>
+            <p class="mt-1 text-[11px] text-gray-500">
+              Max file size: <span class="font-semibold">15MB</span>. Allowed file types depend on the selected category.
+            </p>
+            {% if form.file.errors %}
+              <div class="text-xs text-red-600 mt-1">{{ form.file.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          {% if form.non_field_errors %}
+            <div class="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
+              {% for err in form.non_field_errors %}
+                <p>{{ err }}</p>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Hidden card template for JS cloning -->
+    <div id="empty-form-card" class="hidden">
+      <div class="relative bg-white rounded-xl shadow-sm px-5 py-5 border border-gray-200 card-row">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#800505]/10 text-[#800505] text-xs font-semibold">
+              #
+            </span>
+            <div>
+              <p class="text-sm font-semibold text-gray-900">New Document</p>
+              <p class="text-xs text-gray-500">Select category, file, and expiry (if needed).</p>
+            </div>
+          </div>
+          <button type="button"
+                  class="remove-row inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-full"
+                  title="Remove this document card">
+            Remove
+          </button>
+        </div>
+
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            <!-- Category (styled dropdown + custom arrow) -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">Category</label>
+
+              <div class="relative">
+                {{ formset.empty_form.document_category }}
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                  <svg class="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none"
+                       viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9l3.75 3.75L15.75 9" />
+                  </svg>
+                </div>
+              </div>
+
+              <p class="mt-1 text-[11px] text-gray-500">
+                Determines allowed file types and expiry requirement.
+              </p>
+            </div>
+
+            <!-- Expiry -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">Expiry Date</label>
+              {{ formset.empty_form.expiry_date }}
+               <p class="mt-1 text-[11px] text-gray-500">
+                Required only for document types that expire.
+              </p>
+            </div>
+          </div>
+
+          <!-- File -->
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1 uppercase tracking-wide">File</label>
+            <div class="flex w-full items-center">
+              <label for="file_input__empty"
+                     class="inline-flex items-center cursor-pointer px-3 py-2 h-10 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg text-xs sm:text-sm rounded-r-none shadow font-semibold transition duration-200">
+                Choose File
+              </label>
+              <span
+                class="file-chosen-display inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg rounded-l-none px-3 sm:px-5 py-2 h-10 text-gray-700 text-xs sm:text-sm bg-gray-50 flex-1 min-w-0 truncate">
+                No file chosen
+              </span>
+              {{ formset.empty_form.file }}
+            </div>
+            <p class="mt-1 text-[11px] text-gray-500">
+              Max file size: <span class="font-semibold">15MB</span>. Allowed file types depend on the selected category.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+      <button type="button" id="add-form-btn"
+        class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg shadow-sm text-sm font-semibold">
+        Add Another Document
+      </button>
+      <button type="submit"
+        class="inline-flex items-center justify-center gap-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition duration-200">
+        Upload Documents
+      </button>
+    </div>
+  </form>
+
+  <!-- Upload Confirmation Modal -->
+  <div id="upload-confirm-modal"
+       class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+      <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Confirm Upload</h3>
+        <button type="button"
+                id="upload-confirm-close"
+                class="text-gray-400 hover:text-gray-600">
+          ✕
+        </button>
+      </div>
+      <div class="px-5 py-4 text-sm text-gray-700 space-y-3">
+        <p id="upload-confirm-summary" class="font-medium text-gray-900"></p>
+
+        <div id="upload-confirm-list-wrapper" class="hidden">
+          <p class="text-xs text-gray-600 mb-1">
+            You are about to upload the following document(s):
+          </p>
+          <ul id="upload-confirm-list" class="text-xs text-gray-700 space-y-1 list-disc pl-5 max-h-40 overflow-auto"></ul>
+          <p id="upload-confirm-list-more" class="text-[11px] text-gray-500 mt-1 hidden">
+            And more items not listed here.
+          </p>
+        </div>
+
+        <div class="bg-yellow-50 border border-yellow-200 rounded-md px-3 py-2 text-[11px] text-yellow-800 space-y-1">
+          <p class="font-semibold text-xs">Please review before submitting:</p>
+          <ul class="list-disc pl-4 space-y-1">
+            <li>Only rows with category and file will be uploaded.</li>
+            <li>Rows that are partially filled will show errors and will not be uploaded.</li>
+            <li>Empty rows will be ignored.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="px-5 py-3 border-t border-gray-200 flex justify-end gap-2 bg-gray-50">
+        <button type="button"
+                id="upload-confirm-cancel"
+                class="px-3 py-1.5 text-xs sm:text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100">
+          Cancel
+        </button>
+        <button type="button"
+                id="upload-confirm-continue"
+                class="px-4 py-1.5 text-xs sm:text-sm rounded-md bg-[#800505] text-white hover:bg-[#a80707] font-semibold">
+          Yes, Upload
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const addBtn = document.getElementById('add-form-btn');
+  const cardsContainer = document.getElementById('formset-cards');
+  const totalForms = document.getElementById('id_form-TOTAL_FORMS');
+  const emptyCard = document.getElementById('empty-form-card').firstElementChild;
+  const maxForms = 10;
+  const form = document.getElementById('uploadForm');
+
+  const uploadConfirmModal = document.getElementById('upload-confirm-modal');
+  const uploadConfirmContinue = document.getElementById('upload-confirm-continue');
+  const uploadConfirmCancel = document.getElementById('upload-confirm-cancel');
+  const uploadConfirmClose = document.getElementById('upload-confirm-close');
+  const uploadConfirmSummary = document.getElementById('upload-confirm-summary');
+  const uploadConfirmListWrapper = document.getElementById('upload-confirm-list-wrapper');
+  const uploadConfirmList = document.getElementById('upload-confirm-list');
+  const uploadConfirmListMore = document.getElementById('upload-confirm-list-more');
+
+  function bindFileInputEvents() {
+    cardsContainer.querySelectorAll('input[type="file"]').forEach(function(input) {
+      if (input._fileChangeBound) return;
+      input._fileChangeBound = true;
+
+      input.addEventListener('change', function() {
+        const span = input.closest('.card-row').querySelector('.file-chosen-display');
+        if (span) span.textContent = input.files.length ? input.files[0].name : "No file chosen";
+      });
+    });
+  }
+
+  function updateFormIndices() {
+    const cards = cardsContainer.querySelectorAll('.card-row');
+    cards.forEach((card, idx) => {
+      card.querySelectorAll('input, select, textarea').forEach(el => {
+        if (el.name && el.name.includes('form-')) el.name = el.name.replace(/form-(\d+)-/, `form-${idx}-`);
+        if (el.id && el.id.includes('form-')) el.id = el.id.replace(/form-(\d+)-/, `form-${idx}-`);
+      });
+
+      const fileInput = card.querySelector('input[type="file"]');
+      const fileLabel = card.querySelector('label[for^="file_input_"], label[for="file_input__empty"]');
+      const fileSpan = card.querySelector('.file-chosen-display');
+
+      if (fileInput) fileInput.id = 'file_input_' + idx;
+      if (fileLabel) fileLabel.htmlFor = 'file_input_' + idx;
+      if (fileSpan && (!fileInput || !fileInput.files || !fileInput.files.length)) fileSpan.textContent = 'No file chosen';
+
+      const counterBadge = card.querySelector('span.inline-flex.w-7.h-7');
+      if (counterBadge) counterBadge.textContent = (idx + 1).toString();
+    });
+
+    totalForms.value = cards.length;
+    bindFileInputEvents();
+
+    cards.forEach((card, idx) => {
+      const removeBtn = card.querySelector('.remove-row');
+      if (removeBtn) removeBtn.style.display = idx === 0 ? 'none' : '';
+    });
+
+    addBtn.disabled = cards.length >= maxForms;
+  }
+
+  function getNonEmptyRows() {
+    const rows = [];
+    const cards = cardsContainer.querySelectorAll('.card-row');
+
+    cards.forEach((card, idx) => {
+      const catSelect = card.querySelector('select[name$="-document_category"]');
+      const fileInput = card.querySelector('input[type="file"]');
+
+      const categoryValue = catSelect && catSelect.value;
+      const fileObj = fileInput && fileInput.files && fileInput.files[0];
+
+      const anyFilled = categoryValue || fileObj;
+      if (!anyFilled) return;
+
+      const categoryLabel = catSelect && catSelect.options[catSelect.selectedIndex]
+        ? catSelect.options[catSelect.selectedIndex].text.trim()
+        : "(no category selected)";
+      const fileName = fileObj ? fileObj.name : "(no file chosen)";
+      rows.push({ index: idx + 1, categoryLabel, fileName });
+    });
+
+    return rows;
+  }
+
+  function openUploadConfirmModal(rows) {
+    if (rows.length === 0) {
+      uploadConfirmSummary.textContent =
+        "No rows have been filled. If you continue, the server will reject the submission.";
+      uploadConfirmListWrapper.classList.add('hidden');
+    } else if (rows.length === 1) {
+      uploadConfirmSummary.textContent = "You are about to upload 1 document.";
+      uploadConfirmListWrapper.classList.remove('hidden');
+    } else {
+      uploadConfirmSummary.textContent = `You are about to upload ${rows.length} documents.`;
+      uploadConfirmListWrapper.classList.remove('hidden');
+    }
+
+    uploadConfirmList.innerHTML = "";
+    const maxPreview = 5;
+    rows.slice(0, maxPreview).forEach(row => {
+      const li = document.createElement('li');
+      li.innerHTML =
+        `<span class="font-semibold">Row #${row.index}:</span> ` +
+        `<span class="text-gray-800">${row.categoryLabel}</span> ` +
+        `<span class="block text-[11px] text-gray-600 truncate">File: ${row.fileName}</span>`;
+      uploadConfirmList.appendChild(li);
+    });
+
+    if (rows.length > maxPreview) uploadConfirmListMore.classList.remove('hidden');
+    else uploadConfirmListMore.classList.add('hidden');
+
+    uploadConfirmModal.classList.remove('hidden');
+    uploadConfirmModal.classList.add('flex');
+  }
+
+  function closeUploadConfirmModal() {
+    uploadConfirmModal.classList.add('hidden');
+    uploadConfirmModal.classList.remove('flex');
+  }
+
+  bindFileInputEvents();
+  updateFormIndices();
+
+  addBtn.addEventListener('click', function() {
+    if (cardsContainer.querySelectorAll('.card-row').length >= maxForms) return;
+    const newCard = emptyCard.cloneNode(true);
+    newCard.querySelectorAll('input[type="file"]').forEach(f => f.value = '');
+    newCard.querySelectorAll('input[type="date"]').forEach(i => i.value = '');
+    newCard.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+    cardsContainer.appendChild(newCard);
+    updateFormIndices();
+  });
+
+  cardsContainer.addEventListener('click', function(e) {
+    if (e.target.closest('.remove-row')) {
+      e.target.closest('.card-row').remove();
+      updateFormIndices();
+    }
+  });
+
+  form.addEventListener('submit', function(e) {
+    if (form.dataset.uploadConfirmed === 'true') return;
+    e.preventDefault();
+    openUploadConfirmModal(getNonEmptyRows());
+  });
+
+  uploadConfirmContinue.addEventListener('click', function() {
+    form.dataset.uploadConfirmed = 'true';
+    closeUploadConfirmModal();
+    form.submit();
+  });
+
+  function cancelUpload() { closeUploadConfirmModal(); }
+  uploadConfirmCancel.addEventListener('click', cancelUpload);
+  uploadConfirmClose.addEventListener('click', cancelUpload);
+
+  uploadConfirmModal.addEventListener('click', function(e) {
+    if (e.target === uploadConfirmModal) cancelUpload();
+  });
+});
+</script>
+</body>
+</html>

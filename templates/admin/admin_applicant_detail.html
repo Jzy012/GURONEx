@@ -15,7 +15,7 @@
         ID: <span class="ml-1 font-mono">{{ applicant.applicant_id }}</span>
       </span>
       <a href="{% url 'adminhub:applicant_list' %}"
-                class="inline-flex items-center justify-center rounded-lg bg-[#800505] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
+         class="inline-flex items-center justify-center rounded-lg bg-[#800505] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
              stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -60,7 +60,7 @@
         </div>
 
         <p class="mt-1 text-sm text-gray-500">
-          Applied on {{ applicant.created_at|date:"Y-m-d H:i" }}
+          Applied on {{ applicant.created_at|date:"F j, Y" }}
         </p>
       </div>
 
@@ -91,7 +91,13 @@
     <dl class="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-3 text-sm">
       <div>
         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Birth Date</dt>
-        <dd class="mt-1 text-gray-800">{{ applicant.birth_date|date:"Y-m-d"|default:"—" }}</dd>
+        <dd class="mt-1 text-gray-800">
+          {% if applicant.birth_date %}
+            {{ applicant.birth_date|date:"F j, Y" }}
+          {% else %}
+            —
+          {% endif %}
+        </dd>
       </div>
       <div>
         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Emergency Contact</dt>
@@ -159,13 +165,25 @@
   <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
     <div class="flex items-center justify-between gap-2 mb-4">
       <h3 class="text-sm font-semibold text-gray-900">Application Progress</h3>
-      <p class="text-xs text-gray-500">Track the current step of the hiring process.</p>
+      <p class="text-xs text-gray-500">Track the hiring process steps.</p>
     </div>
-    <div class="flex items-start gap-0 overflow-x-auto pb-1">
+
+    <!-- Mobile: vertical card list -->
+    <div class="sm:hidden space-y-3">
       {% for step in stepper %}
-        <div class="flex items-center min-w-max">
-          <div class="relative flex flex-col items-center">
-            <div class="flex items-center justify-center rounded-full w-8 h-8 text-xs font-bold border
+        <div class="flex items-center gap-3 p-3 rounded-lg border
+          {% if step.active %}border-[#800505]/30 bg-[#800505]/5
+          {% elif step.completed %}border-green-200 bg-green-50
+          {% else %}border-gray-200 bg-white{% endif %}">
+          <button
+            type="button"
+            {% if step.active and can_reschedule_current_step %}
+              onclick="openRescheduleModal()"
+              class="flex items-center justify-center rounded-full w-8 h-8 text-xs font-bold border bg-[#800505] text-white border-[#800505] cursor-pointer hover:bg-[#a80707] transition shrink-0"
+              title="Click to reschedule this step"
+            {% else %}
+              disabled
+              class="flex items-center justify-center rounded-full w-8 h-8 text-xs font-bold border shrink-0
               {% if step.completed %}
                 bg-green-500 text-white border-green-500
               {% elif step.active %}
@@ -173,17 +191,63 @@
               {% else %}
                 bg-gray-100 text-gray-400 border-gray-200
               {% endif %}
-            ">
-              {{ forloop.counter }}
-            </div>
-            <div class="mt-2 text-[11px] text-center w-24 leading-snug
-              {% if step.active %}font-semibold text-[#800505]{% elif step.completed %}text-gray-700{% else %}text-gray-400{% endif %}
-            ">
+                cursor-default"
+            {% endif %}>
+            {{ forloop.counter }}
+          </button>
+          <div class="min-w-0">
+            <div class="text-sm font-semibold
+              {% if step.active %}text-[#800505]
+              {% elif step.completed %}text-gray-800
+              {% else %}text-gray-500{% endif %}">
               {{ step.label }}
             </div>
+            <div class="text-[11px] text-gray-500">
+              {% if step.date %}{{ step.date|date:"F j, Y" }}{% else %}No date{% endif %}
+            </div>
           </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Desktop: one line horizontal stepper -->
+    <div class="hidden sm:flex items-start gap-0">
+      {% for step in stepper %}
+        <div class="flex items-center flex-1 min-w-0">
+          <div class="relative flex flex-col items-center">
+            <button
+              type="button"
+              {% if step.active and can_reschedule_current_step %}
+                onclick="openRescheduleModal()"
+                class="flex items-center justify-center rounded-full w-8 h-8 text-xs font-bold border bg-[#800505] text-white border-[#800505] cursor-pointer hover:bg-[#a80707] transition"
+                title="Click to reschedule this step"
+              {% else %}
+                disabled
+                class="flex items-center justify-center rounded-full w-8 h-8 text-xs font-bold border
+                {% if step.completed %}
+                  bg-green-500 text-white border-green-500
+                {% elif step.active %}
+                  bg-[#800505] text-white border-[#800505]
+                {% else %}
+                  bg-gray-100 text-gray-400 border-gray-200
+                {% endif %}
+                  cursor-default"
+              {% endif %}>
+              {{ forloop.counter }}
+            </button>
+            <div class="mt-2 text-[11px] text-center w-20 leading-snug
+              {% if step.active %}font-semibold text-[#800505]{% elif step.completed %}text-gray-700{% else %}text-gray-400{% endif %}">
+              {{ step.label }}
+            </div>
+            {% if step.date %}
+              <div class="mt-1 text-[10px] text-gray-500">
+                {{ step.date|date:"F j, Y" }}
+              </div>
+            {% endif %}
+          </div>
+
           {% if not forloop.last %}
-            <div class="mx-1 sm:mx-2 h-px w-10 sm:w-16
+            <div class="mx-1 sm:mx-2 h-px flex-1
               {% if step.completed %}bg-green-400{% elif step.active %}bg-[#800505]{% else %}bg-gray-200{% endif %}">
             </div>
           {% endif %}
@@ -192,47 +256,160 @@
     </div>
   </section>
 
-  <!-- Change Status (dropdown already improved) -->
+  <!-- Change Application Status -->
   <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <h3 class="text-sm font-semibold text-gray-900">Change Application Status</h3>
         <p class="mt-1 text-xs text-gray-500">
-          Update the current stage of this applicant in the hiring pipeline.
+          Move this applicant to the next immediate step.
         </p>
       </div>
-      <form method="post" class="flex flex-col gap-3 sm:flex-row sm:items-end">
-        {% csrf_token %}
-        <div>
-          <label for="status" class="block text-xs font-medium text-gray-600 mb-1">
-            New Status
-          </label>
-          <div class="relative">
-            <select
-              name="status"
-              id="status"
-              class="block w-60 appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 pr-9 text-sm text-gray-800 shadow-sm
-                     focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition">
-              {% for value, label in status_choices %}
-                <option value="{{ value }}" {% if applicant.status == value %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-            <!-- Custom arrow -->
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-              <svg class="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none"
-                   viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9l3.75 3.75L15.75 9" />
-              </svg>
+      {% if transition_choices %}
+        <form method="post" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="advance">
+
+          <div>
+            <label for="status" class="block text-xs font-medium text-gray-600 mb-1">
+              Next Status
+            </label>
+            <div class="relative">
+              <select
+                name="status"
+                id="status"
+                class="block w-60 appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 pr-9 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition">
+                {% for value, label in transition_choices %}
+                  <option value="{{ value }}" selected>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                <svg class="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9l3.75 3.75L15.75 9" />
+                </svg>
+              </div>
             </div>
           </div>
-        </div>
-        <button type="submit"
-                class="inline-flex items-center justify-center rounded-lg bg-[#800505] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
-          Update Status
-        </button>
-      </form>
+
+          <div>
+            <label for="status_date" class="block text-xs font-medium text-gray-600 mb-1">
+              Step Date {% if next_status_requires_date %}<span class="text-red-600">(required)</span>{% else %}<span class="text-gray-400">(optional)</span>{% endif %}
+            </label>
+            <input
+              type="date"
+              name="status_date"
+              id="status_date"
+              {% if next_status_requires_date %}required{% endif %}
+              class="block w-52 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition"
+            />
+          </div>
+
+          <button type="submit"
+                  class="inline-flex items-center justify-center rounded-lg bg-[#800505] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
+            Update Status
+          </button>
+        </form>
+      {% else %}
+        <p class="text-sm text-gray-500">
+          This applicant is already in the final step and cannot be moved further.
+        </p>
+      {% endif %}
     </div>
   </section>
+
+  <!-- Reschedule Modal -->
+  {% if can_reschedule_current_step %}
+    <div id="reschedule-modal"
+         class="hidden fixed inset-0 z-50 bg-gray-900/60 items-center justify-center px-4 py-6 sm:p-0 flex">
+      <div class="relative w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-200">
+        <!-- Header -->
+        <div class="flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 bg-[#800505] rounded-t-xl">
+          <div>
+            <h2 class="text-base sm:text-lg font-semibold text-white leading-tight">
+              Reschedule Step
+            </h2>
+            <p class="mt-0.5 text-[11px] text-[#fee2e2]">
+              {{ applicant.get_status_display }}
+            </p>
+          </div>
+          <button type="button" aria-label="Close"
+                  onclick="closeRescheduleModal()"
+                  class="ml-auto p-2 rounded-md hover:bg-white/20 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none"
+                 viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Content -->
+        <form id="reschedule-form" method="post" class="p-4 sm:p-6 space-y-5">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="reschedule">
+
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-gray-600">Current Date</label>
+            <div class="text-sm font-medium text-gray-900">
+              {% if current_status_date %}
+                {{ current_status_date|date:"F j, Y" }}
+              {% else %}
+                No date set
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-3 border-t border-gray-100">
+            <label for="modal_reschedule_date" class="block text-xs font-semibold text-gray-600">
+              New Date <span class="text-red-600">*</span>
+            </label>
+            <input
+              type="date"
+              id="modal_reschedule_date"
+              name="reschedule_date"
+              required
+              class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition"
+            />
+          </div>
+
+          <div class="flex gap-3 pt-3">
+            <button type="button"
+                    onclick="closeRescheduleModal()"
+                    class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300/50">
+              Cancel
+            </button>
+            <button type="submit"
+                    class="flex-1 rounded-lg bg-[#800505] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
+              Save New Date
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      function openRescheduleModal() {
+        document.getElementById('reschedule-modal').classList.remove('hidden');
+      }
+
+      function closeRescheduleModal() {
+        document.getElementById('reschedule-modal').classList.add('hidden');
+      }
+
+      // Close modal on Escape key
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          closeRescheduleModal();
+        }
+      });
+
+      // Close modal if clicking outside the modal box
+      document.getElementById('reschedule-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          closeRescheduleModal();
+        }
+      });
+    </script>
+  {% endif %}
 
   <!-- Uploaded Documents -->
   <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
@@ -298,7 +475,7 @@
             </td>
             <td class="px-4 py-3 align-top text-gray-800">
               {% if doc.expiry_date %}
-                {{ doc.expiry_date }}
+                {{ doc.expiry_date|date:"F j, Y" }}
                 {% if not doc.is_valid %}
                   <span class="ml-2 text-xs font-semibold text-red-600">(Expired)</span>
                 {% endif %}
@@ -307,7 +484,7 @@
               {% endif %}
             </td>
             <td class="px-4 py-3 align-top text-gray-800 whitespace-nowrap">
-              {{ doc.submitted_at|date:"Y-m-d H:i" }}
+              {{ doc.submitted_at|date:"M j, Y H:i" }}
             </td>
           </tr>
           {% empty %}
@@ -355,7 +532,7 @@
           <div>
             <span class="text-gray-500">Expiry:</span>
             {% if doc.expiry_date %}
-              {{ doc.expiry_date }}
+              {{ doc.expiry_date|date:"F j, Y" }}
               {% if not doc.is_valid %}
                 <span class="ml-1 text-[11px] font-semibold text-red-600">(Expired)</span>
               {% endif %}
@@ -365,7 +542,7 @@
           </div>
           <div>
             <span class="text-gray-500">Uploaded:</span>
-            {{ doc.submitted_at|date:"Y-m-d H:i" }}
+            {{ doc.submitted_at|date:"M j, Y H:i" }}
           </div>
         </div>
       </div>
@@ -429,14 +606,14 @@
               <div>
                 <label class="block text-xs font-semibold text-[#800505] mb-1">Uploaded Date</label>
                 <div class="text-sm text-gray-800">
-                  {{ doc.submitted_at|date:"M d, Y H:i" }}
+                  {{ doc.submitted_at|date:"M j, Y H:i" }}
                 </div>
               </div>
               <div>
                 <label class="block text-xs font-semibold text-[#800505] mb-1">Expiry</label>
                 <div class="text-sm text-gray-800">
                   {% if doc.expiry_date %}
-                    {{ doc.expiry_date }}
+                    {{ doc.expiry_date|date:"F j, Y" }}
                     {% if not doc.is_valid %}
                       <span class="ml-1 text-xs font-semibold text-red-600">(Expired)</span>
                     {% endif %}
@@ -618,3 +795,4 @@
   }
 </script>
 {% endblock %}
+

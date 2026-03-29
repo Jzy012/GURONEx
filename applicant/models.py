@@ -60,6 +60,12 @@ class Applicant(models.Model):
         default='pending'
     )
 
+    demo_scheduled_date = models.DateField(null=True, blank=True)
+    for_interview_date = models.DateField(null=True, blank=True)
+    psych_test_date = models.DateField(null=True, blank=True)
+    hired_date = models.DateField(null=True, blank=True)
+    failed_date = models.DateField(null=True, blank=True)
+
     # Emergency contact
     emergency_contact_name = models.CharField(max_length=100, null=True, blank=True)
     emergency_contact_number = models.CharField(max_length=15, null=True, blank=True)

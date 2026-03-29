@@ -44,6 +44,8 @@ urlpatterns = [
     path('admin/deliverables/', views.deliverables_view, name='deliverables'),
     path('admin/deliverables/deliverable-templates/create/',views.create_deliverable_template_view,name='create_deliverable_template'),
     path('admin/deliverables/deliverable-templates/',views.deliverable_templates_view,name='deliverable_template'),
+    path('admin/deliverables/deliverable-templates/<int:pk>/edit/',views.edit_deliverable_template_view,name='edit_deliverable_template'),
+    path('admin/deliverables/deliverable-templates/<int:pk>/delete/',views.delete_deliverable_template_view,name='delete_deliverable_template'),
     path('admin/deliverables/assign/', views.assign_deliverables_view, name='assign_deliverables'),
     path('admin/faculty/<uuid:faculty_uuid>/deliverables/',views.faculty_deliverables,name='faculty_deliverables',),
 

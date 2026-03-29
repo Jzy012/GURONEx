@@ -6,24 +6,18 @@
   <p>Hi {{ full_name }},</p>
 
   <p>
-    This is an update regarding your application to
-    <strong>LINANG</strong>.
+    This is to inform you that your schedule for
+    <span class="badge">{{ status_label }}</span>
+    has been updated.
   </p>
 
   <p>
-    Your current application status is now:
-    <span class="badge">{{ new_status }}</span>
+    New schedule date: <strong>{{ rescheduled_date|date:"F j, Y" }}</strong>
   </p>
-
-  {% if status_date %}
-    <p>
-      Please report at PUP-SPC Campus on: <strong>{{ status_date|date:"F j, Y" }}</strong>
-    </p>
-  {% endif %}
 
   {% if status_url %}
     <p>
-      You can check your application status any time using the link below:
+      You can check your latest application status using the link below:
     </p>
     <p>
       <a href="{% url 'applicants:dashboard' %}" class="btn">
