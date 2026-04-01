@@ -148,7 +148,7 @@ def applicant_logout(request):
 @applicant_login_required
 def applicant_dashboard(request):
     applicant = get_object_or_404(Applicant, pk=request.session["applicant_pk"])
-    docs = applicant.documents.select_related("document_category").order_by("-submitted_at")
+    docs = applicant.documents.filter(is_archived=False).select_related("document_category").order_by("-submitted_at")
     required_docs = ApplicantRequiredDocument.objects.select_related("document_category").all()
     timeline = applicant.timeline.order_by("timestamp")
 

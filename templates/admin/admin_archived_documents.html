@@ -1,0 +1,468 @@
+{% extends 'admin/admin_base.html' %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <h2 class="text-3xl font-bold text-gray-900">Archived Documents</h2>
+    <div class="flex items-center gap-3">
+      <a href="{% url 'adminhub:documents' %}"
+         class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 text-sm font-semibold">
+        <span>Back to Documents</span>
+      </a>
+    </div>
+  </div>
+
+  <form method="get" class="bg-white p-4 rounded-lg shadow flex flex-col sm:flex-row gap-4">
+    <div class="min-w-[170px]">
+      <label class="block text-sm font-medium text-gray-600 mb-1">Type</label>
+      <select name="type" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
+        <option value="all" {% if selected_type == 'all' %}selected{% endif %}>All</option>
+        <option value="faculty" {% if selected_type == 'faculty' %}selected{% endif %}>Faculty</option>
+        <option value="applicant" {% if selected_type == 'applicant' %}selected{% endif %}>Applicant</option>
+      </select>
+    </div>
+
+    <div class="flex-1 min-w-[200px]">
+      <label class="block text-sm font-medium text-gray-600 mb-1">Search</label>
+      <input type="text" name="q" value="{{ search_query }}" placeholder="Search name, email, or document..."
+             class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
+    </div>
+
+    <div class="min-w-[200px]">
+      <label class="block text-sm font-medium text-gray-600 mb-1">Category</label>
+      <select name="category" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
+        <option value="">All Categories</option>
+        {% for category in categories %}
+          <option value="{{ category.id }}" {% if category.id|stringformat:"s" == selected_category %}selected{% endif %}>{{ category.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="min-w-[200px]">
+      <label class="block text-sm font-medium text-gray-600 mb-1">Status</label>
+      <select name="status" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
+        <option value="">All Statuses</option>
+        <option value="Pending" {% if selected_status == "Pending" %}selected{% endif %}>Pending</option>
+        <option value="Approved" {% if selected_status == "Approved" %}selected{% endif %}>Approved</option>
+        <option value="Rejected" {% if selected_status == "Rejected" %}selected{% endif %}>Rejected</option>
+      </select>
+    </div>
+
+    <div class="flex items-end">
+      <button type="submit" class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow transition duration-200 text-sm font-semibold">Filter</button>
+    </div>
+  </form>
+
+  <form id="bulkActionForm"
+      method="post"
+      action="{% url 'adminhub:archived_documents_bulk_action' %}"
+      class="js-confirm-form mb-1"
+      data-confirm-message="Proceed with this bulk action?"
+      data-form-type="bulk">
+
+  {% csrf_token %}
+  <input type="hidden" name="type" value="{{ selected_type }}">
+  <input type="hidden" name="q" value="{{ search_query }}">
+  <input type="hidden" name="category" value="{{ selected_category }}">
+  <input type="hidden" name="status" value="{{ selected_status }}">
+  <input type="hidden" name="bulk_action" id="bulkActionInput" value="">
+
+  <!-- FLEX CONTAINER -->
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+
+    <!-- LEFT CARD -->
+    <div class="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+      
+      <label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
+        <input id="selectAllDesktop"
+               type="checkbox"
+               class="rounded border-gray-300 text-[#800505] focus:ring-[#800505]">
+        <span>Select All</span>
+      </label>
+
+      <span id="selectedCountBadge"
+            class="inline-flex items-center rounded-full bg-[#800505]/10 text-[#800505] px-3 py-1 text-xs font-semibold">
+        0 selected
+      </span>
+
+      <!-- SELECTED ACTIONS -->
+      <div id="selectedActions" class="hidden items-center gap-2">
+        <button type="submit"
+                data-action="restore_selected"
+                data-confirm-message="Restore selected documents?"
+                data-summary-mode="selected"
+                class="bulk-selected-btn px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition">
+          Restore Selected
+        </button>
+
+        <button type="submit"
+                data-action="delete_selected"
+                data-confirm-message="Delete selected documents permanently?"
+                data-summary-mode="selected"
+                class="bulk-selected-btn px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-[#800505] text-xs font-semibold hover:bg-red-100 transition">
+          Delete Selected
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT CARD -->
+    <div class="flex flex-wrap items-center gap-2 bg-white border border-gray-200 rounded-lg p-3 shadow-sm lg:ml-auto">
+      
+      <button type="submit"
+              data-action="restore_all"
+              data-confirm-message="Restore all currently filtered archived documents?"
+              class="px-2.5 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition">
+        Restore All
+      </button>
+
+      <button type="submit"
+              data-action="delete_all"
+              data-confirm-message="Delete all currently filtered archived documents permanently?"
+              class="px-2.5 py-1.5 rounded-lg border border-red-200 bg-red-50 text-[#800505] text-xs font-semibold hover:bg-red-100 transition">
+        Delete All
+      </button>
+    </div>
+
+  </div>
+</form>
+
+  <div class="hidden sm:block bg-white rounded-lg shadow-md overflow-x-auto">
+    <table class="min-w-full border-collapse text-sm">
+      <thead class="bg-gray-100 border-t border-gray-200">
+        <tr class="text-left font-semibold text-gray-700">
+          <th class="px-5 py-4 border-b w-12">
+            <input id="selectAllHeader" type="checkbox" class="rounded border-gray-300 text-[#800505] focus:ring-[#800505]">
+          </th>
+          <th class="px-5 py-4 border-b">Type</th>
+          <th class="px-5 py-4 border-b">Owner</th>
+          <th class="px-5 py-4 border-b">Document</th>
+          <th class="px-5 py-4 border-b">Category</th>
+          <th class="px-5 py-4 border-b">Status</th>
+          <th class="px-5 py-4 border-b">Archived At</th>
+          <th class="px-5 py-4 border-b">Archived By</th>
+          <th class="px-5 py-4 border-b">View</th>
+          <th class="px-5 py-4 border-b">Action</th>
+        </tr>
+      </thead>
+      <tbody class="text-gray-900">
+        {% for doc in page_obj %}
+          <tr class="hover:bg-gray-50 transition">
+            <td class="px-5 py-4 border-b">
+              <input type="checkbox" name="selected_docs" value="{{ doc.type }}:{{ doc.id }}" form="bulkActionForm" class="doc-checkbox rounded border-gray-300 text-[#800505] focus:ring-[#800505]">
+            </td>
+            <td class="px-5 py-4 border-b">{{ doc.type|title }}</td>
+            <td class="px-5 py-4 border-b">
+              <div class="font-medium">{{ doc.owner_name }}</div>
+              <div class="text-xs text-gray-500">{{ doc.owner_email }}</div>
+            </td>
+            <td class="px-5 py-4 border-b">{{ doc.document_name }}</td>
+            <td class="px-5 py-4 border-b">{{ doc.category_name }}</td>
+            <td class="px-5 py-4 border-b">{{ doc.status }}</td>
+            <td class="px-5 py-4 border-b">{{ doc.archived_at|date:"M d, Y H:i" }}</td>
+            <td class="px-5 py-4 border-b">{{ doc.archived_by }}</td>
+            <td class="px-5 py-4 border-b">
+              <a href="{{ doc.view_url }}" target="_blank" rel="noopener noreferrer" class="text-[#800505] hover:underline font-medium">View</a>
+            </td>
+            <td class="px-5 py-4 border-b">
+              <form method="post" action="{{ doc.restore_url }}" class="js-confirm-form" data-confirm-message="Restore this document?" data-doc-name="{{ doc.document_name|escape }}" data-owner="{{ doc.owner_name|escape }}" data-category="{{ doc.category_name|escape }}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="text-green-700 hover:underline font-medium">Restore</button>
+              </form>
+              <form method="post" action="{{ doc.delete_url }}" class="js-confirm-form" data-confirm-message="Delete this document permanently?" data-doc-name="{{ doc.document_name|escape }}" data-owner="{{ doc.owner_name|escape }}" data-category="{{ doc.category_name|escape }}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="text-red-700 hover:underline font-medium">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="10" class="px-5 py-10 text-center text-gray-500 font-semibold">No archived documents found.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sm:hidden space-y-4">
+    {% for doc in page_obj %}
+      <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200 space-y-2">
+        <div class="flex justify-between items-start gap-2">
+          <div>
+            <input type="checkbox" name="selected_docs_mobile" value="{{ doc.type }}:{{ doc.id }}" form="bulkActionForm" class="doc-checkbox-mobile mr-2 rounded border-gray-300 text-[#800505] focus:ring-[#800505] align-middle">
+            <p class="text-xs capitalize text-gray-500 font-semibold">{{ doc.type|title }}</p>
+            <h3 class="text-base font-semibold text-gray-900">{{ doc.document_name }}</h3>
+          </div>
+          <a href="{{ doc.view_url }}" target="_blank" rel="noopener noreferrer" class="text-[#800505] hover:underline text-sm font-semibold">View</a>
+        </div>
+        <p class="text-sm"><span class="font-semibold">Owner:</span> {{ doc.owner_name }}</p>
+        <p class="text-sm"><span class="font-semibold">Category:</span> {{ doc.category_name }}</p>
+        <p class="text-sm"><span class="font-semibold">Status:</span> {{ doc.status }}</p>
+        <p class="text-sm"><span class="font-semibold">Archived:</span> {{ doc.archived_at|date:"M d, Y H:i" }}</p>
+        <p class="text-sm"><span class="font-semibold">By:</span> {{ doc.archived_by }}</p>
+        <form method="post" action="{{ doc.restore_url }}" class="js-confirm-form" data-confirm-message="Restore this document?" data-doc-name="{{ doc.document_name|escape }}" data-owner="{{ doc.owner_name|escape }}" data-category="{{ doc.category_name|escape }}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" class="text-green-700 hover:underline font-semibold text-sm">Restore</button>
+        </form>
+        <form method="post" action="{{ doc.delete_url }}" class="js-confirm-form" data-confirm-message="Delete this document permanently?" data-doc-name="{{ doc.document_name|escape }}" data-owner="{{ doc.owner_name|escape }}" data-category="{{ doc.category_name|escape }}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" class="text-red-700 hover:underline font-semibold text-sm">Delete Permanently</button>
+        </form>
+      </div>
+    {% empty %}
+      <p class="text-center text-gray-500 font-semibold">No archived documents found.</p>
+    {% endfor %}
+  </div>
+
+  {% if page_obj.has_other_pages %}
+    <nav aria-label="Page navigation" class="flex justify-center mt-6 space-x-2">
+      {% if page_obj.has_previous %}
+        <a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.previous_page_number }}"
+           class="px-3 py-1 rounded bg-[#800505] hover:bg-[#a80707] text-white font-semibold">Prev</a>
+      {% endif %}
+      <span class="px-3 py-1 rounded bg-gray-200">{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.next_page_number }}"
+           class="px-3 py-1 rounded bg-[#800505] hover:bg-[#a80707] text-white font-semibold">Next</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+</div>
+
+<div id="actionConfirmModal" class="hidden fixed inset-0 z-[60] bg-gray-900/60 items-center justify-center px-4 py-6 sm:p-0">
+  <div class="w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-200">
+    <div class="px-5 py-4 border-b border-gray-100">
+      <h3 class="text-lg font-semibold text-gray-900">Please Confirm</h3>
+      <p id="actionConfirmMessage" class="mt-1 text-sm text-gray-600">Are you sure?</p>
+      <div id="actionConfirmDetails" class="mt-3 text-sm text-gray-700 space-y-1 hidden">
+        <p id="actionConfirmDocRow"><span class="font-semibold">Document:</span> <span id="actionConfirmDocName">-</span></p>
+        <p id="actionConfirmOwnerRow"><span class="font-semibold">Owner:</span> <span id="actionConfirmOwner">-</span></p>
+        <p id="actionConfirmCategoryRow"><span class="font-semibold">Category:</span> <span id="actionConfirmCategory">-</span></p>
+        <p id="actionConfirmSummaryRow" class="hidden"><span class="font-semibold">Summary:</span> <span id="actionConfirmSummary">-</span></p>
+      </div>
+    </div>
+    <div class="px-5 py-4 flex justify-end gap-2">
+      <button type="button" id="actionConfirmCancel" class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-100 transition">Cancel</button>
+      <button type="button" id="actionConfirmProceed" class="px-4 py-2 rounded-lg bg-[#800505] hover:bg-[#a80707] text-white text-sm font-semibold shadow transition">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let pendingActionForm = null;
+  let pendingSubmitter = null;
+  let pendingBulkButton = null;
+  let bypassConfirm = false;
+
+  function openActionConfirm(message, formEl) {
+    pendingActionForm = formEl;
+    const modal = document.getElementById('actionConfirmModal');
+    const messageEl = document.getElementById('actionConfirmMessage');
+    const detailsEl = document.getElementById('actionConfirmDetails');
+    const docRowEl = document.getElementById('actionConfirmDocRow');
+    const ownerRowEl = document.getElementById('actionConfirmOwnerRow');
+    const categoryRowEl = document.getElementById('actionConfirmCategoryRow');
+    const docNameEl = document.getElementById('actionConfirmDocName');
+    const ownerEl = document.getElementById('actionConfirmOwner');
+    const categoryEl = document.getElementById('actionConfirmCategory');
+    const summaryRowEl = document.getElementById('actionConfirmSummaryRow');
+    const summaryEl = document.getElementById('actionConfirmSummary');
+    messageEl.textContent = message || 'Are you sure?';
+
+    const docName = formEl.dataset.docName || '';
+    const owner = formEl.dataset.owner || '';
+    const category = formEl.dataset.category || '';
+
+    const summary = formEl.dataset.summary || '';
+
+    if (docName || owner || category || summary) {
+      docNameEl.textContent = docName || 'N/A';
+      ownerEl.textContent = owner || 'N/A';
+      categoryEl.textContent = category || 'N/A';
+
+      if (docName) {
+        docRowEl.classList.remove('hidden');
+      } else {
+        docRowEl.classList.add('hidden');
+      }
+      if (owner) {
+        ownerRowEl.classList.remove('hidden');
+      } else {
+        ownerRowEl.classList.add('hidden');
+      }
+      if (category) {
+        categoryRowEl.classList.remove('hidden');
+      } else {
+        categoryRowEl.classList.add('hidden');
+      }
+
+      if (summary) {
+        summaryEl.textContent = summary;
+        summaryRowEl.classList.remove('hidden');
+      } else {
+        summaryRowEl.classList.add('hidden');
+      }
+      detailsEl.classList.remove('hidden');
+    } else {
+      detailsEl.classList.add('hidden');
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function closeActionConfirm() {
+    const modal = document.getElementById('actionConfirmModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    pendingActionForm = null;
+    pendingSubmitter = null;
+    pendingBulkButton = null;
+    bypassConfirm = false;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    function setAllChecked(selector, checked) {
+      document.querySelectorAll(selector).forEach(function (cb) { cb.checked = checked; });
+    }
+
+    function updateSelectedState() {
+      const selectedCount = document.querySelectorAll('input[name="selected_docs"]:checked, input[name="selected_docs_mobile"]:checked').length;
+      const badge = document.getElementById('selectedCountBadge');
+      const selectedActions = document.getElementById('selectedActions');
+      if (badge) {
+        badge.textContent = `${selectedCount} selected`;
+      }
+      if (selectedActions) {
+        if (selectedCount > 0) {
+          selectedActions.classList.remove('hidden');
+          selectedActions.classList.add('inline-flex');
+        } else {
+          selectedActions.classList.add('hidden');
+          selectedActions.classList.remove('inline-flex');
+        }
+      }
+    }
+
+    function getSelectedCount() {
+      return document.querySelectorAll('input[name="selected_docs"]:checked, input[name="selected_docs_mobile"]:checked').length;
+    }
+
+    const selectAllHeader = document.getElementById('selectAllHeader');
+    const selectAllDesktop = document.getElementById('selectAllDesktop');
+    if (selectAllHeader) {
+      selectAllHeader.addEventListener('change', function () {
+        setAllChecked('.doc-checkbox', this.checked);
+        updateSelectedState();
+      });
+    }
+    if (selectAllDesktop) {
+      selectAllDesktop.addEventListener('change', function () {
+        setAllChecked('.doc-checkbox', this.checked);
+        setAllChecked('.doc-checkbox-mobile', this.checked);
+        if (selectAllHeader) {
+          selectAllHeader.checked = this.checked;
+        }
+        updateSelectedState();
+      });
+    }
+
+    document.querySelectorAll('.doc-checkbox, .doc-checkbox-mobile').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        if (selectAllHeader) {
+          const desktop = document.querySelectorAll('.doc-checkbox');
+          const checkedDesktop = document.querySelectorAll('.doc-checkbox:checked');
+          selectAllHeader.checked = desktop.length > 0 && desktop.length === checkedDesktop.length;
+        }
+        if (selectAllDesktop) {
+          const all = document.querySelectorAll('.doc-checkbox, .doc-checkbox-mobile');
+          const checkedAll = document.querySelectorAll('.doc-checkbox:checked, .doc-checkbox-mobile:checked');
+          selectAllDesktop.checked = all.length > 0 && all.length === checkedAll.length;
+        }
+        updateSelectedState();
+      });
+    });
+
+    document.querySelectorAll('#bulkActionForm button[type="submit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        pendingBulkButton = btn;
+        const bulkActionInput = document.getElementById('bulkActionInput');
+        bulkActionInput.value = btn.dataset.action || '';
+      });
+    });
+
+    updateSelectedState();
+
+    document.querySelectorAll('.js-confirm-form').forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        if (bypassConfirm) {
+          return;
+        }
+        event.preventDefault();
+
+        const submitter = event.submitter || (form.id === 'bulkActionForm' ? pendingBulkButton : null);
+        pendingSubmitter = submitter;
+
+        if (form.id === 'bulkActionForm') {
+          const effectiveSubmitter = submitter || form.querySelector(`button[data-action="${document.getElementById('bulkActionInput').value}"]`);
+          if (!effectiveSubmitter) {
+            openActionConfirm(form.dataset.confirmMessage || 'Proceed with this bulk action?', form);
+            return;
+          }
+
+          pendingSubmitter = effectiveSubmitter;
+          form.dataset.docName = '';
+          form.dataset.owner = '';
+          form.dataset.category = '';
+
+          const msg = effectiveSubmitter.dataset.confirmMessage || form.dataset.confirmMessage || 'Are you sure?';
+          const summaryMode = effectiveSubmitter.dataset.summaryMode || '';
+          if (summaryMode === 'selected') {
+            const selectedCount = getSelectedCount();
+            if (selectedCount === 0) {
+              updateSelectedState();
+              return;
+            }
+            const actionLabel = (effectiveSubmitter.dataset.action || '').replace('_', ' ');
+            form.dataset.summary = `${actionLabel.toUpperCase()} on ${selectedCount} selected document(s).`;
+          } else {
+            const actionLabel = (effectiveSubmitter.dataset.action || '').replace('_', ' ');
+            form.dataset.summary = `${actionLabel.toUpperCase()} on current filtered results.`;
+          }
+          openActionConfirm(msg, form);
+          return;
+        }
+
+        openActionConfirm(form.dataset.confirmMessage || 'Are you sure?', form);
+      });
+    });
+
+    document.getElementById('actionConfirmCancel').addEventListener('click', closeActionConfirm);
+    document.getElementById('actionConfirmProceed').addEventListener('click', function () {
+      if (pendingActionForm) {
+        bypassConfirm = true;
+        if (pendingSubmitter && typeof pendingActionForm.requestSubmit === 'function') {
+          pendingActionForm.requestSubmit(pendingSubmitter);
+        } else {
+          pendingActionForm.submit();
+        }
+      }
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        closeActionConfirm();
+      }
+    });
+
+    document.getElementById('actionConfirmModal').addEventListener('click', function (event) {
+      if (event.target === this) {
+        closeActionConfirm();
+      }
+    });
+  });
+</script>
+{% endblock %}

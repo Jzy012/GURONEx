@@ -18,6 +18,11 @@
     </h2>
 
     <div class="flex items-center gap-3">
+      <a href="{% url 'adminhub:archived_documents' %}"
+         class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+        <span>Archived Documents</span>
+      </a>
+
       <!-- New: Document Templates link -->
       <a href="{% url 'adminhub:document_templates' %}"
                   class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
@@ -181,6 +186,7 @@
         <th class="px-5 py-4 border-b">Expiry</th>
         <th class="px-5 py-4 border-b">Size</th>
         <th class="px-5 py-4 border-b">View</th>
+        <th class="px-5 py-4 border-b">Actions</th>
       </tr>
       </thead>
       <tbody class="text-gray-900">
@@ -226,10 +232,17 @@
             <a href="{% url 'adminhub:download_document' doc.uid %}?inline=1" target="_blank" rel="noopener noreferrer"
                class="text-[#800505] hover:underline font-medium">View</a>
           </td>
+          <td class="px-5 py-4 border-b">
+            <form method="post" action="{% url 'adminhub:archive_document' doc.uid %}" class="js-confirm-form" data-confirm-message="Archive this document?" data-doc-name="{{ doc.document_name|escape }}" data-owner="{{ doc.faculty.name|escape }}" data-category="{{ doc.document_category.name|escape }}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit" class="text-red-700 hover:underline font-medium">Archive</button>
+            </form>
+          </td>
         </tr>
       {% empty %}
         <tr>
-          <td colspan="8" class="px-5 py-10 text-center text-gray-500 font-semibold">
+          <td colspan="9" class="px-5 py-10 text-center text-gray-500 font-semibold">
             No documents found.
           </td>
         </tr>
@@ -297,6 +310,13 @@
             <p class="font-semibold">Size</p>
             <p>{{ doc.size_human|default:"N/A" }}</p>
           </div>
+          <div class="col-span-2">
+            <form method="post" action="{% url 'adminhub:archive_document' doc.uid %}" class="js-confirm-form" data-confirm-message="Archive this document?" data-doc-name="{{ doc.document_name|escape }}" data-owner="{{ doc.faculty.name|escape }}" data-category="{{ doc.document_category.name|escape }}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit" class="text-red-700 hover:underline font-semibold text-sm">Archive</button>
+            </form>
+          </div>
         </div>
       </div>
     {% empty %}
@@ -349,6 +369,24 @@
       {% endif %}
     </nav>
   {% endif %}
+</div>
+
+<div id="actionConfirmModal" class="hidden fixed inset-0 z-[60] bg-gray-900/60 items-center justify-center px-4 py-6 sm:p-0">
+  <div class="w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-200">
+    <div class="px-5 py-4 border-b border-gray-100">
+      <h3 class="text-lg font-semibold text-gray-900">Please Confirm</h3>
+      <p id="actionConfirmMessage" class="mt-1 text-sm text-gray-600">Are you sure?</p>
+      <div id="actionConfirmDetails" class="mt-3 text-sm text-gray-700 space-y-1 hidden">
+        <p><span class="font-semibold">Document:</span> <span id="actionConfirmDocName">-</span></p>
+        <p><span class="font-semibold">Owner:</span> <span id="actionConfirmOwner">-</span></p>
+        <p><span class="font-semibold">Category:</span> <span id="actionConfirmCategory">-</span></p>
+      </div>
+    </div>
+    <div class="px-5 py-4 flex justify-end gap-2">
+      <button type="button" id="actionConfirmCancel" class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-100 transition">Cancel</button>
+      <button type="button" id="actionConfirmProceed" class="px-4 py-2 rounded-lg bg-[#800505] hover:bg-[#a80707] text-white text-sm font-semibold shadow transition">Confirm</button>
+    </div>
+  </div>
 </div>
 
 <!-- One modal per document (rendered once after lists) -->
@@ -481,6 +519,42 @@
 {% endfor %}
 
 <script>
+  let pendingActionForm = null;
+
+  function openActionConfirm(message, formEl) {
+    pendingActionForm = formEl;
+    const modal = document.getElementById('actionConfirmModal');
+    const messageEl = document.getElementById('actionConfirmMessage');
+    const detailsEl = document.getElementById('actionConfirmDetails');
+    const docNameEl = document.getElementById('actionConfirmDocName');
+    const ownerEl = document.getElementById('actionConfirmOwner');
+    const categoryEl = document.getElementById('actionConfirmCategory');
+    messageEl.textContent = message || 'Are you sure?';
+
+    const docName = formEl.dataset.docName || '';
+    const owner = formEl.dataset.owner || '';
+    const category = formEl.dataset.category || '';
+
+    if (docName || owner || category) {
+      docNameEl.textContent = docName || 'N/A';
+      ownerEl.textContent = owner || 'N/A';
+      categoryEl.textContent = category || 'N/A';
+      detailsEl.classList.remove('hidden');
+    } else {
+      detailsEl.classList.add('hidden');
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function closeActionConfirm() {
+    const modal = document.getElementById('actionConfirmModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    pendingActionForm = null;
+  }
+
   // Stats modal
   function openStatsModal() {
     const m = document.getElementById('statsModal');
@@ -508,6 +582,10 @@
   // Close on Escape (both stats and doc modals)
   document.addEventListener('keydown', function (event) {
     if (event.key === "Escape") {
+      const actionModal = document.getElementById('actionConfirmModal');
+      if (actionModal && actionModal.classList.contains('flex')) {
+        closeActionConfirm();
+      }
       const sm = document.getElementById('statsModal');
       if (sm && sm.classList.contains('flex')) closeStatsModal();
       document.querySelectorAll('[id^="modal-"]').forEach(function (modal) {
@@ -521,6 +599,10 @@
 
   // Click outside to close doc modals
   document.addEventListener('click', function (event) {
+    const actionModal = document.getElementById('actionConfirmModal');
+    if (actionModal && !actionModal.classList.contains('hidden') && event.target === actionModal) {
+      closeActionConfirm();
+    }
     document.querySelectorAll('[id^="modal-"]').forEach(function (modal) {
       if (!modal.classList.contains('hidden') && event.target === modal) {
         modal.classList.add('hidden');
@@ -574,5 +656,21 @@
         errorBox.textContent = 'Error saving status.';
       });
   }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.js-confirm-form').forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        openActionConfirm(form.dataset.confirmMessage || 'Are you sure?', form);
+      });
+    });
+
+    document.getElementById('actionConfirmCancel').addEventListener('click', closeActionConfirm);
+    document.getElementById('actionConfirmProceed').addEventListener('click', function () {
+      if (pendingActionForm) {
+        pendingActionForm.submit();
+      }
+    });
+  });
 </script>
 {% endblock %}

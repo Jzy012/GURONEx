@@ -119,9 +119,9 @@ def home(request):
 
     total_applicants = Applicant.objects.count()
     total_faculty = FacultyProfile.objects.count()
-    total_pending_docs = FacultyDocument.objects.filter(status='Pending').count()
+    total_pending_docs = FacultyDocument.objects.filter(status='Pending', is_archived=False).count()
     total_requests = FacultyRequest.objects.count()
-    total_storage_bytes = FacultyDocument.objects.aggregate(total_size=Sum('file_size'))['total_size'] or 0
+    total_storage_bytes = FacultyDocument.objects.filter(is_archived=False).aggregate(total_size=Sum('file_size'))['total_size'] or 0
 
     def format_storage(size_bytes):
         if size_bytes >= 1024**3:
@@ -179,7 +179,7 @@ def documents(request):
     category_id = request.GET.get('category')
     status_filter = request.GET.get('status')
 
-    documents = FacultyDocument.objects.select_related('faculty__account', 'document_category')
+    documents = FacultyDocument.objects.select_related('faculty__account', 'document_category').filter(is_archived=False)
 
     if search_query:
         documents = documents.filter(
@@ -217,9 +217,9 @@ def documents(request):
     categories = (
         DocumentCategory.objects
         .annotate(
-            total_docs=Count('documents'),
-            total_storage_bytes=Sum('documents__file_size'),
-            pending_count=Count('documents', filter=Q(documents__status='Pending'))
+            total_docs=Count('documents', filter=Q(documents__is_archived=False)),
+            total_storage_bytes=Sum('documents__file_size', filter=Q(documents__is_archived=False)),
+            pending_count=Count('documents', filter=Q(documents__status='Pending', documents__is_archived=False))
         )
         .order_by('name')
     )
@@ -276,6 +276,9 @@ def change_document_status(request, uid):
     if new_status not in ['Approved', 'Rejected', 'Pending']:
         return JsonResponse({"error": "Invalid status"}, status=400)
 
+    if doc.is_archived:
+        return JsonResponse({"error": "Archived documents cannot be updated."}, status=400)
+
     doc.status = new_status
     doc.admin_remarks = remarks
     doc.save(update_fields=['status', 'admin_remarks'])
@@ -285,6 +288,306 @@ def change_document_status(request, uid):
         "success": True,
         "status": doc.status,
         "admin_remarks": doc.admin_remarks,
+    })
+
+
+def _redirect_back(request, fallback_url_name='adminhub:documents'):
+    next_url = request.POST.get('next') or request.GET.get('next') or request.META.get('HTTP_REFERER')
+    if next_url:
+        return redirect(next_url)
+    return redirect(fallback_url_name)
+
+
+@admin_required
+@require_POST
+def archive_document(request, uid):
+    doc = get_object_or_404(FacultyDocument, uid=uid)
+    if doc.is_archived:
+        messages.info(request, "Document is already archived.")
+        return _redirect_back(request)
+
+    doc.archive(by_user=request.user)
+    messages.success(request, "Document archived successfully.")
+    return _redirect_back(request)
+
+
+@admin_required
+@require_POST
+def restore_document(request, uid):
+    doc = get_object_or_404(FacultyDocument, uid=uid)
+    if not doc.is_archived:
+        messages.info(request, "Document is already active.")
+        return _redirect_back(request)
+
+    doc.restore(by_user=request.user)
+    messages.success(request, "Document restored successfully.")
+    return _redirect_back(request)
+
+
+@admin_required
+@require_POST
+def archive_faculty_document(request, pk):
+    doc = get_object_or_404(FacultyDocument, pk=pk)
+    if doc.is_archived:
+        messages.info(request, "Document is already archived.")
+        return _redirect_back(request)
+
+    doc.archive(by_user=request.user)
+    messages.success(request, "Faculty document archived successfully.")
+    return _redirect_back(request)
+
+
+@admin_required
+@require_POST
+def restore_faculty_document(request, pk):
+    doc = get_object_or_404(FacultyDocument, pk=pk)
+    if not doc.is_archived:
+        messages.info(request, "Document is already active.")
+        return _redirect_back(request)
+
+    doc.restore(by_user=request.user)
+    messages.success(request, "Faculty document restored successfully.")
+    return _redirect_back(request)
+
+
+@admin_required
+@require_POST
+def archive_applicant_document(request, pk):
+    doc = get_object_or_404(ApplicantDocument, pk=pk)
+    if doc.is_archived:
+        messages.info(request, "Document is already archived.")
+        return _redirect_back(request)
+
+    doc.archive(by_user=request.user)
+    messages.success(request, "Applicant document archived successfully.")
+    return _redirect_back(request, fallback_url_name='adminhub:applicant_list')
+
+
+@admin_required
+@require_POST
+def restore_applicant_document(request, pk):
+    doc = get_object_or_404(ApplicantDocument, pk=pk)
+    if not doc.is_archived:
+        messages.info(request, "Document is already active.")
+        return _redirect_back(request)
+
+    doc.restore(by_user=request.user)
+    messages.success(request, "Applicant document restored successfully.")
+    return _redirect_back(request, fallback_url_name='adminhub:applicant_list')
+
+
+@admin_required
+@require_POST
+def delete_faculty_document_permanently(request, pk):
+    doc = get_object_or_404(FacultyDocument, pk=pk)
+    if not doc.is_archived:
+        messages.error(request, "Only archived documents can be permanently deleted.")
+        return _redirect_back(request, fallback_url_name='adminhub:archived_documents')
+
+    doc.delete()
+    messages.success(request, "Faculty document deleted permanently.")
+    return _redirect_back(request, fallback_url_name='adminhub:archived_documents')
+
+
+@admin_required
+@require_POST
+def delete_applicant_document_permanently(request, pk):
+    doc = get_object_or_404(ApplicantDocument, pk=pk)
+    if not doc.is_archived:
+        messages.error(request, "Only archived documents can be permanently deleted.")
+        return _redirect_back(request, fallback_url_name='adminhub:archived_documents')
+
+    doc.delete()
+    messages.success(request, "Applicant document deleted permanently.")
+    return _redirect_back(request, fallback_url_name='adminhub:archived_documents')
+
+
+def _get_filtered_archived_docs(doc_type, search_query, category_id, status_filter):
+    faculty_docs = FacultyDocument.objects.filter(is_archived=True).select_related(
+        'faculty__account', 'document_category', 'archived_by'
+    )
+    applicant_docs = ApplicantDocument.objects.filter(is_archived=True).select_related(
+        'applicant', 'document_category', 'archived_by'
+    )
+
+    if search_query:
+        faculty_docs = faculty_docs.filter(
+            Q(document_name__icontains=search_query)
+            | Q(faculty__name__icontains=search_query)
+            | Q(faculty__account__email__icontains=search_query)
+        )
+        applicant_docs = applicant_docs.filter(
+            Q(document_category__name__icontains=search_query)
+            | Q(applicant__first_name__icontains=search_query)
+            | Q(applicant__last_name__icontains=search_query)
+            | Q(applicant__email__icontains=search_query)
+        )
+
+    if category_id:
+        faculty_docs = faculty_docs.filter(document_category_id=category_id)
+        applicant_docs = applicant_docs.filter(document_category_id=category_id)
+
+    if status_filter:
+        faculty_docs = faculty_docs.filter(status=status_filter)
+        applicant_docs = applicant_docs.filter(status=status_filter)
+
+    if doc_type == 'faculty':
+        applicant_docs = ApplicantDocument.objects.none()
+    elif doc_type == 'applicant':
+        faculty_docs = FacultyDocument.objects.none()
+
+    return faculty_docs, applicant_docs
+
+
+@admin_required
+@require_POST
+def archived_documents_bulk_action(request):
+    action = (request.POST.get('bulk_action') or '').strip()
+    doc_type = request.POST.get('type', 'all')
+    search_query = (request.POST.get('q') or '').strip()
+    category_id = (request.POST.get('category') or '').strip()
+    status_filter = (request.POST.get('status') or '').strip()
+
+    selected_docs = request.POST.getlist('selected_docs') + request.POST.getlist('selected_docs_mobile')
+    selected_docs = list(dict.fromkeys(selected_docs))
+
+    faculty_docs, applicant_docs = _get_filtered_archived_docs(doc_type, search_query, category_id, status_filter)
+
+    restored_count = 0
+    deleted_count = 0
+
+    if action in ('restore_selected', 'delete_selected') and not selected_docs:
+        messages.warning(request, "Please select at least one document.")
+    elif action == 'restore_all':
+        restored_count += faculty_docs.update(is_archived=False, restored_at=timezone.now(), restored_by=request.user)
+        restored_count += applicant_docs.update(is_archived=False, restored_at=timezone.now(), restored_by=request.user)
+        messages.success(request, f"Restored {restored_count} document(s).")
+    elif action == 'delete_all':
+        deleted_count += faculty_docs.count()
+        faculty_docs.delete()
+        deleted_count += applicant_docs.count()
+        applicant_docs.delete()
+        messages.success(request, f"Deleted {deleted_count} document(s) permanently.")
+    elif action in ('restore_selected', 'delete_selected'):
+        faculty_ids = []
+        applicant_ids = []
+
+        for item in selected_docs:
+            try:
+                item_type, item_id = item.split(':', 1)
+                item_id = int(item_id)
+            except (ValueError, AttributeError):
+                continue
+
+            if item_type == 'faculty':
+                faculty_ids.append(item_id)
+            elif item_type == 'applicant':
+                applicant_ids.append(item_id)
+
+        selected_faculty_qs = faculty_docs.filter(pk__in=faculty_ids)
+        selected_applicant_qs = applicant_docs.filter(pk__in=applicant_ids)
+
+        if action == 'restore_selected':
+            restored_count += selected_faculty_qs.update(is_archived=False, restored_at=timezone.now(), restored_by=request.user)
+            restored_count += selected_applicant_qs.update(is_archived=False, restored_at=timezone.now(), restored_by=request.user)
+            messages.success(request, f"Restored {restored_count} selected document(s).")
+        else:
+            deleted_count += selected_faculty_qs.count()
+            selected_faculty_qs.delete()
+            deleted_count += selected_applicant_qs.count()
+            selected_applicant_qs.delete()
+            messages.success(request, f"Deleted {deleted_count} selected document(s) permanently.")
+    else:
+        messages.error(request, "Invalid bulk action.")
+
+    params = []
+    if doc_type:
+        params.append(f"type={doc_type}")
+    if search_query:
+        params.append(f"q={search_query}")
+    if category_id:
+        params.append(f"category={category_id}")
+    if status_filter:
+        params.append(f"status={status_filter}")
+
+    query = ('?' + '&'.join(params)) if params else ''
+    return redirect(reverse('adminhub:archived_documents') + query)
+
+
+@admin_required
+def archived_documents(request):
+    doc_type = request.GET.get('type', 'all')
+    search_query = request.GET.get('q', '').strip()
+    category_id = request.GET.get('category', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+
+    faculty_docs, applicant_docs = _get_filtered_archived_docs(
+        doc_type=doc_type,
+        search_query=search_query,
+        category_id=category_id,
+        status_filter=status_filter,
+    )
+
+    rows = []
+    if doc_type in ('all', 'faculty'):
+        for doc in faculty_docs:
+            rows.append({
+                'type': 'faculty',
+                'id': doc.pk,
+                'uid': doc.uid,
+                'owner_name': doc.faculty.name,
+                'owner_email': doc.faculty.account.email,
+                'document_name': doc.document_name,
+                'category_name': doc.document_category.name if doc.document_category else 'N/A',
+                'status': doc.status,
+                'uploaded_at': doc.uploaded_at,
+                'archived_at': doc.archived_at,
+                'archived_by': doc.archived_by.email if doc.archived_by else 'N/A',
+                'view_url': reverse('adminhub:download_document', args=[doc.uid]) + '?inline=1',
+                'restore_url': reverse('adminhub:restore_faculty_document', args=[doc.pk]),
+                'delete_url': reverse('adminhub:delete_faculty_document_permanently', args=[doc.pk]),
+            })
+
+    if doc_type in ('all', 'applicant'):
+        for doc in applicant_docs:
+            owner_name = f"{doc.applicant.first_name} {doc.applicant.last_name}".strip()
+            rows.append({
+                'type': 'applicant',
+                'id': doc.pk,
+                'uid': None,
+                'owner_name': owner_name,
+                'owner_email': doc.applicant.email,
+                'document_name': doc.document_category.name if doc.document_category else 'Applicant Document',
+                'category_name': doc.document_category.name if doc.document_category else 'N/A',
+                'status': doc.status,
+                'uploaded_at': doc.submitted_at,
+                'archived_at': doc.archived_at,
+                'archived_by': doc.archived_by.email if doc.archived_by else 'N/A',
+                'view_url': reverse('adminhub:download_applicant_document', args=[doc.pk]) + '?inline=1',
+                'restore_url': reverse('adminhub:restore_applicant_document', args=[doc.pk]),
+                'delete_url': reverse('adminhub:delete_applicant_document_permanently', args=[doc.pk]),
+            })
+
+    rows.sort(key=lambda item: item['archived_at'].timestamp() if item['archived_at'] else 0, reverse=True)
+
+    paginator = Paginator(rows, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    get_params = request.GET.copy()
+    if 'page' in get_params:
+        del get_params['page']
+    querystring = get_params.urlencode()
+
+    return render(request, 'admin/admin_archived_documents.html', {
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'categories': DocumentCategory.objects.order_by('name'),
+        'selected_type': doc_type,
+        'search_query': search_query,
+        'selected_category': category_id,
+        'selected_status': status_filter,
+        'querystring': querystring,
     })
 
 
@@ -398,11 +701,11 @@ def faculty_list_view(request):
 
     # Annotate with pending document counts
     faculty_qs = faculty_qs.annotate(
-        pending_documents=Count('documents', filter=Q(documents__status='Pending'))
+        pending_documents=Count('documents', filter=Q(documents__status='Pending', documents__is_archived=False))
     )
 
     total_faculty = FacultyProfile.objects.count()
-    total_pending_docs = FacultyDocument.objects.filter(status='Pending').count()
+    total_pending_docs = FacultyDocument.objects.filter(status='Pending', is_archived=False).count()
     statuses = EmploymentStatus.objects.filter(is_active=True)
 
     # Pagination (same as in documents view)
@@ -470,6 +773,7 @@ def faculty_detail_view(request, faculty_uuid):
 
     documents = (
         faculty.documents
+        .filter(is_archived=False)
         .select_related('document_category')
         .order_by('-uploaded_at')
     )
@@ -572,6 +876,9 @@ def change_faculty_document_status(request, pk):
 
     if new_status not in ['Approved', 'Rejected', 'Pending']:
         return JsonResponse({"error": "Invalid status"}, status=400)
+
+    if doc.is_archived:
+        return JsonResponse({"error": "Archived documents cannot be updated."}, status=400)
 
     with transaction.atomic():
         doc.status = new_status
@@ -1262,7 +1569,7 @@ def _parse_input_date(date_raw: str):
 @admin_required
 def applicant_detail_view(request, uuid):
     applicant = get_object_or_404(Applicant, uuid=uuid)
-    documents = ApplicantDocument.objects.filter(applicant=applicant)
+    documents = ApplicantDocument.objects.filter(applicant=applicant, is_archived=False)
 
     status_labels = dict(STEPPER_STATUSES)
     current_status_label = status_labels.get(applicant.status, applicant.status)
@@ -1462,6 +1769,9 @@ def change_applicant_document_status(request, pk):
 
     if new_status not in ['Approved', 'Rejected', 'Pending']:
         return JsonResponse({"error": "Invalid status"}, status=400)
+
+    if doc.is_archived:
+        return JsonResponse({"error": "Archived documents cannot be updated."}, status=400)
 
     with transaction.atomic():
         doc.status = new_status

@@ -158,6 +158,23 @@ class ApplicantDocument(models.Model):
     ], default='Pending')
     admin_remarks = models.TextField(null=True, blank=True)
     remarks = models.TextField(null=True, blank=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(
+        "base.Account",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='archived_applicant_documents',
+    )
+    restored_at = models.DateTimeField(null=True, blank=True)
+    restored_by = models.ForeignKey(
+        "base.Account",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='restored_applicant_documents',
+    )
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
@@ -177,6 +194,22 @@ class ApplicantDocument(models.Model):
         if self.expiry_date:
             return self.expiry_date >= timezone.now().date()
         return True
+
+    def archive(self, by_user):
+        if self.is_archived:
+            return
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.archived_by = by_user
+        self.save(update_fields=['is_archived', 'archived_at', 'archived_by'])
+
+    def restore(self, by_user):
+        if not self.is_archived:
+            return
+        self.is_archived = False
+        self.restored_at = timezone.now()
+        self.restored_by = by_user
+        self.save(update_fields=['is_archived', 'restored_at', 'restored_by'])
 
 
 class ApplicantTimeline(models.Model):

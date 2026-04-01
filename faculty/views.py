@@ -35,7 +35,8 @@ def home(request):
     # Pending Documents (status = Pending, for this faculty)
     pending_documents = FacultyDocument.objects.filter(
         faculty=faculty,
-        status="Pending"
+        status="Pending",
+        is_archived=False,
     ).count()
 
     # Pending Requests (status = Pending or Open, for this faculty)
@@ -77,6 +78,7 @@ def home(request):
                 semester=semester,
                 deliverable_id__in=deliverable_ids,
                 status="Approved",
+                is_archived=False,
             ).count()
         else:
             approved_count = 0
@@ -173,7 +175,7 @@ from django.utils import timezone
 @faculty_required
 def faculty_documents_view(request):
     faculty_profile = request.user.faculty_profile
-    documents = faculty_profile.documents.order_by("-uploaded_at")  # or paginate as needed
+    documents = faculty_profile.documents.filter(is_archived=False).order_by("-uploaded_at")  # or paginate as needed
 
     total_documents = documents.count()
     pending_documents = documents.filter(status="Pending").count()
