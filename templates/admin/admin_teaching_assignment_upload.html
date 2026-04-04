@@ -69,6 +69,11 @@
                   <strong>Semester</strong>.
                   Optional: <strong>Faculty Name</strong>, <strong>Room</strong>.
                 </li>
+                <li>
+                  Faculty name auto-match accepts: <strong>First Last</strong>,
+                  <strong>First Middle Last</strong>, <strong>Last, First</strong>,
+                  <strong>Last, First Middle</strong>, and a unique <strong>Last Name Only</strong> entry.
+                </li>
               </ul>
             </div>
 
@@ -146,6 +151,8 @@
                 <li>Time formats accepted: 24-hour (08:00–16:00).</li>
                 <li>Room is optional; leave blank if unknown.</li>
                 <li>Semester can be numeric ID or descriptive text that matches an existing semester.</li>
+                <li>When a faculty name matches uniquely, the confirm page auto-fills the faculty field for that row.</li>
+                <li>When only first and last names are provided, middle names and suffixes are ignored for matching.</li>
               </ul>
             </div>
           </section>

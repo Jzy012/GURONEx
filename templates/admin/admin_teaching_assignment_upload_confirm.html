@@ -76,7 +76,7 @@
     <form method="post" id="ta-confirm-form" class="space-y-6" novalidate>
       {% csrf_token %}
       <p class="text-sm text-gray-600">
-        Edit any fields below. Faculty & Semester are required. No assignments will be created until every included row is error‑free.
+        Edit any fields below. Faculty & Semester are required. Unique faculty name matches are already prefilled in the faculty selector. No assignments will be created until every included row is error‑free.
       </p>
 
       <!-- Apply faculty and semester global UI -->
@@ -219,6 +219,7 @@
                        x-init="init()"
                        data-row-index="{{ row.index|escapejs }}"
                        data-initial-faculty="{{ row.faculty_uuid|default:row.faculty_choice|default:''|escapejs }}"
+                       data-initial-faculty-display="{{ row.faculty_display|default:''|escape }}"
                        class="relative w-full">
                     <input type="hidden" name="assign_{{ row.index }}" id="assign_{{ row.index }}" x-model="selected">
                     <button type="button"
@@ -226,7 +227,7 @@
                             class="faculty-trigger flex items-center justify-between w-full px-3 py-2 border rounded-lg bg-white text-sm shadow-sm focus:ring-2 focus:ring-[#800505]
                                    {% if has_row_errors and not row.faculty_uuid and not row.faculty_choice %}border-red-500{% else %}border-gray-300{% endif %}"
                             {% if row.removed %}disabled{% endif %}>
-                      <span class="truncate" x-text="selectedName() || 'Select faculty'"></span>
+                      <span class="truncate" x-text="selectedDisplay || selectedName() || 'Select faculty'"></span>
                       <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 20 20">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l4 4 4-4"/>
                       </svg>
@@ -255,6 +256,14 @@
                       </ul>
                     </div>
                   </div>
+
+                  {% if row.faculty_match_status == 'matched' and row.faculty_match_message %}
+                    <p class="mt-2 text-xs text-emerald-700">{{ row.faculty_match_message }}</p>
+                  {% elif row.faculty_match_status == 'no_match' and row.faculty_match_message %}
+                    <p class="mt-2 text-xs text-amber-700">{{ row.faculty_match_message }}</p>
+                  {% elif row.faculty_match_status == 'ambiguous' and row.faculty_match_message %}
+                    <p class="mt-2 text-xs text-amber-700">{{ row.faculty_match_message }}</p>
+                  {% endif %}
                 </div>
 
                 <div class="flex flex-col">
@@ -501,10 +510,15 @@
     const countEl = document.querySelector('[data-row-count]');
     const included = computeIncludedCount();
     if (countEl) countEl.setAttribute('data-row-count', String(included));
-    // if Alpine has initialised the container, update its reactive data
+    // If Alpine has initialized the container, update reactive state (supports Alpine v2/v3 internals).
     const container = document.querySelector('[x-data="confirmModal()"]');
-    if (container && container.__x && container.__x.$data) {
-      container.__x.$data.rowCount = included;
+    if (container) {
+      const alpineData =
+        (container.__x && container.__x.$data)
+        || (Array.isArray(container._x_dataStack) && container._x_dataStack.length ? container._x_dataStack[0] : null);
+      if (alpineData && Object.prototype.hasOwnProperty.call(alpineData, 'rowCount')) {
+        alpineData.rowCount = included;
+      }
     }
   }
 
@@ -617,12 +631,14 @@
     Alpine.data('facultySelect', () => ({
       search: '',
       selected: '',
+      selectedDisplay: '',
       open: false,
       faculties: [],
       rowIndex: '',
       init() {
         this.rowIndex = this.$el.dataset.rowIndex || this.$el.dataset.rowIdx || '';
         this.selected = this.$el.dataset.initialFaculty || '';
+        this.selectedDisplay = this.$el.dataset.initialFacultyDisplay || '';
         try { this.faculties = JSON.parse(document.getElementById('faculties-data').textContent || '[]'); }
         catch(e) { console.error('Failed to parse faculties-data', e); this.faculties = []; }
         this.faculties = this.faculties.map(f => ({ uuid: f.uuid, display: f.display || f.name || '' }));
@@ -630,6 +646,10 @@
         if (this.selected) {
           const h = document.getElementById('assign_' + this.rowIndex);
           if (h) h.value = this.selected;
+        }
+        if (!this.selectedDisplay && this.selected) {
+          const obj = this.faculties.find(f => f.uuid === this.selected);
+          if (obj) this.selectedDisplay = obj.display;
         }
       },
       options() {
@@ -639,12 +659,16 @@
       },
       select(val) {
         this.selected = val;
+        const obj = this.faculties.find(f => f.uuid === this.selected);
+        this.selectedDisplay = obj ? obj.display : '';
         const h = document.getElementById('assign_' + this.rowIndex);
         if (h) h.value = val;
         this.open = false;
       },
       setFromApply(val) {
         this.selected = val;
+        const obj = this.faculties.find(f => f.uuid === this.selected);
+        this.selectedDisplay = obj ? obj.display : '';
         const h = document.getElementById('assign_' + this.rowIndex);
         if (h) h.value = val;
         this.open = false;
@@ -799,6 +823,7 @@
         }
 
         // Recompute included rows (only rows with include === '1')
+        this.rowCount = computeIncludedCount();
         updateRowCountUI();
         this.open = true;
         this.$nextTick(() => {

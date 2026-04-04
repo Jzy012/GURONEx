@@ -2,16 +2,41 @@
 {% block content %}
 <style>
   .gd-status-link {
-    padding: 0.5rem 0.75rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    width: fit-content !important;
+    max-width: 100%;
+    gap: 6px !important;
+    padding: 6px 10px !important;
+  }
+
+  .gd-status-icon {
+    width: 15px !important;
+    height: 15px !important;
+    flex: 0 0 auto;
+  }
+
+  .gd-status-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .gd-status-label {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
   }
 
   .gd-status-chip {
     display: inline-flex;
     align-items: center;
-    height: 1.5rem !important;
-    padding: 0 0.625rem !important;
+    height: 22px !important;
+    padding: 0 10px !important;
     border-radius: 9999px;
-    font-size: 0.75rem;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1;
     white-space: nowrap;
@@ -30,18 +55,18 @@
       </p>
     </div>
 
-    <a href="{% url 'storage_status' %}"
-       class="gd-status-link w-full sm:w-auto text-xs flex items-center gap-2 rounded-lg shadow-sm border border-gray-200 bg-white transition hover:shadow-md group"
-       style="padding: 8px 12px !important;">
+     <a href="{% url 'storage_status' %}"
+       class="gd-status-link text-xs flex items-center gap-2 rounded-lg shadow-sm border border-gray-200 bg-white transition hover:shadow-md group"
+       style="display: inline-flex !important; width: fit-content !important; max-width: 100%; padding: 6px 10px !important;">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
            stroke="currentColor"
-           class="w-4 h-4 shrink-0 text-blue-700 group-hover:text-blue-900 transition">
+           class="gd-status-icon text-blue-700 group-hover:text-blue-900 transition">
         <path stroke-linecap="round" stroke-linejoin="round"
               d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
       </svg>
 
-      <span class="min-w-0 flex items-center gap-1.5">
-        <span class="text-gray-700 font-medium whitespace-nowrap">Google Drive:</span>
+      <span class="gd-status-row">
+        <span class="gd-status-label text-gray-700">Google Drive:</span>
         <span class="gd-status-chip
           {% if status.label == 'Connected' %}
             bg-green-100 text-green-800
@@ -49,8 +74,7 @@
             bg-red-100 text-red-800
           {% else %}
             bg-red-100 text-red-800
-          {% endif %}"
-          style="height: 24px !important; padding: 0 10px !important; line-height: 1 !important;">
+          {% endif %}">
           {{ status.label }}
         </span>
       </span>

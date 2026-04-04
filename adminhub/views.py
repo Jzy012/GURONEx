@@ -91,8 +91,10 @@ from base.utils.email import (
     send_html_email,
 )
 from base.utils.teaching_assignment import (
+    build_faculty_name_index,
     get_all_faculty_list,
     get_all_semesters,
+    match_faculty_from_name,
     read_file_to_rows,
 )
 from faculty.models import (
@@ -2391,6 +2393,7 @@ def teaching_assignment_bulk_upload(request):
         else:
             all_rows = []
             errors = []
+            faculty_name_index = build_faculty_name_index()
             for f in uploaded_files:
                 name = f.name.lower()
                 if not (name.endswith('.csv') or name.endswith('.xls') or name.endswith('.xlsx')):
@@ -2411,12 +2414,17 @@ def teaching_assignment_bulk_upload(request):
             else:
                 for row in all_rows:
                     row['default_faculty_uuid'] = None
+                    row['default_faculty_display'] = ''
+                    row['faculty_match_status'] = 'empty'
+                    row['faculty_match_message'] = ''
                     name = (row.get('faculty_name') or '').strip()
                     if name:
-                        f_obj = (FacultyProfile.objects.filter(name__iexact=name).first()
-                                 or FacultyProfile.objects.filter(name__icontains=name).first())
-                        if f_obj:
-                            row['default_faculty_uuid'] = str(f_obj.uuid)
+                        match_result = match_faculty_from_name(name, faculty_name_index)
+                        row['faculty_match_status'] = match_result.get('status', 'empty')
+                        row['faculty_match_message'] = match_result.get('message', '')
+                        if match_result.get('faculty_uuid'):
+                            row['default_faculty_uuid'] = match_result['faculty_uuid']
+                            row['default_faculty_display'] = match_result.get('faculty_display', '')
 
                 request.session[SESSION_KEY] = all_rows
                 request.session.modified = True
@@ -2578,6 +2586,9 @@ def teaching_assignment_bulk_confirm(request):
                     'index': idx,
                     'removed': True,
                     'errors': [],
+                    'faculty_match_status': original.get('faculty_match_status', 'empty'),
+                    'faculty_match_message': original.get('faculty_match_message', ''),
+                    'faculty_display': original.get('default_faculty_display', '') or '',
                     'subject_code': request.POST.get(f'subject_code_{idx}', '') or original.get('subject_code', '') or '',
                     'subject_description': request.POST.get(f'subject_description_{idx}', '') or original.get('subject_description', '') or '',
                     'year_section': request.POST.get(f'year_section_{idx}', '') or original.get('year_section', '') or '',
@@ -2603,6 +2614,9 @@ def teaching_assignment_bulk_confirm(request):
                 'original': original,
                 'errors': [],
                 'removed': False,
+                'faculty_match_status': original.get('faculty_match_status', 'empty'),
+                'faculty_match_message': original.get('faculty_match_message', ''),
+                'faculty_display': original.get('default_faculty_display', '') or '',
                 'faculty_uuid': None,
                 'semester_id': None,
                 'subject_code': (request.POST.get(f'subject_code_{idx}', '') or original.get('subject_code', '') or '').strip(),
@@ -2810,6 +2824,9 @@ def teaching_assignment_bulk_confirm(request):
             'index': idx,
             'errors': [],
             'removed': False,
+            'faculty_match_status': row.get('faculty_match_status') or 'empty',
+            'faculty_match_message': row.get('faculty_match_message') or '',
+            'faculty_display': row.get('default_faculty_display') or '',
             'subject_code': row.get('subject_code') or '',
             'subject_description': row.get('subject_description') or '',
             'year_section': row.get('year_section') or '',

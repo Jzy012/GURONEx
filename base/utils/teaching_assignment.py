@@ -1,4 +1,5 @@
 import re
+import unicodedata
 import pandas as pd
 import numpy as np
 from dateutil.parser import parse as dateutil_parse
@@ -14,6 +15,30 @@ DAY_MAP = {
     'fri': 'fri', 'friday': 'fri',
     'sat': 'sat', 'saturday': 'sat',
 }
+
+SUFFIX_TOKENS = {'jr', 'sr', 'ii', 'iii', 'iv', 'v'}
+
+
+def _faculty_display_label(faculty):
+    name = (getattr(faculty, 'name', '') or '').strip()
+    if name:
+        return name
+
+    parts = [
+        (getattr(faculty, 'first_name', '') or '').strip(),
+        (getattr(faculty, 'middle_name', '') or '').strip(),
+        (getattr(faculty, 'last_name', '') or '').strip(),
+        (getattr(faculty, 'suffix', '') or '').strip(),
+    ]
+    display = ' '.join([part for part in parts if part]).strip()
+    if display:
+        return display
+
+    faculty_code = (getattr(faculty, 'faculty_code', '') or '').strip()
+    if faculty_code:
+        return faculty_code
+
+    return str(getattr(faculty, 'uuid', '') or '').strip()
 
 def normalize_day(value):
     if value is None:
@@ -68,6 +93,163 @@ def parse_time(value):
             except Exception:
                 pass
     return None
+
+
+def _normalize_name_for_match(value):
+    if value is None:
+        return ''
+    text = str(value).strip()
+    if not text:
+        return ''
+
+    # Normalize accents and keep only match-relevant separators.
+    text = unicodedata.normalize('NFKD', text)
+    text = ''.join(ch for ch in text if not unicodedata.combining(ch))
+    text = text.lower()
+    text = re.sub(r"['\.]", '', text)
+    text = re.sub(r'[^a-z0-9,\s-]+', ' ', text)
+    text = text.replace('-', ' ')
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+
+def _strip_suffix_tokens(tokens):
+    cleaned = list(tokens)
+    while cleaned and cleaned[-1].rstrip('.') in SUFFIX_TOKENS:
+        cleaned.pop()
+    return cleaned
+
+
+def _name_variants_from_text(raw_name):
+    """
+    Build strict-safe normalized variants.
+    Supports:
+      - Full name as given
+      - Last, First (and Last, First Middle)
+      - First Last simplification (drops middle/suffix tokens)
+    """
+    if not raw_name:
+        return set()
+
+    variants = set()
+
+    def add_variant(value):
+        normalized = _normalize_name_for_match(value)
+        if normalized:
+            variants.add(normalized)
+
+    raw_text = str(raw_name).strip()
+    if not raw_text:
+        return variants
+
+    add_variant(raw_text)
+
+    if ',' in raw_text:
+        last, rest = raw_text.split(',', 1)
+        last = last.strip()
+        rest = rest.strip()
+        if last and rest:
+            add_variant(f"{rest} {last}")
+            add_variant(f"{last} {rest}")
+
+    token_source = _normalize_name_for_match(raw_text).replace(',', ' ')
+    tokens = [t for t in token_source.split(' ') if t]
+    tokens = _strip_suffix_tokens(tokens)
+
+    if len(tokens) >= 2:
+        add_variant(' '.join(tokens))
+        add_variant(f"{tokens[0]} {tokens[-1]}")
+
+    if len(tokens) >= 1:
+        # Allow single-token lookups such as a unique last name.
+        add_variant(tokens[-1])
+
+    return variants
+
+
+def _build_faculty_name_variants(faculty):
+    variants = set()
+
+    for name_value in _name_variants_from_text(_faculty_display_label(faculty)):
+        variants.add(name_value)
+
+    first = (getattr(faculty, 'first_name', '') or '').strip()
+    middle = (getattr(faculty, 'middle_name', '') or '').strip()
+    last = (getattr(faculty, 'last_name', '') or '').strip()
+    suffix = (getattr(faculty, 'suffix', '') or '').strip()
+
+    if first and last:
+        variants.update(_name_variants_from_text(f"{first} {last}"))
+        variants.update(_name_variants_from_text(f"{last}, {first}"))
+        variants.update(_name_variants_from_text(f"{last} {first}"))
+
+    if first and middle and last:
+        variants.update(_name_variants_from_text(f"{first} {middle} {last}"))
+        variants.update(_name_variants_from_text(f"{last}, {first} {middle}"))
+
+    if first and middle and last and suffix:
+        variants.update(_name_variants_from_text(f"{first} {middle} {last} {suffix}"))
+
+    return variants
+
+
+def build_faculty_name_index():
+    qs = FacultyProfile.objects.all().only('uuid', 'name', 'first_name', 'middle_name', 'last_name', 'suffix')
+    match_map = {}
+    display_map = {}
+
+    for faculty in qs:
+        faculty_uuid = str(faculty.uuid)
+        display_map[faculty_uuid] = _faculty_display_label(faculty)
+
+        for variant in _build_faculty_name_variants(faculty):
+            match_map.setdefault(variant, set()).add(faculty_uuid)
+
+    return {'match_map': match_map, 'display_map': display_map}
+
+
+def match_faculty_from_name(raw_name, faculty_name_index):
+    variants = _name_variants_from_text(raw_name)
+    if not variants:
+        return {
+            'status': 'empty',
+            'faculty_uuid': None,
+            'message': '',
+        }
+
+    match_map = faculty_name_index.get('match_map', {})
+    display_map = faculty_name_index.get('display_map', {})
+
+    matched_uuids = set()
+    for variant in variants:
+        matched_uuids.update(match_map.get(variant, set()))
+
+    if len(matched_uuids) == 1:
+        matched_uuid = next(iter(matched_uuids))
+        return {
+            'status': 'matched',
+            'faculty_uuid': matched_uuid,
+            'faculty_display': display_map.get(matched_uuid, 'faculty record'),
+            'message': f"Auto-matched to {display_map.get(matched_uuid, 'faculty record')}",
+        }
+
+    source_label = (raw_name or '').strip()
+    if len(matched_uuids) == 0:
+        return {
+            'status': 'no_match',
+            'faculty_uuid': None,
+            'message': f"No faculty match found for '{source_label}'.",
+        }
+
+    candidate_names = sorted(display_map.get(uid, uid) for uid in matched_uuids)
+    preview = ', '.join(candidate_names[:3])
+    if len(candidate_names) > 3:
+        preview += ', ...'
+    return {
+        'status': 'ambiguous',
+        'faculty_uuid': None,
+        'message': f"Ambiguous faculty name '{source_label}' ({preview}). Please select manually.",
+    }
 
 def _normalize_header(name: str) -> str:
     if name is None:
@@ -192,7 +374,7 @@ def read_file_to_rows(file_obj):
 
 def get_all_faculty_list():
     qs = FacultyProfile.objects.all().order_by('name')
-    return [{'id': f.id, 'uuid': str(f.uuid), 'name': f.name, 'display': f.name} for f in qs]
+    return [{'id': f.id, 'uuid': str(f.uuid), 'name': f.name, 'display': _faculty_display_label(f)} for f in qs]
 
 def get_all_semesters():
     qs = Semester.objects.select_related('academic_year').order_by('-academic_year__year_start', 'semester_type')

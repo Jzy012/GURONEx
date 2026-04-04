@@ -233,6 +233,6 @@ CELERY_BEAT_SCHEDULE = {
     },
     "publish-due-scheduled-announcements": {
         "task": "adminhub.tasks.publish_due_scheduled_announcements_task",
-        "schedule": crontab(minute="*/10"),
+        "schedule": crontab(minute="*/2"),
     },
 }
