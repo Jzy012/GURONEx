@@ -104,7 +104,7 @@ from faculty.models import (
 from rfid.models import AttendanceLog, RFIDTag
 from rfid.views import format_log
 from services.dtr_service import DTRCalculator
-from services.google_drive_service import CentralGoogleDriveService
+from services.google_drive_service import CentralGoogleDriveService, get_google_drive_status
 
 # Logger Setup
 logger = logging.getLogger(__name__)
@@ -137,25 +137,7 @@ def home(request):
     recent_announcements = Announcement.objects.order_by('-created_at')[:3]
 
     # Google Drive Status
-    account = GoogleStorageAccount.objects.filter(is_active=True).first()
-    status = {
-        "label": "Disconnected",
-        "color": "bg-red-100 text-red-800",
-        "message": "No active Google Drive account.",
-    }
-    if account:
-        if account.token_expiry and account.token_expiry > timezone.now():
-            status = {
-                "label": "Connected",
-                "color": "bg-green-100 text-green-800",
-                "message": f"Active account: {account.email}",
-            }
-        else:
-            status = {
-                "label": "Expired",
-                "color": "bg-yellow-100 text-yellow-800",
-                "message": "Token expired — reauthentication required.",
-            }
+    status = get_google_drive_status()
 
     context = {
         'total_applicants': total_applicants,

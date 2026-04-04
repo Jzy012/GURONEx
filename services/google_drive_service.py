@@ -1,7 +1,9 @@
 import json
 from googleapiclient.discovery import build
 from django.conf import settings
+from django.urls import reverse
 from django.utils.timezone import now
+from django.utils import timezone
 from google.auth.transport.requests import Request as GoogleRequest
 from google.oauth2.credentials import Credentials
 from base.models import GoogleStorageAccount
@@ -123,3 +125,129 @@ class CentralGoogleDriveService:
         except Exception as e:
             # Log but don't break the user flow
             print(f"[Drive] Failed to delete file {file_id}: {e}")
+
+
+def get_google_drive_status():
+    account = GoogleStorageAccount.objects.filter(is_active=True).first()
+    change_account_url = reverse("authorize_google")
+
+    def _format_bytes(num_bytes):
+        if num_bytes is None:
+            return "Unknown"
+        size = float(num_bytes)
+        units = ["B", "KB", "MB", "GB", "TB", "PB"]
+        for unit in units:
+            if size < 1024 or unit == units[-1]:
+                if unit == "B":
+                    return f"{int(size)} {unit}"
+                return f"{size:.2f} {unit}"
+            size /= 1024
+
+    def _attach_storage_quota(status_payload):
+        status_payload.update({
+            "storage_quota_available": False,
+            "storage_usage_percent": None,
+            "storage_used_human": None,
+            "storage_limit_human": None,
+            "storage_available_human": None,
+            "storage_error": None,
+        })
+
+        try:
+            drive = CentralGoogleDriveService()
+            about = drive.service.about().get(fields="storageQuota").execute()
+            quota = about.get("storageQuota", {})
+
+            used = int(quota.get("usage") or 0)
+            limit_raw = quota.get("limit")
+            limit = int(limit_raw) if limit_raw else 0
+
+            if limit > 0:
+                usage_percent = round((used / limit) * 100, 2)
+                usage_percent = max(0, min(100, usage_percent))
+                available = max(limit - used, 0)
+                status_payload.update({
+                    "storage_quota_available": True,
+                    "storage_usage_percent": usage_percent,
+                    "storage_used_human": _format_bytes(used),
+                    "storage_limit_human": _format_bytes(limit),
+                    "storage_available_human": _format_bytes(available),
+                })
+                return
+
+            status_payload.update({
+                "storage_used_human": _format_bytes(used),
+                "storage_limit_human": "Unknown",
+                "storage_available_human": "Unknown",
+                "storage_error": "Storage quota limit is unavailable for this account.",
+            })
+        except Exception:
+            status_payload.update({
+                "storage_error": "Could not fetch storage quota from Google Drive.",
+            })
+
+    if not account:
+        return {
+            "label": "Disconnected",
+            "message": "No active Google Drive account.",
+            "color_class": "bg-red-100 text-red-800",
+            "reauth_url": change_account_url,
+            "change_account_url": change_account_url,
+            "account_email": None,
+            "needs_reauth": True,
+            "is_connected": False,
+            "storage_quota_available": False,
+            "storage_usage_percent": None,
+            "storage_used_human": None,
+            "storage_limit_human": None,
+            "storage_available_human": None,
+            "storage_error": None,
+        }
+
+    is_token_valid = bool(account.token_expiry and account.token_expiry > timezone.now())
+    has_refresh_token = bool(getattr(account, "_refresh_token", None))
+
+    if is_token_valid:
+        status_payload = {
+            "label": "Connected",
+            "message": f"Active account: {account.email}",
+            "color_class": "bg-green-100 text-green-800",
+            "reauth_url": None,
+            "change_account_url": change_account_url,
+            "account_email": account.email,
+            "needs_reauth": False,
+            "is_connected": True,
+        }
+        _attach_storage_quota(status_payload)
+        return status_payload
+
+    if has_refresh_token:
+        status_payload = {
+            "label": "Connected",
+            "message": "Access token expired, but refresh token is valid. It will auto-refresh when needed.",
+            "color_class": "bg-green-100 text-green-800",
+            "reauth_url": None,
+            "change_account_url": change_account_url,
+            "account_email": account.email,
+            "needs_reauth": False,
+            "is_connected": True,
+        }
+        _attach_storage_quota(status_payload)
+        return status_payload
+
+    return {
+        "label": "Expired",
+        "message": "Token expired and cannot be refreshed. Re-authentication required.",
+        "color_class": "bg-red-100 text-red-800",
+        "reauth_url": change_account_url,
+        "change_account_url": change_account_url,
+        "account_email": account.email,
+        "needs_reauth": True,
+        "is_connected": False,
+        "storage_quota_available": False,
+        "storage_usage_percent": None,
+        "storage_used_human": None,
+        "storage_limit_human": None,
+        "storage_available_human": None,
+        "storage_error": None,
+    }

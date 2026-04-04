@@ -23,6 +23,7 @@ from base.models import GoogleStorageAccount
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from services.google_oauth_service import GoogleOAuthService
+from services.google_drive_service import get_google_drive_status
 
 # Constants
 
@@ -303,39 +304,8 @@ def oauth2callback(request):
 
 
 def google_drive_status(request):
-    account = GoogleStorageAccount.objects.filter(is_active=True).first()
-    if not account:
-        status = {
-            "label": "Disconnected",
-            "icon": "❌",
-            "message": "No Google Drive account connected. Re-authentication required.",
-            "color_class": "bg-red-100 text-red-800"
-        }
-        reauth_url = reverse("authorize_google")
-    elif account.token_expiry and account.token_expiry > timezone.now():
-        status = {
-            "label": "Connected",
-            "icon": "✅",
-            "message": f"Access token valid. Expires at {account.token_expiry.strftime('%Y-%m-%d %H:%M:%S')}",
-            "color_class": "bg-green-100 text-green-800"
-        }
-        reauth_url = None
-    elif account.refresh_token:
-        status = {
-            "label": "Connected (will refresh)",
-            "icon": "✅",
-            "message": "Access token expired, but refresh token is valid. Will auto-refresh when needed.",
-            "color_class": "bg-yellow-100 text-yellow-800"
-        }
-        reauth_url = None
-    else:
-        status = {
-            "label": "Disconnected",
-            "icon": "⚠️",
-            "message": "Token expired and cannot be refreshed. Re-authentication required.",
-            "color_class": "bg-red-100 text-red-800"
-        }
-        reauth_url = reverse("authorize_google")
+    status = get_google_drive_status()
+    reauth_url = status.get("reauth_url")
     return render(request, "admin/admin_home.html", {
         "status": status,
         "reauth_url": reauth_url,
@@ -343,26 +313,7 @@ def google_drive_status(request):
 
 
 def storage_status_view(request):
-    account = GoogleStorageAccount.objects.filter(is_active=True).first()
-    status = {
-        "label": "Disconnected",
-        "color": "bg-red-100 text-red-800",
-        "message": "No active Google Drive account.",
-    }
-
-    if account:
-        if account.token_expiry and account.token_expiry > timezone.now():
-            status = {
-                "label": "Connected",
-                "color": "bg-green-100 text-green-800",
-                "message": f"Active account: {account.email}",
-            }
-        else:
-            status = {
-                "label": "Expired",
-                "color": "bg-yellow-100 text-yellow-800",
-                "message": "Token expired — reauthentication required.",
-            }
+    status = get_google_drive_status()
 
     return render(request, "admin/admin_storage_status.html", {"status": status})
 
