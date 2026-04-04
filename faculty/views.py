@@ -12,6 +12,7 @@ from base.decorators import faculty_required
 from base.utils.faculty_data import get_faculty_data
 from faculty.models import FacultyDocument, FacultyRequest, Deliverable, Semester
 from adminhub.models import Announcement
+from adminhub.tasks import publish_due_scheduled_announcements_task
 from django.utils import timezone
 
 from django.db.models import Q
@@ -87,11 +88,21 @@ def home(request):
         pending_deliverables = max(total_required - approved_count, 0)
 
     # Recent Announcements (latest 3)
+    try:
+        # Catch up due scheduled announcements so faculty sees newly published items.
+        publish_due_scheduled_announcements_task.delay(limit=20)
+    except Exception:
+        pass
+
     recent_announcements = Announcement.objects.filter(
         visible_to_roles__contains=[request.user.role],
-        start_date__lte=today
+        is_active=True,
+        start_date__lte=today,
     ).filter(
         Q(end_date__gte=today) | Q(end_date__isnull=True)
+    ).filter(
+        # Keep legacy announcements (no schedule) visible, while requiring scheduled ones to be published.
+        Q(scheduled_publish_at__isnull=True) | Q(published_at__isnull=False)
     ).order_by('-created_at')[:3]
 
     # Faculty profile object to pass explicitly
@@ -972,15 +983,34 @@ def faculty_announcements_view(request):
 
     user = request.user
     today = timezone.now().date()
+    selected_year = request.GET.get('year', '')
 
-    # Get all announcements where user role is included in visible_to_roles
+    try:
+        # Catch up due scheduled announcements whenever this page is opened.
+        publish_due_scheduled_announcements_task.delay(limit=20)
+    except Exception:
+        pass
+
+    # Show only published and active announcements visible to this faculty user.
     announcements = Announcement.objects.filter(
-        visible_to_roles__contains=[user.role]
+        visible_to_roles__contains=[user.role],
+        is_active=True,
     ).filter(
         start_date__lte=today
     ).filter(
         Q(end_date__gte=today) | Q(end_date__isnull=True)
+    ).filter(
+        # Keep legacy announcements (no schedule) visible, while requiring scheduled ones to be published.
+        Q(scheduled_publish_at__isnull=True) | Q(published_at__isnull=False)
     ).order_by('-created_at')
+
+    if selected_year:
+        try:
+            announcements = announcements.filter(created_at__year=int(selected_year))
+        except (TypeError, ValueError):
+            selected_year = ''
+
+    years = [item.year for item in Announcement.objects.filter(visible_to_roles__contains=[user.role]).dates('created_at', 'year', order='DESC')]
 
     # Get UUIDs of announcements the user has already seen
     seen_ids = AnnouncementViewLog.objects.filter(user=user).values_list('announcement__uuid', flat=True)
@@ -989,6 +1019,8 @@ def faculty_announcements_view(request):
         **data,
         'announcements': announcements,
         'seen_ids': list(seen_ids),
+        'years': years,
+        'selected_year': selected_year,
     })
 
 
@@ -1005,8 +1037,16 @@ def view_announcement_ajax(request, uuid):
     except Announcement.DoesNotExist:
         raise Http404("Announcement not found")
 
-    # Check if user is allowed to see this announcement
-    if user.role not in announcement.visible_to_roles:
+    today = timezone.now().date()
+
+    # Check if user is allowed to see this announcement and it is currently visible.
+    if (
+        user.role not in announcement.visible_to_roles
+        or not announcement.is_active
+        or announcement.published_at is None
+        or announcement.start_date > today
+        or (announcement.end_date is not None and announcement.end_date < today)
+    ):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
 
     # Mark as seen if not already logged

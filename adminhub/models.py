@@ -31,6 +31,27 @@ class Announcement(models.Model):
     visible_to_roles = models.JSONField(default=list)  # Example: ['faculty', 'admin']
     is_important = models.BooleanField(default=False)
     send_email = models.BooleanField(default=False)
+    email_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('not_requested', 'Not Requested'),
+            ('scheduled', 'Scheduled'),
+            ('queued', 'Queued'),
+            ('sending', 'Sending'),
+            ('sent', 'Sent'),
+            ('partial_failed', 'Partially Failed'),
+            ('failed', 'Failed'),
+        ],
+        default='not_requested',
+    )
+    email_attempted_count = models.PositiveIntegerField(default=0)
+    email_sent_count = models.PositiveIntegerField(default=0)
+    email_failed_count = models.PositiveIntegerField(default=0)
+    email_queued_at = models.DateTimeField(null=True, blank=True)
+    email_processed_at = models.DateTimeField(null=True, blank=True)
+    email_last_error = models.TextField(blank=True)
+    scheduled_publish_at = models.DateTimeField(null=True, blank=True)
+    published_at = models.DateTimeField(null=True, blank=True)
     attachment_link = models.URLField(null=True, blank=True)
 
     start_date = models.DateField(default=timezone.now)

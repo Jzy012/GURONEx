@@ -405,28 +405,15 @@ class FacultyDocumentUploadForm(forms.Form):
 
 
 
-ROLE_CHOICES = [
-    ('admin', 'Admin'),
-    ('faculty', 'Faculty'),
-    ('applicant', 'Applicant'),
-]
-
 class AnnouncementForm(forms.ModelForm):
-    visible_to_roles = forms.MultipleChoiceField(
-        choices=ROLE_CHOICES,
-        widget=forms.CheckboxSelectMultiple,
-        required=True,
-        label="Visible To"
-    )
-
     class Meta:
         model = Announcement
         fields = [
-            'title', 'content', 'visible_to_roles', 'is_important',
-            'send_email', 'attachment_link', 'start_date', 'end_date',
+            'title', 'content', 'scheduled_publish_at', 'is_important',
+            'send_email', 'attachment_link', 'end_date',
         ]
         widgets = {
-            'start_date': forms.DateInput(attrs={'type': 'date'}),
+            'scheduled_publish_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
             'end_date': forms.DateInput(attrs={'type': 'date'}),
         }
 
@@ -442,8 +429,14 @@ class AnnouncementForm(forms.ModelForm):
                 field.widget.attrs["placeholder"] = field.label
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs["class"] = "rounded text-[#800505] focus:ring-[#800505]"
-        if "visible_to_roles" in self.fields:
-            self.fields["visible_to_roles"].widget.attrs["class"] = "custom-checklist"
+        if "scheduled_publish_at" in self.fields:
+            self.fields["scheduled_publish_at"].input_formats = ['%Y-%m-%dT%H:%M']
+
+    def clean_scheduled_publish_at(self):
+        scheduled_publish_at = self.cleaned_data.get('scheduled_publish_at')
+        if scheduled_publish_at and scheduled_publish_at <= timezone.now():
+            raise ValidationError("Scheduled publish date and time must be in the future.")
+        return scheduled_publish_at
 
 
 

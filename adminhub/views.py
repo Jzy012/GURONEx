@@ -53,6 +53,12 @@ from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 
 # Local Imports
 from adminhub.models import Announcement, DocumentTemplate, PUPSite, DocumentCategory, CreatedAccountLog
+from adminhub.tasks import (
+    DEFAULT_ANNOUNCEMENT_ROLES,
+    publish_due_scheduled_announcements_task,
+    publish_scheduled_announcement_task,
+    send_announcement_email_task,
+)
 from applicant.models import Applicant, ApplicantDocument, ApplicantRequiredDocument
 from base.decorators import admin_required, faculty_required
 from base.forms import (
@@ -995,13 +1001,30 @@ def edit_faculty_view(request, faculty_uuid):
 @admin_required
 def announcements_view(request):
     today = date.today()
+    selected_year = request.GET.get('year', '')
+
+    try:
+        # Self-heal missed schedules in the background whenever this tab is opened.
+        publish_due_scheduled_announcements_task.delay(limit=20)
+    except Exception:
+        logger.exception("Failed to queue scheduled announcement catch-up task")
+
     announcements = Announcement.objects.order_by('-created_at')
+    if selected_year:
+        try:
+            announcements = announcements.filter(created_at__year=int(selected_year))
+        except (TypeError, ValueError):
+            selected_year = ''
+
+    years = [item.year for item in Announcement.objects.dates('created_at', 'year', order='DESC')]
 
     return render(request, 'admin/admin_announcements.html', {
         'announcements': announcements,
-        'today': today
+        'today': today,
+        'years': years,
+        'selected_year': selected_year,
+        'now': timezone.now(),
     })
-
 
 
 
@@ -1016,13 +1039,67 @@ def create_announcement_view(request):
         if form.is_valid():
             announcement = form.save(commit=False)
             announcement.creator = request.user
-            announcement.visible_to_roles = form.cleaned_data['visible_to_roles']
+            announcement.visible_to_roles = DEFAULT_ANNOUNCEMENT_ROLES
+            scheduled_publish_at = form.cleaned_data.get('scheduled_publish_at')
+            now = timezone.now()
+
+            if scheduled_publish_at:
+                announcement.start_date = scheduled_publish_at.date()
+                announcement.is_active = False
+                announcement.published_at = None
+                announcement.email_status = 'scheduled' if announcement.send_email else 'not_requested'
+                announcement.email_queued_at = None
+                announcement.email_processed_at = None
+                announcement.email_attempted_count = 0
+                announcement.email_sent_count = 0
+                announcement.email_failed_count = 0
+                announcement.email_last_error = ''
+            else:
+                announcement.start_date = now.date()
+                announcement.is_active = True
+                announcement.published_at = now
+
+                if announcement.send_email:
+                    announcement.email_status = 'queued'
+                    announcement.email_queued_at = now
+                    announcement.email_processed_at = None
+                    announcement.email_attempted_count = 0
+                    announcement.email_sent_count = 0
+                    announcement.email_failed_count = 0
+                    announcement.email_last_error = ''
+                else:
+                    announcement.email_status = 'not_requested'
+                    announcement.email_queued_at = None
+                    announcement.email_processed_at = now
+                    announcement.email_attempted_count = 0
+                    announcement.email_sent_count = 0
+                    announcement.email_failed_count = 0
+                    announcement.email_last_error = ''
+
             announcement.save()
-            messages.success(request, "Announcement posted successfully.")
 
-            # (Optional) Handle email sending later
+            def _queue_announcement_job():
+                try:
+                    if scheduled_publish_at:
+                        publish_scheduled_announcement_task.apply_async(
+                            args=[announcement.id],
+                            eta=scheduled_publish_at,
+                        )
+                    elif announcement.send_email:
+                        send_announcement_email_task.delay(announcement.id)
+                except Exception:
+                    logger.exception("Failed to queue announcement job for announcement %s", announcement.id)
 
-            return redirect('adminhub:announcements')  # you’ll create this soon
+            transaction.on_commit(_queue_announcement_job)
+
+            if scheduled_publish_at:
+                messages.success(request, "Announcement scheduled successfully.")
+            elif announcement.send_email:
+                messages.success(request, "Announcement posted successfully. Email notifications were queued in the background.")
+            else:
+                messages.success(request, "Announcement posted successfully.")
+
+            return redirect('adminhub:announcements')
         else:
             messages.error(request, "There was an error in your submission.")
     else:
@@ -1041,14 +1118,48 @@ def edit_announcement_view(request, uuid):
         form = AnnouncementForm(request.POST, instance=announcement)
         if form.is_valid():
             updated = form.save(commit=False)
-            updated.visible_to_roles = form.cleaned_data['visible_to_roles']
+            updated.visible_to_roles = DEFAULT_ANNOUNCEMENT_ROLES
+
+            scheduled_publish_at = form.cleaned_data.get('scheduled_publish_at')
+            now = timezone.now()
+            if scheduled_publish_at:
+                updated.start_date = scheduled_publish_at.date()
+                updated.is_active = False
+                updated.published_at = None
+                updated.email_status = 'scheduled' if updated.send_email else 'not_requested'
+                updated.email_queued_at = None
+                updated.email_processed_at = None
+                updated.email_attempted_count = 0
+                updated.email_sent_count = 0
+                updated.email_failed_count = 0
+                updated.email_last_error = ''
+            else:
+                updated.start_date = now.date()
+                updated.is_active = True
+                if updated.published_at is None:
+                    updated.published_at = now
+
             updated.save()
-            messages.success(request, "Announcement updated successfully.")
+
+            def _queue_updated_announcement_job():
+                try:
+                    if scheduled_publish_at:
+                        publish_scheduled_announcement_task.apply_async(
+                            args=[updated.id],
+                            eta=scheduled_publish_at,
+                        )
+                except Exception:
+                    logger.exception("Failed to queue updated announcement job for announcement %s", updated.id)
+
+            transaction.on_commit(_queue_updated_announcement_job)
+
+            if scheduled_publish_at:
+                messages.success(request, "Announcement schedule updated successfully.")
+            else:
+                messages.success(request, "Announcement updated successfully.")
             return redirect('adminhub:announcements')
     else:
         form = AnnouncementForm(instance=announcement)
-        # Convert JSON list back to choices
-        form.fields['visible_to_roles'].initial = announcement.visible_to_roles
 
     return render(request, 'admin/admin_edit_announcement.html', {'form': form, 'announcement': announcement})
 

@@ -1,0 +1,35 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ subject }}{% endblock %}
+
+{% block content %}
+
+  <p>A new announcement has been posted in <strong>LINANG</strong>.</p>
+
+  <h2>{{ announcement.title }}</h2>
+
+  {% if is_important %}
+    <p><span class="badge">Important</span></p>
+  {% endif %}
+
+  <p>{{ announcement.content|linebreaksbr }}</p>
+
+  {% if announcement.attachment_link %}
+    <p>
+      Attachment:
+      <a href="{{ announcement.attachment_link }}">View Attachment</a>
+    </p>
+  {% endif %}
+
+  <div class="divider"></div>
+
+  <p><strong>Posting Date:</strong> {{ announcement.created_at|date:"F j, Y" }}</p>
+
+  {% if announcement.end_date %}
+    <p><strong>Visible Until:</strong> {{ announcement.end_date|date:"F j, Y" }}</p>
+  {% endif %}
+
+  <p class="muted">
+    This is an automated copy of an announcement. Please do not reply to this message.
+  </p>
+{% endblock %}

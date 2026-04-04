@@ -15,31 +15,13 @@
     </a>
   </div>
 
-  <form method="post" class="px-4 py-6 space-y-4" autocomplete="off">
+  <form id="announcementCreateForm" method="post" class="px-4 py-6 space-y-4" autocomplete="off">
     {% csrf_token %}
     {{ form.non_field_errors }}
 
     <div class="grid grid-cols-1 gap-3">
       {% for field in form %}
-        {% if field.name == 'visible_to_roles' %}
-          <div>
-            <label class="block text-xs font-semibold text-[#800505] mb-1">{{ field.label }}</label>
-            <ul class="flex flex-wrap gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
-              {% for checkbox in field %}
-                <li class="flex items-center space-x-2">
-                  {{ checkbox.tag }}
-                  <span class="text-sm text-gray-800">{{ checkbox.choice_label }}</span>
-                </li>
-              {% endfor %}
-            </ul>
-            {% if field.help_text %}
-              <p class="text-xs text-gray-500 mt-1">{{ field.help_text }}</p>
-            {% endif %}
-            {% if field.errors %}
-              <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
-            {% endif %}
-          </div>
-        {% elif field.name == 'is_important' or field.name == 'send_email' %}
+        {% if field.name == 'is_important' or field.name == 'send_email' %}
         <div class="flex gap-6">
           <div class="flex items-center gap-2">
             {{ field }}
@@ -76,11 +58,84 @@
          class="bg-gray-200 hover:bg-gray-300 text-[#800505] font-semibold px-3 py-1.5 rounded-lg border border-gray-300 shadow-sm text-sm transition">
         Cancel
       </a>
-      <button type="submit"
+      <button type="button"
+        id="openAnnouncementConfirm"
         class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold px-3 py-1.5 rounded-lg shadow text-sm transition">
         Post Announcement
       </button>
     </div>
   </form>
+
+  <div
+    id="announcementConfirmModal"
+    class="fixed inset-0 z-50 flex items-center justify-center px-4"
+    style="display: none;"
+  >
+    <div id="announcementConfirmBackdrop" class="absolute inset-0 bg-black/50"></div>
+
+    <div class="relative w-full max-w-md rounded-xl border border-[#800505]/20 bg-white shadow-2xl">
+      <div class="px-5 py-4 border-b border-gray-200">
+        <h3 class="text-sm font-semibold text-[#800505]">Confirm Announcement</h3>
+        <p class="text-xs text-gray-500 mt-1">
+          This announcement will be visible to Admin and Faculty by default.
+        </p>
+      </div>
+
+      <div class="px-5 py-4 space-y-2 text-sm text-gray-700">
+        <p>Do you want to post this announcement now?</p>
+        <p class="text-xs text-gray-500">If email notification is enabled, delivery will be queued in the background.</p>
+      </div>
+
+      <div class="px-5 py-4 flex justify-end gap-2 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+        <button
+          type="button"
+          id="cancelAnnouncementConfirm"
+          class="bg-gray-200 hover:bg-gray-300 text-[#800505] font-semibold px-3 py-1.5 rounded-lg border border-gray-300 shadow-sm text-sm transition"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          id="confirmAnnouncementSubmit"
+          class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold px-3 py-1.5 rounded-lg shadow text-sm transition"
+        >
+          Confirm & Post
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
+
+<script>
+  (function () {
+    const form = document.getElementById('announcementCreateForm');
+    const modal = document.getElementById('announcementConfirmModal');
+    const openBtn = document.getElementById('openAnnouncementConfirm');
+    const closeBtn = document.getElementById('cancelAnnouncementConfirm');
+    const backdrop = document.getElementById('announcementConfirmBackdrop');
+    const confirmBtn = document.getElementById('confirmAnnouncementSubmit');
+
+    if (!form || !modal || !openBtn || !closeBtn || !backdrop || !confirmBtn) {
+      return;
+    }
+
+    const openModal = () => {
+      modal.style.display = 'flex';
+      document.body.classList.add('overflow-hidden');
+    };
+
+    const closeModal = () => {
+      modal.style.display = 'none';
+      document.body.classList.remove('overflow-hidden');
+    };
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', closeModal);
+
+    confirmBtn.addEventListener('click', function () {
+      form.submit();
+    });
+  })();
+</script>
 {% endblock %}

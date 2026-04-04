@@ -27,6 +27,24 @@
     </div>
   </div>
 
+  <form method="get" class="flex flex-col sm:flex-row sm:items-end gap-3 bg-white rounded-xl shadow border p-4">
+    <div class="flex-1 min-w-0">
+      <label for="year-filter" class="block text-xs font-semibold text-gray-700 mb-1">Filter by Year</label>
+      <select id="year-filter" name="year" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]">
+        <option value="">All Years</option>
+        {% for year in years %}
+          <option value="{{ year }}" {% if selected_year|stringformat:"s" == year|stringformat:"s" %}selected{% endif %}>{{ year }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex gap-2">
+      <button type="submit" class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold">Apply</button>
+      {% if selected_year %}
+        <a href="{% url 'adminhub:announcements' %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-[#800505] rounded-lg border border-gray-300 text-sm font-semibold">Clear</a>
+      {% endif %}
+    </div>
+  </form>
+
   {% if announcements %}
     <div class="bg-white rounded-xl shadow border w-full px-4 py-6">
       <!-- Cards container header -->
@@ -99,12 +117,52 @@
                 <span class="font-semibold text-gray-900">Created:</span>
                 {{ a.created_at|date:"M d, Y H:i" }}
               </div>
+              {% if a.scheduled_publish_at %}
+                <div>
+                  <span class="font-semibold text-gray-900">Scheduled For:</span>
+                  {{ a.scheduled_publish_at|date:"M d, Y H:i" }}
+                </div>
+              {% endif %}
             </div>
+
+            {% if a.send_email %}
+              <div class="mb-4 text-xs">
+                <span class="font-semibold text-gray-900 mr-1">Email:</span>
+
+                {% if a.email_status == 'scheduled' %}
+                  <span class="inline-block px-2 py-0.5 font-semibold text-purple-800 bg-purple-100 rounded-full">Scheduled</span>
+                {% elif a.email_status == 'queued' %}
+                  <span class="inline-block px-2 py-0.5 font-semibold text-amber-800 bg-amber-100 rounded-full">Queued</span>
+                {% elif a.email_status == 'sending' %}
+                  <span class="inline-block px-2 py-0.5 font-semibold text-blue-800 bg-blue-100 rounded-full">Sending</span>
+                {% elif a.email_status == 'sent' %}
+                  <span class="inline-block px-2 py-0.5 font-semibold text-green-800 bg-green-100 rounded-full">Sent</span>
+                {% elif a.email_status == 'partial_failed' %}
+                  <span class="inline-block px-2 py-0.5 font-semibold text-orange-800 bg-orange-100 rounded-full">Partial Failure</span>
+                {% elif a.email_status == 'failed' %}
+                  <span class="inline-block px-2 py-0.5 font-semibold text-red-800 bg-red-100 rounded-full">Failed</span>
+                {% else %}
+                  <span class="inline-block px-2 py-0.5 font-semibold text-gray-700 bg-gray-100 rounded-full">Not Requested</span>
+                {% endif %}
+
+                <div class="mt-1 text-gray-600">
+                  Sent {{ a.email_sent_count }} / {{ a.email_attempted_count }}
+                  {% if a.email_processed_at %}
+                    · Processed {{ a.email_processed_at|date:"M d, Y H:i" }}
+                  {% endif %}
+                </div>
+                {% if a.email_last_error %}
+                  <div class="mt-1 text-red-700">Last error: {{ a.email_last_error }}</div>
+                {% endif %}
+              </div>
+            {% endif %}
 
             <!-- Status & Actions -->
             <div class="flex items-center justify-between mt-auto">
               <div>
-                {% if a.is_visible %}
+                {% if a.scheduled_publish_at and not a.published_at and a.scheduled_publish_at > now %}
+                  <span class="inline-block px-2 py-0.5 text-xs font-semibold text-purple-800 bg-purple-100 rounded-full">Scheduled</span>
+                {% elif a.is_visible %}
                   <span class="inline-block px-2 py-0.5 text-xs font-semibold text-green-800 bg-green-100 rounded-full">Active</span>
                 {% else %}
                   <span class="inline-block px-2 py-0.5 text-xs font-semibold text-gray-600 bg-gray-100 rounded-full">Inactive</span>
