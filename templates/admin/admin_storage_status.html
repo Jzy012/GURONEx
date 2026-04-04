@@ -31,12 +31,10 @@
 
         {% if status.storage_quota_available %}
           <div class="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
-            <div
-              id="storageUsageBar"
-              class="h-full rounded-full bg-[#800505] transition-all"
-              data-width="{{ status.storage_usage_percent }}"
-              style="width: 0%;"
-            ></div>
+            <svg class="h-full w-full" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Google Drive storage usage progress">
+              <rect x="0" y="0" width="100" height="10" fill="#e5e7eb"></rect>
+              <rect x="0" y="0" width="{{ status.storage_usage_percent }}" height="10" fill="#800505"></rect>
+            </svg>
           </div>
           <div class="mt-2 flex items-center justify-between text-xs text-gray-600">
             <span>Used: {{ status.storage_used_human }}</span>
@@ -144,13 +142,6 @@
         eyeOpen.classList.toggle("hidden", nextVisible);
         eyeClosed.classList.toggle("hidden", !nextVisible);
       });
-    }
-
-    const storageUsageBar = document.getElementById("storageUsageBar");
-    if (storageUsageBar) {
-      const widthRaw = parseFloat(storageUsageBar.getAttribute("data-width") || "0");
-      const width = Math.max(0, Math.min(100, isNaN(widthRaw) ? 0 : widthRaw));
-      storageUsageBar.style.width = width + "%";
     }
 
     const openModalBtn = document.getElementById("openChangeAccountModal");

@@ -1,7 +1,14 @@
-from django.db import models
-from base.models import Account
-from django.utils import timezone
+import datetime
+import logging
 import uuid
+
+from django.db import models, transaction
+from django.utils import timezone
+
+from base.models import Account
+
+
+logger = logging.getLogger(__name__)
 
 
 # Create your models here.
@@ -134,6 +141,14 @@ class AcademicYear(models.Model):
     def __str__(self):
         return f"{self.year_start}–{self.year_end}"
 
+    @classmethod
+    def sync_active_calendar(cls, ref_date=None):
+        """
+        Refresh both the active academic year and the active semester for a given date.
+        """
+        cls.update_active_years(ref_date=ref_date)
+        Semester.update_active_semesters(ref_date=ref_date)
+
     @property
     def start_date(self):
         """
@@ -207,11 +222,35 @@ class Semester(models.Model):
     def __str__(self):
         return f"{self.get_semester_type_display()} {self.academic_year}"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        def _queue_activation_refresh():
+            try:
+                from adminhub.tasks import activate_semester_start_task
+
+                scheduled_at = timezone.make_aware(
+                    datetime.datetime.combine(self.start_date, datetime.time.min),
+                    timezone.get_current_timezone(),
+                )
+
+                if scheduled_at > timezone.now():
+                    activate_semester_start_task.apply_async(args=[self.pk], eta=scheduled_at)
+                else:
+                    activate_semester_start_task.delay(self.pk)
+            except Exception:
+                logger.exception("Failed to queue semester activation refresh for semester %s", self.pk)
+
+        transaction.on_commit(_queue_activation_refresh)
+
     @classmethod
     def update_active_semesters(cls, ref_date=None):
         """
-        For each academic year, mark the semester containing ref_date as active,
-        and all others inactive.
+        For each academic year, mark the most recent semester whose start date
+        has been reached as active, and all others inactive.
+
+        This keeps the current semester active through any gap until the next
+        semester's start date is reached.
         """
         if ref_date is None:
             ref_date = timezone.localdate()
@@ -230,12 +269,17 @@ class Semester(models.Model):
         # Reset all to False
         cls.objects.update(is_active=False)
 
-        # Activate the semester that contains ref_date in each academic year
+        # Activate the latest semester that has already started in each academic year
         for year_id, sems in by_year.items():
+            active_semester = None
             for sem in sems:
-                if sem.start_date <= ref_date <= sem.end_date:
-                    cls.objects.filter(pk=sem.pk).update(is_active=True)
-                    break  # only one active per academic year
+                if sem.start_date <= ref_date:
+                    active_semester = sem
+                else:
+                    break
+
+            if active_semester is not None:
+                cls.objects.filter(pk=active_semester.pk).update(is_active=True)
 
 
 

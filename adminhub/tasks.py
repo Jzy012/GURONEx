@@ -1,3 +1,5 @@
+import datetime
+
 from celery import shared_task
 from django.db import DatabaseError
 from django.utils import timezone
@@ -9,6 +11,20 @@ from base.utils.email import send_html_email
 
 
 DEFAULT_ANNOUNCEMENT_ROLES = ["admin", "faculty"]
+
+
+def _sync_active_academic_calendar(ref_date=None):
+    from faculty.models import AcademicYear, Semester
+
+    if ref_date is None:
+        ref_date = timezone.localdate()
+
+    AcademicYear.update_active_years(ref_date=ref_date)
+    Semester.update_active_semesters(ref_date=ref_date)
+
+    return {
+        "ref_date": str(ref_date),
+    }
 
 
 def _get_announcement_recipient_emails(visible_roles):
@@ -42,6 +58,56 @@ def _update_announcement_email_state(announcement_id, **fields):
 
 def _queue_scheduled_publish_if_needed(announcement_id):
     publish_scheduled_announcement_task.apply_async(args=[announcement_id], countdown=1)
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=30)
+def sync_active_academic_calendar_task(self, ref_date=None):
+    """
+    Recalculate the active academic year and semester for a given date.
+
+    Used as a daily catch-up job and as a shared helper for manual refreshes.
+    """
+    if ref_date:
+        try:
+            ref_date = datetime.date.fromisoformat(ref_date)
+        except (TypeError, ValueError):
+            ref_date = timezone.localdate()
+    return _sync_active_academic_calendar(ref_date=ref_date)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def activate_semester_start_task(self, semester_id):
+    """
+    Activate the semester that has reached its start date.
+
+    The task is idempotent and will no-op only if the start date is still in
+    the future. If it runs late, it still refreshes the active calendar so the
+    latest started semester remains active.
+    """
+    from faculty.models import AcademicYear, Semester
+
+    try:
+        semester = Semester.objects.select_related("academic_year").get(pk=semester_id)
+    except Semester.DoesNotExist:
+        return {"activated": False, "reason": "missing_semester"}
+
+    today = timezone.localdate()
+    if today < semester.start_date:
+        return {
+            "activated": False,
+            "reason": "start_date_pending",
+            "semester_id": semester_id,
+            "today": str(today),
+        }
+
+    AcademicYear.update_active_years(ref_date=today)
+    Semester.update_active_semesters(ref_date=today)
+
+    return {
+        "activated": True,
+        "semester_id": semester_id,
+        "today": str(today),
+    }
 
 
 @shared_task(bind=True, max_retries=2, default_retry_delay=30)

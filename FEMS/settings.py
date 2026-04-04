@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import environ
 import os
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -222,3 +223,16 @@ GOOGLE_DRIVE_ROOT_FOLDER_ID = env("GOOGLE_DRIVE_ROOT_FOLDER_ID")
 
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+CELERY_BEAT_SCHEDULE = {
+    "sync-active-academic-calendar-daily": {
+        "task": "adminhub.tasks.sync_active_academic_calendar_task",
+        "schedule": crontab(minute=5, hour=0),
+    },
+    "publish-due-scheduled-announcements": {
+        "task": "adminhub.tasks.publish_due_scheduled_announcements_task",
+        "schedule": crontab(minute="*/10"),
+    },
+}

@@ -1529,8 +1529,7 @@ def create_academic_year_view(request):
 
             # 3) After saving, update active year & semester based on today's date
             today = timezone.localdate()
-            AcademicYear.update_active_years(ref_date=today)
-            Semester.update_active_semesters(ref_date=today)
+            AcademicYear.sync_active_calendar(ref_date=today)
 
             messages.success(request, "Academic year and semesters created.")
             return redirect('adminhub:create_academic_year')

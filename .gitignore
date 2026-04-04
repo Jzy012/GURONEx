@@ -14,3 +14,9 @@ node_modules/
 
 # Build artifacts
 static/css/output.css
+
+# Celery
+celerybeat-schedule*
+celerybeat-schedule-shm
+celerybeat-schedule-wal
+celerybeat.pid
