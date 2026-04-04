@@ -6,7 +6,14 @@
     <h2 class="text-xl font-semibold mb-4">Google Drive Status</h2>
 
     <!-- Status Badge -->
-    <span class="px-3 py-1 rounded-full text-sm font-medium {{ status.color_class }}">
+    <span class="inline-flex h-7 items-center rounded-full px-3 text-sm font-semibold leading-none
+      {% if status.label == 'Connected' %}
+        bg-green-100 text-green-800
+      {% elif status.label == 'Expired' %}
+        bg-red-100 text-red-800
+      {% else %}
+        bg-red-100 text-red-800
+      {% endif %}">
       {{ status.label }}
     </span>
 
@@ -74,9 +81,9 @@
       <button
         id="openChangeAccountModal"
         type="button"
-        class="inline-flex items-center px-4 py-2 bg-amber-600 text-white text-sm rounded-lg shadow hover:bg-amber-700"
+        class="inline-flex items-center justify-center rounded-lg bg-[#800505] px-4 py-2 text-sm font-semibold text-white shadow hover:bg-[#a80707]"
       >
-        Change Account
+        Change Google Account
       </button>
 
       {% if status.needs_reauth %}

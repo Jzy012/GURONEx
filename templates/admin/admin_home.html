@@ -24,7 +24,14 @@
 
       <span class="min-w-0 flex items-center gap-1.5">
         <span class="text-gray-700 font-medium whitespace-nowrap">Google Drive:</span>
-        <span class="inline-flex items-center font-semibold px-1.5 py-0.5 rounded text-xs leading-none whitespace-nowrap {{ status.color_class }}">
+        <span class="inline-flex h-6 items-center rounded-full px-2.5 text-xs font-semibold leading-none whitespace-nowrap
+          {% if status.label == 'Connected' %}
+            bg-green-100 text-green-800
+          {% elif status.label == 'Expired' %}
+            bg-red-100 text-red-800
+          {% else %}
+            bg-red-100 text-red-800
+          {% endif %}">
           {{ status.label }}
         </span>
       </span>
