@@ -298,12 +298,24 @@
       notifBadge.classList.toggle('inline-flex', unread > 0);
     }
 
+    function parseUnreadCount(rawCount, items) {
+      const parsed = Number(rawCount);
+      if (Number.isFinite(parsed) && parsed >= 0) {
+        return parsed;
+      }
+
+      return (items || []).filter((item) => !item.is_read).length;
+    }
+
     function refreshNotificationsMenu({ keepOpen = false } = {}) {
       fetch('/api/notifications/summary/')
         .then((r) => r.json())
         .then((data) => {
-          updateBadgeCount(data.unread_count || 0);
-          renderDropdown(data.latest || []);
+          const latest = data.latest || [];
+          const unread = parseUnreadCount(data.unread_count ?? data.unreadCount, latest);
+
+          updateBadgeCount(unread);
+          renderDropdown(latest);
           if (keepOpen) {
             notifDropdown.classList.remove('hidden');
           }
@@ -372,8 +384,11 @@
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        const unread = data?.payload?.unread_count;
-        if (typeof unread === 'number') {
+        const unread = parseUnreadCount(
+          data?.payload?.unread_count ?? data?.payload?.unreadCount,
+          data?.payload?.latest || []
+        );
+        if (Number.isFinite(unread)) {
           updateBadgeCount(unread);
         }
         if (!notifDropdown.classList.contains('hidden')) {
@@ -383,6 +398,8 @@
         console.error('Notification websocket parse error', e);
       }
     };
+
+    refreshNotificationsMenu();
   </script>
 </body>
 </html>
