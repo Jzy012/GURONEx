@@ -24,6 +24,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from services.google_oauth_service import GoogleOAuthService
 from services.google_drive_service import get_google_drive_status
+from notifications.services import ROLE_ADMIN_GROUP, log_activity, notify_role
 
 # Constants
 
@@ -309,6 +310,25 @@ def oauth2callback(request):
     account.token_expiry = creds.expiry
     account.is_active = True
     account.save()
+
+    notify_role(
+        roles=ROLE_ADMIN_GROUP,
+        actor=request.user,
+        notification_type='google_storage_changed',
+        title='Google storage account updated',
+        message=f"Google Drive storage account is now connected to {email}.",
+        url=reverse('storage_status'),
+        related_type='GoogleStorageAccount',
+        related_id=str(account.id),
+        aggregate_key=f"google_storage_changed:{account.id}",
+    )
+    log_activity(
+        actor=request.user,
+        action='google_storage_account_changed',
+        target_type='GoogleStorageAccount',
+        target_id=str(account.id),
+        details={'target_name': email, 'email': email},
+    )
 
     return HttpResponse("✅ Storage account connected successfully!")
 

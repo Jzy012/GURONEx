@@ -8,6 +8,7 @@ from adminhub.models import Announcement
 from applicant.models import Applicant
 from base.models import Account
 from base.utils.email import send_html_email
+from notifications.services import log_activity, notify_role
 
 
 DEFAULT_ANNOUNCEMENT_ROLES = ["admin", "faculty"]
@@ -162,6 +163,27 @@ def publish_scheduled_announcement_task(self, announcement_id):
     announcement.is_active = True
     announcement.published_at = now
     announcement.save(update_fields=["start_date", "is_active", "published_at"])
+
+    roles = announcement.visible_to_roles or DEFAULT_ANNOUNCEMENT_ROLES
+    notify_role(
+        roles=roles,
+        actor=announcement.creator,
+        notification_type='announcement_published',
+        title=f"New announcement: {announcement.title}",
+        message=announcement.content[:220],
+        url='/faculty/announcements/' if 'faculty' in roles else '/admin/announcements/',
+        related_type='Announcement',
+        related_id=str(announcement.uuid),
+        aggregate_key=f"announcement:{announcement.uuid}",
+        is_important=announcement.is_important,
+    )
+    log_activity(
+        actor=announcement.creator,
+        action='announcement_published',
+        target_type='Announcement',
+        target_id=str(announcement.uuid),
+        details={'scheduled': True, 'send_email': announcement.send_email},
+    )
 
     if announcement.send_email:
         _update_announcement_email_state(

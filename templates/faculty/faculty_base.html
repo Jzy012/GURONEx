@@ -16,15 +16,44 @@
 <body class="bg-gray-100">
 
 <!-- Navbar -->
-<header class="fixed top-0 left-0 right-0 z-50 bg-[#800505] text-white flex items-center px-4 py-3 h-16 shadow-lg border-b border-red-900">
-  <button id="sidebarToggle" class="mr-4 p-2 rounded hover:bg-red-800 transition duration-200 focus:outline-none">
-    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"
-         viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round"
-            d="M4 6h16M4 12h16M4 18h16"></path>
-    </svg>
-  </button>
-  <h1 class="text-lg font-bold">PUP-LINANG</h1>
+<header class="fixed top-0 left-0 right-0 z-50 bg-[#800505] text-white flex items-center justify-between px-4 py-3 h-16 shadow-lg border-b border-red-900">
+  <div class="flex items-center">
+    <button id="sidebarToggle" class="mr-4 p-2 rounded hover:bg-red-800 transition duration-200 focus:outline-none">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"
+           viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M4 6h16M4 12h16M4 18h16"></path>
+      </svg>
+    </button>
+    <h1 class="text-lg font-bold">PUP-LINANG</h1>
+  </div>
+
+  <div class="relative">
+    <button id="notifToggle" type="button" class="relative inline-flex items-center px-2 py-1 rounded hover:bg-red-800" aria-label="Notifications">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+      </svg>
+      <span id="notifBadge" class="{% if notification_unread_count %}inline-flex{% else %}hidden{% endif %} absolute -top-1 -right-1 min-w-5 h-5 px-1 items-center justify-center rounded-full bg-amber-400 text-[#4a0101] text-[11px] font-bold">{{ notification_unread_count }}</span>
+    </button>
+
+    <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white text-gray-800 rounded-lg shadow-xl border border-gray-200 z-50">
+      <div class="px-3 py-2 border-b border-gray-100 flex items-center justify-between gap-3">
+        <div class="text-sm font-semibold">Notifications</div>
+        <button id="notifMarkAllBtn" type="button" class="text-xs font-semibold text-[#800505] hover:underline">Mark all as read</button>
+      </div>
+      <div id="notifDropdownList" class="divide-y divide-gray-100">
+        {% for item in notification_latest_items %}
+          <a href="{% if item.url %}{{ item.url }}{% else %}{% url 'notifications:faculty_notifications_page' %}{% endif %}" class="block px-3 py-2 hover:bg-gray-50">
+            <p class="text-sm font-medium text-gray-800">{{ item.title }}</p>
+            <p class="text-xs text-gray-600 mt-1 line-clamp-2">{{ item.message }}</p>
+          </a>
+        {% empty %}
+          <p class="px-3 py-3 text-sm text-gray-500">No notifications yet.</p>
+        {% endfor %}
+      </div>
+      <a href="{% url 'notifications:faculty_notifications_page' %}" class="block px-3 py-2 text-sm text-center text-[#800505] hover:bg-gray-50 border-t border-gray-100">View all notifications</a>
+    </div>
+  </div>
 </header>
 
 <!-- Overlay (mobile) -->
@@ -185,6 +214,134 @@
   window.addEventListener('resize', handleResize);
 
   isDesktop() ? openSidebar() : closeSidebar();
+
+  const notifBadge = document.getElementById('notifBadge');
+  const notifToggle = document.getElementById('notifToggle');
+  const notifDropdown = document.getElementById('notifDropdown');
+  const notifDropdownList = document.getElementById('notifDropdownList');
+  const notifMarkAllBtn = document.getElementById('notifMarkAllBtn');
+
+  function renderDropdown(items) {
+    const unreadItems = (items || []).filter((item) => !item.is_read);
+
+    if (notifMarkAllBtn) {
+      notifMarkAllBtn.classList.toggle('hidden', unreadItems.length === 0);
+      notifMarkAllBtn.disabled = unreadItems.length === 0;
+    }
+
+    if (!unreadItems.length) {
+      notifDropdownList.innerHTML = '<p class="px-3 py-3 text-sm text-gray-500">No unread notifications.</p>';
+      return;
+    }
+
+    notifDropdownList.innerHTML = unreadItems.map((item) => {
+      const url = item.url || '/faculty/notifications/';
+      return `
+        <div class="flex items-start gap-3 px-3 py-2.5 hover:bg-gray-50">
+          <a href="${url}" data-notification-id="${item.id}" data-notification-read="0" class="min-w-0 flex-1 block">
+            <p class="text-sm font-medium text-gray-800">${item.title}</p>
+            <p class="text-xs text-gray-600 mt-1 line-clamp-2">${item.message}</p>
+          </a>
+          <button type="button" data-mark-read-id="${item.id}" class="shrink-0 text-[11px] px-2 py-1 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-100">
+            Mark as read
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
+    function updateBadgeCount(unread) {
+      notifBadge.textContent = unread;
+      notifBadge.classList.toggle('hidden', unread <= 0);
+      notifBadge.classList.toggle('inline-flex', unread > 0);
+    }
+
+    function refreshNotificationsMenu({ keepOpen = false } = {}) {
+    fetch('/api/notifications/summary/')
+      .then((r) => r.json())
+      .then((data) => {
+          const unread = data.unread_count || 0;
+          updateBadgeCount(unread);
+        renderDropdown(data.latest || []);
+          if (keepOpen) {
+            notifDropdown.classList.remove('hidden');
+          }
+      });
+  }
+
+    function markNotificationReadInline(notificationId) {
+      return fetch(`/api/notifications/${notificationId}/read/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+        },
+        keepalive: true,
+      }).finally(() => refreshNotificationsMenu({ keepOpen: true }));
+    }
+
+  notifToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    notifDropdown.classList.toggle('hidden');
+    if (!notifDropdown.classList.contains('hidden')) {
+      refreshNotificationsMenu();
+    }
+  });
+
+    if (notifMarkAllBtn) {
+      notifMarkAllBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        fetch('/api/notifications/read-all/', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+          },
+        }).finally(() => refreshNotificationsMenu({ keepOpen: true }));
+      });
+    }
+
+  document.addEventListener('click', (e) => {
+    if (!notifDropdown.contains(e.target) && !notifToggle.contains(e.target)) {
+      notifDropdown.classList.add('hidden');
+    }
+  });
+
+    notifDropdownList.addEventListener('click', (e) => {
+      const markButton = e.target.closest('button[data-mark-read-id]');
+      if (markButton) {
+        e.preventDefault();
+        markNotificationReadInline(markButton.dataset.markReadId);
+        return;
+      }
+
+      const link = e.target.closest('a[data-notification-id]');
+      if (!link) {
+        return;
+      }
+
+      if (link.dataset.notificationRead !== '1') {
+        e.preventDefault();
+        markNotificationReadInline(link.dataset.notificationId).then(() => {
+          window.location.href = link.href;
+        });
+      }
+    });
+
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${protocol}://${window.location.host}/ws/notifications/`);
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      const unread = data?.payload?.unread_count;
+      if (typeof unread === 'number') {
+          updateBadgeCount(unread);
+      }
+      if (!notifDropdown.classList.contains('hidden')) {
+        refreshNotificationsMenu();
+      }
+    } catch (e) {
+      console.error('Notification websocket parse error', e);
+    }
+  };
 </script>
 </body>
 </html>

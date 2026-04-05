@@ -49,11 +49,13 @@ CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=False)
 
 INSTALLED_APPS = [
     'rest_framework',
+    'channels',
     'base.apps.BaseConfig',
     'adminhub.apps.AdminhubConfig',
     'faculty.apps.FacultyConfig',
     'applicant.apps.ApplicantConfig',
     'rfid.apps.RfidConfig',
+    'notifications.apps.NotificationsConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -90,12 +92,14 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'notifications.context_processors.notifications_context',
             ],
         },
     },
 ]
 
 WSGI_APPLICATION = 'FEMS.wsgi.application'
+ASGI_APPLICATION = 'FEMS.asgi.application'
 
 
 # Database
@@ -226,6 +230,19 @@ CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_ENABLE_UTC = True
 
+CHANNEL_REDIS_URL = env("CHANNEL_REDIS_URL", default=CELERY_BROKER_URL)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [CHANNEL_REDIS_URL],
+        },
+    },
+}
+
+NOTIFICATION_RETENTION_DAYS = env.int("NOTIFICATION_RETENTION_DAYS", default=60)
+NOTIFICATION_MAX_READ_PER_USER = env.int("NOTIFICATION_MAX_READ_PER_USER", default=20)
+
 CELERY_BEAT_SCHEDULE = {
     "sync-active-academic-calendar-daily": {
         "task": "adminhub.tasks.sync_active_academic_calendar_task",
@@ -234,5 +251,17 @@ CELERY_BEAT_SCHEDULE = {
     "publish-due-scheduled-announcements": {
         "task": "adminhub.tasks.publish_due_scheduled_announcements_task",
         "schedule": crontab(minute="*/2"),
+    },
+    "cleanup-notifications-daily": {
+        "task": "notifications.tasks.cleanup_notifications_task",
+        "schedule": crontab(minute=10, hour=1),
+    },
+    "deliverable-deadline-reminders-daily": {
+        "task": "notifications.tasks.send_deliverable_deadline_reminders_task",
+        "schedule": crontab(minute=20, hour=7),
+    },
+    "notify-missing-deliverables-daily": {
+        "task": "notifications.tasks.notify_missing_deliverables_task",
+        "schedule": crontab(minute=30, hour=7),
     },
 }

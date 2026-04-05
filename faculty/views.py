@@ -4,8 +4,10 @@ from base.forms import TwoFactorToggleForm, FacultyPublicSignupForm
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from base.utils.faculty_data import get_faculty_data
+from notifications.services import ROLE_ADMIN_GROUP, log_activity, notify_role
 from .models import FacultyProfile
 # Create your views here.
 
@@ -53,7 +55,7 @@ def faculty_signup_view(request):
                         is_active=False,
                     )
 
-                    FacultyProfile.objects.create(
+                    faculty_profile = FacultyProfile.objects.create(
                         account=account,
                         first_name=data.get('first_name'),
                         middle_name=data.get('middle_name'),
@@ -64,6 +66,31 @@ def faculty_signup_view(request):
                         birth_date=data.get('birth_date'),
                         contact_number=data.get('contact_number'),
                     )
+
+                try:
+                    notify_role(
+                        roles=ROLE_ADMIN_GROUP,
+                        actor=account,
+                        notification_type='faculty_approval_request',
+                        title='New faculty account approval request',
+                        message=f"{faculty_profile.name or account.email} submitted a faculty signup request.",
+                        url=reverse('adminhub:faculty_pending_approvals'),
+                        related_type='FacultyProfile',
+                        related_id=str(faculty_profile.uuid),
+                        aggregate_key=f"faculty_signup_pending:{account.id}",
+                    )
+                    log_activity(
+                        actor=account,
+                        action='faculty_signup_submitted',
+                        target_type='FacultyProfile',
+                        target_id=str(faculty_profile.uuid),
+                        details={
+                            'target_name': faculty_profile.name or account.email,
+                            'email': account.email,
+                        },
+                    )
+                except Exception:
+                    pass
 
                 messages.success(
                     request,
@@ -478,6 +505,27 @@ def faculty_document_upload(request):
                     messages.error(request, f"Failed to upload '{name}'.")
 
             if success_count:
+                notify_role(
+                    roles=ROLE_ADMIN_GROUP,
+                    actor=account,
+                    notification_type='faculty_document_uploaded',
+                    title='New faculty document upload',
+                    message=f"{faculty.name or account.email} uploaded {success_count} document(s) for review.",
+                    url=reverse('adminhub:documents'),
+                    related_type='FacultyProfile',
+                    related_id=str(faculty.uuid),
+                    aggregate_key=f"faculty_document_upload:{account.id}",
+                )
+                log_activity(
+                    actor=account,
+                    action='faculty_document_uploaded',
+                    target_type='FacultyProfile',
+                    target_id=str(faculty.uuid),
+                    details={
+                        'target_name': faculty.name or account.email,
+                        'count': success_count,
+                    },
+                )
                 messages.success(
                     request, f"{success_count} document(s) uploaded successfully."
                 )
@@ -1440,6 +1488,27 @@ def faculty_deliverable_upload(request):
                     )
 
             if success_count:
+                notify_role(
+                    roles=ROLE_ADMIN_GROUP,
+                    actor=account,
+                    notification_type='faculty_deliverable_uploaded',
+                    title='New faculty deliverable upload',
+                    message=f"{faculty.name or account.email} uploaded {success_count} deliverable file(s) for review.",
+                    url=reverse('adminhub:deliverables'),
+                    related_type='FacultyProfile',
+                    related_id=str(faculty.uuid),
+                    aggregate_key=f"faculty_deliverable_upload:{account.id}",
+                )
+                log_activity(
+                    actor=account,
+                    action='faculty_deliverable_uploaded',
+                    target_type='FacultyProfile',
+                    target_id=str(faculty.uuid),
+                    details={
+                        'target_name': faculty.name or account.email,
+                        'count': success_count,
+                    },
+                )
                 messages.success(
                     request, f"{success_count} deliverable(s) uploaded successfully."
                 )

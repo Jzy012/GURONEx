@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.forms import formset_factory, BaseFormSet
 from django.db import transaction
 from django.http import HttpResponse, StreamingHttpResponse, Http404
+from django.urls import reverse
 from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 
 from .models import Applicant, ApplicantDocument, ApplicantRequiredDocument, ApplicantTimeline
@@ -20,6 +21,7 @@ from faculty.models import DocumentCategory
 from services.google_drive_service import CentralGoogleDriveService
 from services.applicant_document_service import process_applicant_documents_sync
 from applicant.tasks import process_applicant_documents_task
+from notifications.services import ROLE_ADMIN_GROUP, log_activity, notify_role
 
 
 
@@ -78,6 +80,32 @@ def applicant_apply(request):
                 process_applicant_documents_task.delay(applicant.id, docs_payload)
             except Exception:
                 process_applicant_documents_sync(applicant.id, docs_payload)
+
+            try:
+                notify_role(
+                    roles=ROLE_ADMIN_GROUP,
+                    notification_type='applicant_submitted',
+                    title='New applicant submission',
+                    message=(
+                        f"{applicant.first_name} {applicant.last_name} submitted a new application."
+                    ),
+                    url=reverse('adminhub:applicant_detail', kwargs={'uuid': applicant.uuid}),
+                    related_type='Applicant',
+                    related_id=str(applicant.uuid),
+                    aggregate_key=f"applicant_submission:{applicant.uuid}",
+                )
+                log_activity(
+                    action='applicant_submitted',
+                    target_type='Applicant',
+                    target_id=str(applicant.uuid),
+                    details={
+                        'target_name': applicant.full_name,
+                        'applicant_id': applicant.applicant_id,
+                        'email': applicant.email,
+                    },
+                )
+            except Exception:
+                pass
 
             try:
                 send_applicant_submission_receipt(applicant)

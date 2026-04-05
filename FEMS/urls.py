@@ -25,6 +25,7 @@ from base.media_views import serve_landing_background  # <-- add this
 urlpatterns = [
     path('system-config/', admin.site.urls),
     path('', include('base.urls')),
+    path('', include('notifications.urls')),
     path('', include('adminhub.urls')),
     path('', include('faculty.urls')),
     path('', include('applicant.urls')),

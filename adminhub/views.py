@@ -112,6 +112,7 @@ from rfid.models import AttendanceLog, RFIDTag
 from rfid.views import format_log
 from services.dtr_service import DTRCalculator
 from services.google_drive_service import CentralGoogleDriveService, get_google_drive_status
+from notifications.services import log_activity, notify_role, notify_user
 
 # Logger Setup
 logger = logging.getLogger(__name__)
@@ -271,6 +272,29 @@ def change_document_status(request, uid):
     doc.status = new_status
     doc.admin_remarks = remarks
     doc.save(update_fields=['status', 'admin_remarks'])
+
+    notify_user(
+        recipient=doc.faculty.account,
+        actor=request.user,
+        notification_type='document_status_updated',
+        title='Document status updated',
+        message=f"{doc.document_name} was marked as {doc.status}.",
+        url=reverse('faculty:faculty_documents'),
+        related_type='FacultyDocument',
+        related_id=str(doc.uid),
+    )
+    log_activity(
+        actor=request.user,
+        action='faculty_document_status_updated',
+        target_type='FacultyDocument',
+        target_id=str(doc.uid),
+        details={
+            'target_name': doc.document_name,
+            'faculty_name': doc.faculty.name,
+            'status': doc.status,
+            'remarks': remarks,
+        },
+    )
 
     # You could also send back some info for updating the row
     return JsonResponse({
@@ -849,6 +873,27 @@ def approve_faculty_account_view(request, faculty_uuid):
 
     approved_faculty = FacultyProfile.objects.select_related('account').get(pk=faculty.pk)
 
+    notify_user(
+        recipient=approved_faculty.account,
+        actor=request.user,
+        notification_type='faculty_account_approved',
+        title='Faculty account approved',
+        message='Your faculty account has been approved. You can now access the faculty portal.',
+        url=reverse('login'),
+        related_type='FacultyProfile',
+        related_id=str(approved_faculty.uuid),
+    )
+    log_activity(
+        actor=request.user,
+        action='faculty_account_approved',
+        target_type='FacultyProfile',
+        target_id=str(approved_faculty.uuid),
+        details={
+            'target_name': approved_faculty.name or approved_faculty.account.email,
+            'email': approved_faculty.account.email,
+        },
+    )
+
     # Send approval email to faculty
     email_sent, email_error = _send_faculty_approval_email(approved_faculty)
     
@@ -887,8 +932,17 @@ def reject_faculty_account_view(request, faculty_uuid):
             messages.warning(request, 'Active faculty accounts cannot be rejected from pending approvals.')
             return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
 
+        rejected_uuid = str(locked_faculty.uuid)
         email = locked_faculty.account.email
         locked_faculty.account.delete()
+
+    log_activity(
+        actor=request.user,
+        action='faculty_account_rejected',
+        target_type='FacultyProfile',
+        target_id=rejected_uuid,
+        details={'target_name': locked_faculty.name or email, 'email': email},
+    )
 
     messages.success(request, f'Faculty registration rejected and removed: {email}.')
     return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
@@ -1047,6 +1101,29 @@ def change_faculty_document_status(request, pk):
         doc.status = new_status
         doc.admin_remarks = remarks
         doc.save(update_fields=['status', 'admin_remarks'])
+
+    notify_user(
+        recipient=doc.faculty.account,
+        actor=request.user,
+        notification_type='document_status_updated',
+        title='Document review update',
+        message=f"{doc.document_name} is now {doc.status}.",
+        url=reverse('faculty:faculty_documents'),
+        related_type='FacultyDocument',
+        related_id=str(doc.uid),
+    )
+    log_activity(
+        actor=request.user,
+        action='faculty_document_status_updated',
+        target_type='FacultyDocument',
+        target_id=str(doc.uid),
+        details={
+            'target_name': doc.document_name,
+            'faculty_name': doc.faculty.name,
+            'status': doc.status,
+            'remarks': remarks,
+        },
+    )
 
     return JsonResponse({
         "success": True,
@@ -1252,6 +1329,32 @@ def create_announcement_view(request):
                     announcement.email_last_error = ''
 
             announcement.save()
+
+            if not scheduled_publish_at:
+                roles = announcement.visible_to_roles or DEFAULT_ANNOUNCEMENT_ROLES
+                notify_role(
+                    roles=roles,
+                    actor=request.user,
+                    notification_type='announcement_published',
+                    title=f"New announcement: {announcement.title}",
+                    message=announcement.content[:220],
+                    url=reverse('adminhub:announcements') if 'admin' in roles else reverse('faculty:faculty_announcements'),
+                    related_type='Announcement',
+                    related_id=str(announcement.uuid),
+                    aggregate_key=f"announcement:{announcement.uuid}",
+                    is_important=announcement.is_important,
+                )
+                log_activity(
+                    actor=request.user,
+                    action='announcement_published',
+                    target_type='Announcement',
+                    target_id=str(announcement.uuid),
+                    details={
+                        'target_name': announcement.title,
+                        'scheduled': False,
+                        'send_email': announcement.send_email,
+                    },
+                )
 
             def _queue_announcement_job():
                 try:
@@ -2044,6 +2147,20 @@ def change_applicant_document_status(request, pk):
         doc.status = new_status
         doc.admin_remarks = remarks
         doc.save(update_fields=['status', 'admin_remarks'])
+
+    log_activity(
+        actor=request.user,
+        action='applicant_document_status_updated',
+        target_type='ApplicantDocument',
+        target_id=str(doc.pk),
+        details={
+            'target_name': doc.document_name,
+            'applicant_name': doc.applicant.full_name,
+            'status': doc.status,
+            'remarks': remarks,
+            'applicant_id': doc.applicant.applicant_id,
+        },
+    )
 
     return JsonResponse({
         "success": True,
@@ -2983,6 +3100,32 @@ def teaching_assignment_bulk_confirm(request):
                 }
             )
 
+        notified_faculty_ids = set()
+        for assignment in to_create:
+            faculty_account = assignment.faculty.account
+            if faculty_account.id in notified_faculty_ids:
+                continue
+            notified_faculty_ids.add(faculty_account.id)
+
+            notify_user(
+                recipient=faculty_account,
+                actor=request.user,
+                notification_type='teaching_assignment_assigned',
+                title='Teaching assignments updated',
+                message='Your teaching assignments were updated by an admin.',
+                url=reverse('faculty:faculty_teaching_assignment'),
+                related_type='TeachingAssignment',
+                related_id=str(assignment.semester.id),
+                aggregate_key=f"teaching_assignment_upload:{assignment.semester.id}:{faculty_account.id}",
+            )
+
+        log_activity(
+            actor=request.user,
+            action='teaching_assignments_bulk_created',
+            target_type='TeachingAssignment',
+            details={'target_name': 'Teaching assignments', 'count': len(to_create)},
+        )
+
         # Success: clear session and redirect
         try:
             del request.session[SESSION_KEY]
@@ -3040,6 +3183,27 @@ def teaching_assignment_create(request, faculty_uuid):
             assignment = form.save(commit=False)
             assignment.faculty = faculty  # reinforce
             assignment.save()
+            notify_user(
+                recipient=faculty.account,
+                actor=request.user,
+                notification_type='teaching_assignment_assigned',
+                title='New teaching assignment',
+                message='A new teaching assignment has been added to your schedule.',
+                url=reverse('faculty:faculty_teaching_assignment'),
+                related_type='TeachingAssignment',
+                related_id=str(assignment.id),
+                aggregate_key=f"teaching_assignment_create:{faculty.account.id}",
+            )
+            log_activity(
+                actor=request.user,
+                action='teaching_assignment_created',
+                target_type='TeachingAssignment',
+                target_id=str(assignment.id),
+                details={
+                    'target_name': faculty.name or faculty.account.email,
+                    'faculty_uuid': str(faculty.uuid),
+                },
+            )
             messages.success(request, "Teaching assignment created.")
             return redirect('adminhub:teaching_assignment_list', faculty_uuid=faculty.uuid)
     else:
