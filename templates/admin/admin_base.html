@@ -312,7 +312,9 @@
         .then((r) => r.json())
         .then((data) => {
           const latest = data.latest || [];
-          const unread = parseUnreadCount(data.unread_count ?? data.unreadCount, latest);
+          const unreadFromList = latest.filter((item) => !item.is_read).length;
+          const unreadFromCount = parseUnreadCount(data.unread_count ?? data.unreadCount, latest);
+          const unread = Math.max(unreadFromCount, unreadFromList);
 
           updateBadgeCount(unread);
           renderDropdown(latest);
