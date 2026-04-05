@@ -1,0 +1,395 @@
+{% load static %}
+{% load appearance_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
+  <title>LINANG - Faculty Registration</title>
+  <link rel="stylesheet" href="{% static 'css/output.css' %}" />
+  <style>
+    body { font-family: 'Karla', sans-serif; }
+  </style>
+</head>
+
+<body class="bg-gradient-to-br from-[#800505] via-[#a80707] to-[#800505] min-h-screen relative">
+  <div class="relative min-h-screen flex items-center justify-center py-8">
+
+    {% landing_background_url as bg_url %}
+    {% if bg_url %}
+      <div style="background: url('{{ bg_url }}') center/cover no-repeat fixed;" class="absolute inset-0 -z-20"></div>
+    {% endif %}
+
+    <div class="absolute inset-0 -z-10 {% landing_background_overlay_classes %}"></div>
+
+    <!-- Back Button -->
+    <a href="{% url 'login' %}"
+       class="absolute top-6 left-6 flex items-center gap-2 text-white font-semibold text-lg px-3 py-2 rounded-full transition duration-300 hover:bg-white/20 hover:backdrop-blur-md z-10">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+      </svg>
+      <span>Back</span>
+    </a>
+
+    <!-- Main Container -->
+    <div class="w-full px-4 md:px-0">
+      <div class="relative z-10 bg-white shadow-2xl rounded-xl max-w-3xl mx-auto overflow-hidden">
+
+        <!-- Header Bar -->
+        <div class="flex items-center gap-3 px-6 py-4 bg-[#800505] border-b border-[#a80707]">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white opacity-85" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          <h2 class="text-lg font-semibold text-white tracking-wide">Faculty Registration</h2>
+        </div>
+
+        <!-- Content -->
+        <div class="px-6 md:px-8 py-8 space-y-6">
+
+          <!-- Welcome Message -->
+          <div class="text-center space-y-2 pb-2 border-b border-gray-200">
+            <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo" class="w-16 h-16 mx-auto" />
+            <h1 class="text-2xl font-bold text-gray-900">Create Your Faculty Account</h1>
+            <p class="text-sm text-gray-600">Your registration will be reviewed and approved by our admin team.</p>
+          </div>
+
+          <!-- Messages -->
+          {% if messages %}
+            <div class="space-y-2">
+              {% for message in messages %}
+                <div class="p-3 rounded-lg text-sm
+                  {% if 'error' in message.tags %}
+                    bg-red-100 text-red-800 border border-red-300
+                  {% elif 'success' in message.tags %}
+                    bg-green-100 text-green-800 border border-green-300
+                  {% elif 'warning' in message.tags %}
+                    bg-yellow-100 text-yellow-800 border border-yellow-300
+                  {% else %}
+                    bg-blue-100 text-blue-800 border border-blue-300
+                  {% endif %}
+                ">
+                  <span class="flex items-start gap-2">
+                    <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    {{ message }}
+                  </span>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <!-- Form -->
+          <form id="signupForm" method="POST" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Section 1: Personal Information -->
+            <div class="space-y-4">
+              <div class="flex items-center gap-2 pb-2 border-b border-gray-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-[#800505]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 class="text-sm font-semibold text-gray-800">Personal Information</h3>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for field in form %}
+                  {% if field.name in 'first_name,middle_name,last_name,suffix' %}
+                    <div>
+                      <label class="block text-xs font-semibold text-[#800505] mb-1.5">{{ field.label }}</label>
+                      {{ field }}
+                      {% if field.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Section 2: Email & Security -->
+            <div class="space-y-4">
+              <div class="flex items-center gap-2 pb-2 border-b border-gray-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-[#800505]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                </svg>
+                <h3 class="text-sm font-semibold text-gray-800">Account Credentials</h3>
+              </div>
+              <div class="grid grid-cols-1 gap-4">
+                {% for field in form %}
+                  {% if field.name in 'email,password,confirm_password' %}
+                    <div>
+                      <label class="block text-xs font-semibold text-[#800505] mb-1.5">{{ field.label }}</label>
+                      {% if field.name in 'password,confirm_password' %}
+                        <div class="relative">
+                          {{ field }}
+                          <button
+                            type="button"
+                            class="toggle-password absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-800"
+                            data-target="{{ field.id_for_label }}"
+                            aria-label="Toggle password visibility"
+                          >
+                            <svg class="eye-open h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.75-7.5 9.75-7.5S21.75 12 21.75 12 18 19.5 12 19.5 2.25 12 2.25 12z" />
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <svg class="eye-closed hidden h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18" />
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M10.477 10.48a3 3 0 104.243 4.243" />
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M6.228 6.228C4.023 7.9 2.501 10.08 2.25 12c0 0 3.75 7.5 9.75 7.5 1.48 0 2.855-.243 4.104-.675" />
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M14.53 14.53A3 3 0 019.47 9.47" />
+                            </svg>
+                          </button>
+                        </div>
+                      {% else %}
+                        {{ field }}
+                      {% endif %}
+                      {% if field.help_text %}
+                        <p class="text-xs text-gray-500 mt-1">{{ field.help_text|safe }}</p>
+                      {% endif %}
+                      {% if field.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Section 3: Employment & Additional Information -->
+            <div class="space-y-4">
+              <div class="flex items-center gap-2 pb-2 border-b border-gray-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-[#800505]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5.5m0 0H9m0 0h5.5M9 7h1m-1 4h1m0 6h1m4-6h1m-1 4h1" />
+                </svg>
+                <h3 class="text-sm font-semibold text-gray-800">Faculty Details</h3>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for field in form %}
+                  {% if field.name in 'faculty_code,status,contact_number,birth_date' %}
+                    <div>
+                      <label class="block text-xs font-semibold text-[#800505] mb-1.5">{{ field.label }}</label>
+                      {{ field }}
+                      {% if field.help_text %}
+                        <p class="text-xs text-gray-500 mt-1">{{ field.help_text|safe }}</p>
+                      {% endif %}
+                      {% if field.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Approval Notice -->
+            <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div class="flex gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zm-11-1a1 1 0 11-2 0 1 1 0 012 0zM8 7a1 1 0 000 2h6a1 1 0 000-2H8zm0 4a1 1 0 000 2h3a1 1 0 000-2H8z" clip-rule="evenodd" />
+                </svg>
+                <div class="text-sm text-blue-800">
+                  <p class="font-semibold">Your registration is pending admin approval</p>
+                  <p class="text-blue-700 mt-1">Once your account is approved, you will receive an email notification with login instructions. Please check your inbox (including spam folder) for updates.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3 pt-6 border-t border-gray-200">
+              <a href="{% url 'login' %}"
+                 class="flex-1 px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg border border-gray-400 shadow-sm text-sm transition">
+                Cancel
+              </a>
+              <button type="button" id="confirmBtn"
+                class="flex-1 px-4 py-2.5 bg-[#800505] hover:bg-[#a80707] text-white font-semibold rounded-lg shadow text-sm transition">
+                Review & Submit
+              </button>
+            </div>
+
+            <!-- Terms Link -->
+            <p class="text-center text-xs text-gray-500 pt-2">
+              Already have an account?
+              <a href="{% url 'login' %}" class="text-[#800505] hover:text-[#a80707] font-semibold">Log in here</a>
+            </p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmationModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <!-- Modal Header -->
+      <div class="sticky top-0 flex items-center gap-3 px-6 py-4 bg-[#800505] border-b border-[#a80707]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h2 class="text-lg font-semibold text-white">Confirm Your Registration</h2>
+      </div>
+
+      <!-- Modal Content -->
+      <div class="px-6 py-6 space-y-6">
+        
+        <!-- Review Sections -->
+        <div id="confirmationContent" class="space-y-5">
+          <!-- Will be populated by JavaScript -->
+        </div>
+
+        <!-- Warning Notice -->
+        <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div class="flex gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            <div class="text-sm text-amber-800">
+              <p class="font-semibold">Important Notice</p>
+              <p class="mt-1">Your account will be created with a <strong>pending status</strong>. An admin must approve your registration before you can log in. You will receive an <strong>email notification</strong> once your account has been reviewed and approved.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3 pt-4 border-t border-gray-200">
+          <button type="button" id="backBtn" 
+            class="flex-1 px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg border border-gray-400 shadow-sm text-sm transition">
+            Back to Edit
+          </button>
+          <button type="button" id="submitBtn" 
+            class="flex-1 px-4 py-2.5 bg-[#800505] hover:bg-[#a80707] text-white font-semibold rounded-lg shadow text-sm transition">
+            Submit Registration
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('signupForm');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const backBtn = document.getElementById('backBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const modal = document.getElementById('confirmationModal');
+    const confirmationContent = document.getElementById('confirmationContent');
+
+    document.querySelectorAll('.toggle-password').forEach((button) => {
+      button.addEventListener('click', function() {
+        const input = document.getElementById(this.dataset.target);
+        if (!input) {
+          return;
+        }
+
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        this.querySelector('.eye-open').classList.toggle('hidden', !isPassword);
+        this.querySelector('.eye-closed').classList.toggle('hidden', isPassword);
+      });
+    });
+
+    // Field labels for display
+    const fieldLabels = {
+      first_name: 'First Name',
+      middle_name: 'Middle Name',
+      last_name: 'Last Name',
+      suffix: 'Suffix',
+      email: 'PUP WebMail',
+      faculty_code: 'Faculty Code',
+      status: 'Employment Status',
+      contact_number: 'Contact Number',
+      birth_date: 'Birth Date',
+    };
+
+    // Open confirmation modal
+    confirmBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+
+      // Validate form first
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      // Build confirmation content
+      const formData = new FormData(form);
+      let html = '';
+
+      // Group fields by section
+      const sections = {
+        'Personal Information': ['first_name', 'middle_name', 'last_name', 'suffix'],
+        'Account Credentials': ['email'],
+        'Faculty Details': ['faculty_code', 'status', 'contact_number', 'birth_date'],
+      };
+
+      Object.entries(sections).forEach(([sectionName, fields]) => {
+        let sectionHtml = `<div class="border border-gray-200 rounded-lg p-4">
+          <h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <span class="w-2 h-2 bg-[#800505] rounded-full"></span>
+            ${sectionName}
+          </h3>
+          <div class="space-y-2">`;
+
+        fields.forEach(fieldName => {
+          const field = form.elements[fieldName];
+          if (field) {
+            let value = formData.get(fieldName) || '(not provided)';
+            
+            // Format display value
+            if (fieldName === 'status' && value) {
+              const option = field.querySelector(`option[value="${value}"]`);
+              value = option ? option.textContent : value;
+            }
+            if (fieldName === 'birth_date' && value) {
+              const date = new Date(value);
+              value = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            }
+
+            // Only show non-empty fields
+            if (value !== '(not provided)' || ['first_name', 'last_name', 'email'].includes(fieldName)) {
+              sectionHtml += `
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600">${fieldLabels[fieldName]}</span>
+                  <span class="font-semibold text-gray-900">${value}</span>
+                </div>`;
+            }
+          }
+        });
+
+        sectionHtml += '</div></div>';
+        html += sectionHtml;
+      });
+
+      confirmationContent.innerHTML = html;
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    });
+
+    // Close modal with back button
+    backBtn.addEventListener('click', function() {
+      modal.classList.add('hidden');
+      document.body.style.overflow = 'auto';
+    });
+
+    // Submit form
+    submitBtn.addEventListener('click', function() {
+      form.submit();
+    });
+
+    // Close modal on Escape
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+      }
+    });
+
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+      }
+    });
+  </script>
+</body>
+</html>

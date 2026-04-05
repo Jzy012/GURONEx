@@ -239,6 +239,104 @@ class FacultyCreationForm(forms.Form):
 
 
 
+class FacultyPublicSignupForm(forms.Form):
+    """
+    Public self-signup form for faculty. Creates inactive accounts pending admin approval.
+    Mirrors FacultyCreationForm structure for consistency.
+    """
+    first_name = forms.CharField(
+        max_length=100,
+        validators=[name_part_validator],
+        label="First Name",
+    )
+    middle_name = forms.CharField(
+        max_length=100,
+        required=False,
+        validators=[name_part_validator],
+        label="Middle Name",
+    )
+    last_name = forms.CharField(
+        max_length=100,
+        validators=[name_part_validator],
+        label="Last Name",
+    )
+    suffix = forms.CharField(
+        max_length=20,
+        required=False,
+        validators=[name_part_validator],
+        label="Suffix",
+    )
+
+    email = forms.EmailField(label="PUP WebMail")
+    faculty_code = forms.CharField(
+        max_length=20,
+        required=True,
+        label="Faculty Code",
+        help_text="e.g., FA0018SP2023",
+    )
+    status = forms.ModelChoiceField(
+        queryset=EmploymentStatus.objects.filter(is_active=True),
+        required=True,
+        label="Employment Status",
+    )
+    contact_number = forms.CharField(
+        max_length=11,
+        required=False,
+        validators=[phone_validator],
+        label="Contact Number",
+    )
+    birth_date = forms.DateField(
+        required=True,
+        widget=forms.DateInput(attrs={"type": "date"}),
+        label="Birth Date",
+    )
+
+    password = forms.CharField(
+        min_length=8,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+        label="Password",
+        help_text="Use at least 8 characters.",
+    )
+    confirm_password = forms.CharField(
+        min_length=8,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+        label="Confirm Password",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for fname, field in self.fields.items():
+            existing = field.widget.attrs.get("class", "")
+            field.widget.attrs["class"] = f"{existing} {field_class}".strip()
+            field.widget.attrs["placeholder"] = field.label
+
+        self.fields["middle_name"].widget.attrs["placeholder"] = "Middle Name (Optional)"
+        self.fields["suffix"].widget.attrs["placeholder"] = "Suffix (Optional)"
+        self.fields["password"].widget.attrs["class"] = f"{self.fields['password'].widget.attrs.get('class', '')} pr-12".strip()
+        self.fields["confirm_password"].widget.attrs["class"] = f"{self.fields['confirm_password'].widget.attrs.get('class', '')} pr-12".strip()
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].strip().lower()
+        if Account.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("An account with this email already exists.")
+        return email
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get("password")
+        confirm_password = cleaned_data.get("confirm_password")
+
+        if password and confirm_password and password != confirm_password:
+            self.add_error("confirm_password", "Passwords do not match.")
+
+        return cleaned_data
+
+
+
 class FacultyEditForm(forms.ModelForm):
     email = forms.EmailField(
         label='Email',

@@ -357,13 +357,26 @@
 <script>
 function openAnnouncementModal(uuid) {
     fetch(`/faculty/announcements/view/${uuid}/`)
-        .then(response => response.json())
+    .then(response => response.json())
         .then(data => {
             const modal = document.getElementById("announcement-modal");
             const overlay = document.getElementById("modal-overlay");
 
-            let html = `<h3>${data.title}</h3>`;
-            html += `<p>${data.content}</p>`;
+      if (data.error) {
+        const message = data.error === 'Unauthorized'
+          ? 'This announcement is no longer available.'
+          : 'Unable to load announcement details right now.';
+        document.getElementById("modal-content").innerHTML = `<p>${message}</p>`;
+        modal.style.display = "block";
+        overlay.style.display = "block";
+        return;
+      }
+
+      const title = data.title || "Announcement";
+      const content = data.content || "No additional details provided.";
+
+      let html = `<h3>${title}</h3>`;
+      html += `<p>${content}</p>`;
             if (data.attachment_link) {
                 html += `<p><a href="${data.attachment_link}" target="_blank">View Attachment</a></p>`;
             }

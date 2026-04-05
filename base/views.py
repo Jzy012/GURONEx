@@ -62,7 +62,17 @@ def login_view(request):
                     elif user.role == 'faculty':
                         return redirect('faculty:home')
             else:
-                messages.error(request, 'Invalid credentials.', extra_tags='login')
+                User = get_user_model()
+                pending_user = User.objects.filter(email__iexact=email, role='faculty', is_active=False).first()
+
+                if pending_user and pending_user.check_password(password):
+                    messages.warning(
+                        request,
+                        'Your faculty account is pending admin approval. Please try again once approved.',
+                        extra_tags='login',
+                    )
+                else:
+                    messages.error(request, 'Invalid credentials.', extra_tags='login')
     else:
         form = LoginForm()
 

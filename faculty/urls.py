@@ -8,6 +8,8 @@ app_name = 'faculty'
 
 
 urlpatterns = [
+    path('faculty/signup/', views.faculty_signup_view, name='faculty_signup'),
+
     path('faculty/home/', views.home, name='home'),
 
     path('faculty/documents/upload/', views.faculty_document_upload, name='upload_documents'),

@@ -1,7 +1,10 @@
 from django.shortcuts import render, redirect
 from base.decorators import faculty_required, admin_required
-from base.forms import TwoFactorToggleForm
+from base.forms import TwoFactorToggleForm, FacultyPublicSignupForm
 from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.views.decorators.cache import never_cache
 from base.utils.faculty_data import get_faculty_data
 from .models import FacultyProfile
 # Create your views here.
@@ -25,6 +28,58 @@ from faculty.models import (
     Deliverable,
     TeachingAssignment,
 )
+
+
+@never_cache
+def faculty_signup_view(request):
+    if request.user.is_authenticated:
+        if request.user.role == 'admin':
+            return redirect('adminhub:home')
+        if request.user.role == 'faculty':
+            return redirect('faculty:home')
+
+    if request.method == 'POST':
+        form = FacultyPublicSignupForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            User = get_user_model()
+
+            try:
+                with transaction.atomic():
+                    account = User.objects.create_user(
+                        email=data['email'],
+                        password=data['password'],
+                        role='faculty',
+                        is_active=False,
+                    )
+
+                    FacultyProfile.objects.create(
+                        account=account,
+                        first_name=data.get('first_name'),
+                        middle_name=data.get('middle_name'),
+                        last_name=data.get('last_name'),
+                        suffix=data.get('suffix'),
+                        faculty_code=data.get('faculty_code'),
+                        status=data.get('status'),
+                        birth_date=data.get('birth_date'),
+                        contact_number=data.get('contact_number'),
+                    )
+
+                messages.success(
+                    request,
+                    'Your registration was submitted. Please wait for admin approval before logging in.',
+                    extra_tags='login',
+                )
+                return redirect('login')
+            except Exception:
+                messages.error(
+                    request,
+                    'Unable to submit your registration right now. Please try again later.',
+                )
+    else:
+        form = FacultyPublicSignupForm()
+
+    return render(request, 'faculty/faculty_signup.html', {'form': form})
 
 
 @faculty_required
@@ -1038,12 +1093,15 @@ def view_announcement_ajax(request, uuid):
         raise Http404("Announcement not found")
 
     today = timezone.now().date()
+    is_currently_publishable = (
+        announcement.scheduled_publish_at is None or announcement.published_at is not None
+    )
 
     # Check if user is allowed to see this announcement and it is currently visible.
     if (
         user.role not in announcement.visible_to_roles
         or not announcement.is_active
-        or announcement.published_at is None
+        or not is_currently_publishable
         or announcement.start_date > today
         or (announcement.end_date is not None and announcement.end_date < today)
     ):

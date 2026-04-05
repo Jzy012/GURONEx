@@ -1,0 +1,30 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ subject|default:"LINANG" }}{% endblock %}
+
+{% block header_subtitle %}
+Faculty Account Approved
+{% endblock %}
+
+{% block content %}
+<p>Hi {{ name }},</p>
+<p>Your faculty registration has been approved. You can now sign in to LINANG.</p>
+
+<p>
+  <strong>PUP WebMail:</strong> {{ email }}<br>
+  {% if faculty_code %}<strong>Faculty Code:</strong> {{ faculty_code }}<br>{% endif %}
+  {% if status %}<strong>Employment Status:</strong> {{ status }}{% endif %}
+</p>
+
+
+<div class="divider"></div>
+
+<h2>What to do next</h2>
+<ul>
+  <li>Sign in using your PUP WebMail and your password.</li>
+  <li>Verify your profile information after login.</li>
+  <li>Contact support if you encounter account access issues.</li>
+</ul>
+
+<p class="muted">If this approval is unexpected, contact support at {{ support_email }}.</p>
+{% endblock %}

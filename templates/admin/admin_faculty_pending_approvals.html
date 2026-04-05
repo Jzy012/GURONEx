@@ -1,0 +1,485 @@
+{% extends 'admin/admin_base.html' %}
+{% block content %}
+<div class="space-y-8">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-2">
+      <svg class="h-8 w-8 text-[#800505]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A3 3 0 017 17h10a3 3 0 011.879.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+      Faculty Pending Approvals
+    </h2>
+    <div class="flex items-center gap-3">
+      <a href="{% url 'adminhub:faculty_list' %}"
+         class="flex items-center gap-2 rounded-lg bg-[#800505] px-3 py-2 text-sm font-semibold text-white shadow-md transition duration-200 hover:bg-[#a80707] whitespace-nowrap">
+        <span>Back to Faculty List</span>
+      </a>
+    </div>
+  </div>
+
+  {% if messages %}
+    <div class="space-y-2">
+      {% for message in messages %}
+        <div class="rounded-lg border p-3 text-sm
+          {% if 'error' in message.tags %}
+            border-red-200 bg-red-50 text-red-800
+          {% elif 'success' in message.tags %}
+            border-green-200 bg-green-50 text-green-800
+          {% elif 'warning' in message.tags %}
+            border-yellow-200 bg-yellow-50 text-yellow-800
+          {% else %}
+            border-blue-200 bg-blue-50 text-blue-800
+          {% endif %}
+        ">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-stretch">
+
+    <!-- Pending Card -->
+    <div class="flex items-center justify-between rounded-xl bg-white p-6 shadow-sm border border-gray-200 w-full lg:max-w-sm">
+      <div>
+        <h2 class="text-sm text-gray-500">Pending Requests</h2>
+        <p class="text-3xl font-bold text-gray-900">{{ total_pending_accounts }}</p>
+      </div>
+      <div class="rounded-xl bg-yellow-100 p-3">
+        <svg class="h-7 w-7 text-yellow-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M10.29 3.86l-7.42 12.75A2 2 0 004.6 20.5h14.8a2 2 0 001.73-2.99L12.71 3.86a2 2 0 00-2.42 0z" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- Filter/Search -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex-1 flex items-end">
+      <form method="get" class="w-full flex flex-col sm:flex-row sm:items-end gap-4">
+
+        <div class="flex-1">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Search</label>
+          <input
+            type="text"
+            name="search"
+            placeholder="Search faculty..."
+            value="{{ search }}"
+            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800505] focus:border-[#800505] transition">
+        </div>
+
+        <button type="submit"
+          class="px-5 py-2.5 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-sm transition font-semibold">
+          Filter
+        </button>
+
+      </form>
+    </div>
+
+  </div>
+
+  <div class="hidden sm:block bg-white rounded-lg shadow-md overflow-x-auto">
+    <table class="min-w-full border-collapse text-sm">
+      <thead class="bg-gray-100 border-t border-gray-200">
+        <tr class="text-left font-semibold text-gray-700">
+          <th class="px-5 py-4 border-b">Name</th>
+          <th class="px-5 py-4 border-b">PUP WebMail</th>
+          <th class="px-5 py-4 border-b">Faculty Code</th>
+          <th class="px-5 py-4 border-b">Status</th>
+          <th class="pl-0 py-4 border-b text-left">Requested On</th>
+          <th class="px-5 py-4 border-b">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="text-gray-900">
+        {% for faculty in page_obj %}
+        <tr class="hover:bg-gray-50 transition">
+          <td class="px-5 py-4 border-b">{{ faculty.name|default:'-' }}</td>
+          <td class="px-5 py-4 border-b">{{ faculty.account.email }}</td>
+          <td class="px-5 py-4 border-b">{{ faculty.faculty_code|default:'-' }}</td>
+          <td class="px-5 py-4 border-b">{{ faculty.status.name|default:'-' }}</td>
+          <td class="pl-14 pr-0 py-4 border-b text-left">{{ faculty.created_at|date:'M d, Y h:i A' }}</td>
+          <td class="px-5 py-4 border-b">
+            <div class="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                class="open-details text-[#800505] hover:underline font-medium"
+                data-name="{{ faculty.name|default:'-'|escape }}"
+                data-email="{{ faculty.account.email|escape }}"
+                data-first-name="{{ faculty.first_name|default:'-'|escape }}"
+                data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
+                data-last-name="{{ faculty.last_name|default:'-'|escape }}"
+                data-suffix="{{ faculty.suffix|default:'-'|escape }}"
+                data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+                data-status="{{ faculty.status.name|default:'-'|escape }}"
+                data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+                data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+                data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+              >
+                View
+              </button>
+              <button
+                type="button"
+                class="open-action-modal text-green-700 hover:underline font-medium"
+                data-action="approve"
+                data-action-url="{% url 'adminhub:approve_faculty_account' faculty.uuid %}"
+                data-action-label="Approve"
+                data-name="{{ faculty.name|default:'-'|escape }}"
+                data-email="{{ faculty.account.email|escape }}"
+                data-first-name="{{ faculty.first_name|default:'-'|escape }}"
+                data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
+                data-last-name="{{ faculty.last_name|default:'-'|escape }}"
+                data-suffix="{{ faculty.suffix|default:'-'|escape }}"
+                data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+                data-status="{{ faculty.status.name|default:'-'|escape }}"
+                data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+                data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+                data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                class="open-action-modal text-red-700 hover:underline font-medium"
+                data-action="reject"
+                data-action-url="{% url 'adminhub:reject_faculty_account' faculty.uuid %}"
+                data-action-label="Reject"
+                data-name="{{ faculty.name|default:'-'|escape }}"
+                data-email="{{ faculty.account.email|escape }}"
+                data-first-name="{{ faculty.first_name|default:'-'|escape }}"
+                data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
+                data-last-name="{{ faculty.last_name|default:'-'|escape }}"
+                data-suffix="{{ faculty.suffix|default:'-'|escape }}"
+                data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+                data-status="{{ faculty.status.name|default:'-'|escape }}"
+                data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+                data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+                data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+              >
+                Reject
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-5 py-10 text-center text-gray-500 font-semibold">
+            No faculty found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sm:hidden space-y-5">
+    {% for faculty in page_obj %}
+    <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200">
+      <div class="flex justify-between items-center mb-3 border-b border-gray-300 pb-2">
+        <h3 class="text-lg font-semibold text-gray-900 truncate">{{ faculty.name|default:'-' }}</h3>
+        <button
+          type="button"
+          class="open-details text-[#800505] hover:underline text-sm font-semibold whitespace-nowrap"
+          data-name="{{ faculty.name|default:'-'|escape }}"
+          data-email="{{ faculty.account.email|escape }}"
+          data-first-name="{{ faculty.first_name|default:'-'|escape }}"
+          data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
+          data-last-name="{{ faculty.last_name|default:'-'|escape }}"
+          data-suffix="{{ faculty.suffix|default:'-'|escape }}"
+          data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+          data-status="{{ faculty.status.name|default:'-'|escape }}"
+          data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+          data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+          data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+        >
+          View
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-gray-700 text-sm">
+        <div>
+          <p class="font-semibold">PUP WebMail</p>
+          <p>{{ faculty.account.email }}</p>
+        </div>
+        <div>
+          <p class="font-semibold">Status</p>
+          <p>{{ faculty.status.name|default:'-' }}</p>
+        </div>
+        <div>
+          <p class="font-semibold">Faculty Code</p>
+          <p>{{ faculty.faculty_code|default:'-' }}</p>
+        </div>
+        <div>
+          <p class="font-semibold">Requested</p>
+          <p>{{ faculty.created_at|date:'M d, Y h:i A' }}</p>
+        </div>
+      </div>
+        <div class="mt-4 flex flex-wrap gap-4">
+        <button
+          type="button"
+          class="open-action-modal text-green-700 hover:underline font-medium"
+          data-action="approve"
+          data-action-url="{% url 'adminhub:approve_faculty_account' faculty.uuid %}"
+          data-action-label="Approve"
+          data-name="{{ faculty.name|default:'-'|escape }}"
+          data-email="{{ faculty.account.email|escape }}"
+          data-first-name="{{ faculty.first_name|default:'-'|escape }}"
+          data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
+          data-last-name="{{ faculty.last_name|default:'-'|escape }}"
+          data-suffix="{{ faculty.suffix|default:'-'|escape }}"
+          data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+          data-status="{{ faculty.status.name|default:'-'|escape }}"
+          data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+          data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+          data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+        >
+          Approve
+        </button>
+        <button
+          type="button"
+          class="open-action-modal text-red-700 hover:underline font-medium"
+          data-action="reject"
+          data-action-url="{% url 'adminhub:reject_faculty_account' faculty.uuid %}"
+          data-action-label="Reject"
+          data-name="{{ faculty.name|default:'-'|escape }}"
+          data-email="{{ faculty.account.email|escape }}"
+          data-first-name="{{ faculty.first_name|default:'-'|escape }}"
+          data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
+          data-last-name="{{ faculty.last_name|default:'-'|escape }}"
+          data-suffix="{{ faculty.suffix|default:'-'|escape }}"
+          data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+          data-status="{{ faculty.status.name|default:'-'|escape }}"
+          data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+          data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+          data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+        >
+          Reject
+        </button>
+      </div>
+    </div>
+    {% empty %}
+    <p class="text-center text-gray-500 font-semibold">No faculty found.</p>
+    {% endfor %}
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <nav aria-label="Page navigation" class="flex justify-center mt-6 space-x-2">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&search={{ search }}"
+       class="px-3 py-1 rounded bg-[#800505] hover:bg-[#a80707] text-white font-semibold flex items-center justify-center">
+      <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 1 1 5l4 4"/>
+      </svg>
+    </a>
+    {% else %}
+    <span class="px-3 py-1 rounded bg-gray-300 text-gray-500 cursor-not-allowed flex items-center justify-center">
+      <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 1 1 5l4 4"/>
+      </svg>
+    </span>
+    {% endif %}
+
+    {% for num in paginator.page_range %}
+      {% if num == page_obj.number %}
+        <span class="px-3 py-1 rounded bg-[#a80707] text-white font-semibold">{{ num }}</span>
+      {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+        <a href="?page={{ num }}&search={{ search }}"
+           class="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">
+          {{ num }}
+        </a>
+      {% endif %}
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&search={{ search }}"
+       class="px-3 py-1 rounded bg-[#800505] hover:bg-[#a80707] text-white font-semibold flex items-center justify-center">
+      <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
+      </svg>
+    </a>
+    {% else %}
+    <span class="px-3 py-1 rounded bg-gray-300 text-gray-500 cursor-not-allowed flex items-center justify-center">
+      <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
+      </svg>
+    </span>
+    {% endif %}
+  </nav>
+  {% endif %}
+</div>
+
+<div id="detailsModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+  <div class="w-full max-w-2xl rounded-xl bg-white shadow-2xl">
+    <div class="flex items-center justify-between border-b border-gray-200 bg-[#800505] px-5 py-3 ">
+      <h3 class="text-lg font-semibold text-white">Submitted Faculty Details</h3>
+      <button type="button" id="closeDetailsModal" class="rounded text-white p-1 hover:text-gray-300" aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+    <div class="max-h-[75vh] overflow-y-auto p-5">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Full Name</p><p id="d-name" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">PUP WebMail</p><p id="d-email" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">First Name</p><p id="d-first-name" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Middle Name</p><p id="d-middle-name" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Last Name</p><p id="d-last-name" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Suffix</p><p id="d-suffix" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Faculty Code</p><p id="d-faculty-code" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Employment Status</p><p id="d-status" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Birth Date</p><p id="d-birth-date" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Contact Number</p><p id="d-contact-number" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3 sm:col-span-2"><p class="text-xs text-gray-500">Requested On</p><p id="d-requested-on" class="font-semibold text-gray-900">-</p></div>
+      </div>
+      <p class="mt-4 text-xs text-gray-500">Password is intentionally excluded from submitted details.</p>
+    </div>
+  </div>
+</div>
+
+<div id="actionModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+  <div class="w-full max-w-2xl rounded-xl bg-white shadow-2xl">
+    <div class="flex items-center justify-between border-b border-gray-200 bg-white px-5 py-3">
+      <h3 id="actionModalTitle" class="text-lg font-semibold text-gray-900">Confirm Action</h3>
+      <button type="button" id="closeActionModal" class="rounded p-1 text-gray-700 hover:bg-gray-100" aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+    <div class="max-h-[75vh] overflow-y-auto p-5 space-y-4">
+      <p id="actionModalMessage" class="text-sm text-gray-600"></p>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Full Name</p><p id="a-name" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">PUP WebMail</p><p id="a-email" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Faculty Code</p><p id="a-faculty-code" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Employment Status</p><p id="a-status" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Requested On</p><p id="a-requested-on" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Contact Number</p><p id="a-contact-number" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">First Name</p><p id="a-first-name" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Middle Name</p><p id="a-middle-name" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Last Name</p><p id="a-last-name" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Suffix</p><p id="a-suffix" class="font-semibold text-gray-900">-</p></div>
+      </div>
+      <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <p id="actionModalWarning" class="text-sm text-amber-800"></p>
+      </div>
+      <p class="text-xs text-gray-500">Password is not included in this review.</p>
+      <form id="actionModalForm" method="post" class="flex gap-3 pt-2">
+        {% csrf_token %}
+        <button type="button" id="cancelActionModal" class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
+        <button type="submit" id="confirmActionModal" class="flex-1 rounded-lg bg-[#800505] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#a80707]">Confirm</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const modal = document.getElementById('detailsModal');
+    const closeBtn = document.getElementById('closeDetailsModal');
+    const openButtons = document.querySelectorAll('.open-details');
+    const actionModal = document.getElementById('actionModal');
+    const closeActionBtn = document.getElementById('closeActionModal');
+    const cancelActionBtn = document.getElementById('cancelActionModal');
+    const actionForm = document.getElementById('actionModalForm');
+    const actionTitle = document.getElementById('actionModalTitle');
+    const actionMessage = document.getElementById('actionModalMessage');
+    const actionWarning = document.getElementById('actionModalWarning');
+    const confirmActionBtn = document.getElementById('confirmActionModal');
+    const actionButtons = document.querySelectorAll('.open-action-modal');
+
+    function setDetail(id, value) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.textContent = value && value.trim() ? value : '-';
+      }
+    }
+
+    openButtons.forEach((btn) => {
+      btn.addEventListener('click', function() {
+        setDetail('d-name', this.dataset.name || '-');
+        setDetail('d-email', this.dataset.email || '-');
+        setDetail('d-first-name', this.dataset.firstName || '-');
+        setDetail('d-middle-name', this.dataset.middleName || '-');
+        setDetail('d-last-name', this.dataset.lastName || '-');
+        setDetail('d-suffix', this.dataset.suffix || '-');
+        setDetail('d-faculty-code', this.dataset.facultyCode || '-');
+        setDetail('d-status', this.dataset.status || '-');
+        setDetail('d-contact-number', this.dataset.contactNumber || '-');
+        setDetail('d-birth-date', this.dataset.birthDate || '-');
+        setDetail('d-requested-on', this.dataset.requestedOn || '-');
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+      });
+    });
+
+    actionButtons.forEach((btn) => {
+      btn.addEventListener('click', function() {
+        const actionLabel = this.dataset.actionLabel || 'Confirm';
+        const isApprove = this.dataset.action === 'approve';
+
+        setDetail('a-name', this.dataset.name || '-');
+        setDetail('a-email', this.dataset.email || '-');
+        setDetail('a-first-name', this.dataset.firstName || '-');
+        setDetail('a-middle-name', this.dataset.middleName || '-');
+        setDetail('a-last-name', this.dataset.lastName || '-');
+        setDetail('a-suffix', this.dataset.suffix || '-');
+        setDetail('a-faculty-code', this.dataset.facultyCode || '-');
+        setDetail('a-status', this.dataset.status || '-');
+        setDetail('a-contact-number', this.dataset.contactNumber || '-');
+        setDetail('a-requested-on', this.dataset.requestedOn || '-');
+
+        actionForm.action = this.dataset.actionUrl || '#';
+        actionTitle.textContent = `${actionLabel} Faculty Account`;
+        actionMessage.textContent = `You are about to ${actionLabel.toLowerCase()} this faculty registration. Please review the submitted details before continuing.`;
+        actionWarning.textContent = isApprove
+          ? 'Approving this account will activate login access and send an approval email to the faculty member.'
+          : 'Rejecting this account will permanently remove the faculty registration request and cannot be undone.';
+        confirmActionBtn.textContent = `${actionLabel}`;
+        confirmActionBtn.className = isApprove
+          ? 'flex-1 rounded-lg bg-green-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-800'
+          : 'flex-1 rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800';
+
+        actionModal.classList.remove('hidden');
+        actionModal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+      });
+    });
+
+    function closeModal() {
+      modal.classList.remove('flex');
+      modal.classList.add('hidden');
+      document.body.style.overflow = 'auto';
+    }
+
+    function closeActionModal() {
+      actionModal.classList.remove('flex');
+      actionModal.classList.add('hidden');
+      document.body.style.overflow = 'auto';
+    }
+
+    closeBtn.addEventListener('click', closeModal);
+
+    closeActionBtn.addEventListener('click', closeActionModal);
+    cancelActionBtn.addEventListener('click', closeActionModal);
+
+    modal.addEventListener('click', function(event) {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+
+    actionModal.addEventListener('click', function(event) {
+      if (event.target === actionModal) {
+        closeActionModal();
+      }
+    });
+
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape' && modal.classList.contains('flex')) {
+        closeModal();
+      } else if (event.key === 'Escape' && actionModal.classList.contains('flex')) {
+        closeActionModal();
+      }
+    });
+  })();
+</script>
+{% endblock %}

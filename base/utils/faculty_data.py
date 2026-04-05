@@ -19,9 +19,13 @@ def get_faculty_data(request):
     unseen_important = Announcement.objects.filter(
         is_important=True,
         visible_to_roles__contains=[user.role],
+        is_active=True,
         start_date__lte=today
     ).filter(
         Q(end_date__gte=today) | Q(end_date__isnull=True)
+    ).filter(
+        # Keep legacy announcements (no schedule) visible, while requiring scheduled ones to be published.
+        Q(scheduled_publish_at__isnull=True) | Q(published_at__isnull=False)
     ).exclude(
         announcementviewlog__user=user
     ).order_by('-created_at').first()

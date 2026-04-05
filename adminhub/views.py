@@ -17,7 +17,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.mail import send_mail
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q, Sum
@@ -719,6 +718,180 @@ def faculty_list_view(request):
         'status_id': status_id,
         'querystring': querystring,
     })
+
+
+@admin_required
+def faculty_pending_approvals_view(request):
+    search = request.GET.get('search', '').strip()
+
+    pending_qs = (
+        FacultyProfile.objects
+        .select_related('account', 'status')
+        .filter(account__role='faculty', account__is_active=False)
+        .order_by('-created_at')
+    )
+
+    if search:
+        pending_qs = pending_qs.filter(
+            Q(name__icontains=search)
+            | Q(account__email__icontains=search)
+            | Q(faculty_code__icontains=search)
+            | Q(status__name__icontains=search)
+        )
+
+    total_pending_accounts = pending_qs.count()
+
+    paginator = Paginator(pending_qs, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    get_params = request.GET.copy()
+    if 'page' in get_params:
+        del get_params['page']
+    querystring = get_params.urlencode()
+
+    return render(request, 'admin/admin_faculty_pending_approvals.html', {
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'search': search,
+        'querystring': querystring,
+        'total_pending_accounts': total_pending_accounts,
+    })
+
+
+def _send_faculty_approval_email(faculty_profile: 'FacultyProfile'):
+    """
+    Send approval notification email to faculty.
+    """
+    try:
+        recipient_email = (faculty_profile.account.email or "").strip()
+        if not recipient_email:
+            return False, "Missing faculty recipient email."
+
+        if not getattr(settings, "BREVO_API_KEY", None):
+            return False, "BREVO_API_KEY is not configured."
+
+        name_parts = [faculty_profile.first_name, faculty_profile.middle_name, faculty_profile.last_name, faculty_profile.suffix]
+        full_name = " ".join([part.strip() for part in name_parts if part and str(part).strip()])
+        faculty_name = full_name or faculty_profile.name or recipient_email
+
+        base_url = (getattr(settings, 'SITE_BASE_URL', '') or '').rstrip('/')
+        if not base_url:
+            base_url = 'https://linang.pup.edu.ph'
+
+        subject = '[LINANG] Your Faculty Account Has Been Approved - LINANG'
+        login_url = f"{base_url}/login/"
+
+        send_html_email(
+            subject=subject,
+            to_emails=recipient_email,
+            template_name="emails/faculty_account_approved.html",
+            context={
+                "name": faculty_name,
+                "email": recipient_email,
+                "faculty_code": faculty_profile.faculty_code,
+                "status": faculty_profile.status.name if faculty_profile.status else None,
+                "login_url": login_url,
+                "support_email": getattr(settings, "SUPPORT_EMAIL", settings.DEFAULT_FROM_EMAIL),
+            },
+        )
+
+        logger.info(f"Approval email sent to {recipient_email}")
+        return True, None
+    except Exception as e:
+        logger.exception("Failed to send approval email to %s", faculty_profile.account.email)
+        return False, str(e)
+
+
+@admin_required
+@require_POST
+def approve_faculty_account_view(request, faculty_uuid):
+    faculty = get_object_or_404(
+        FacultyProfile.objects.select_related('account'),
+        uuid=faculty_uuid,
+        account__role='faculty',
+    )
+
+    if faculty.account.is_active:
+        messages.info(request, 'This faculty account is already active.')
+        return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
+
+    folder_id = faculty.gdrive_folder_id
+    if not folder_id:
+        try:
+            drive = CentralGoogleDriveService()
+            folder_id = drive.create_faculty_folder(faculty)
+        except Exception as exc:
+            messages.error(
+                request,
+                f'Account approval was blocked because Google Drive folder creation failed: {exc}'
+            )
+            return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
+
+    with transaction.atomic():
+        locked_faculty = (
+            FacultyProfile.objects
+            .select_for_update()
+            .select_related('account')
+            .get(pk=faculty.pk)
+        )
+
+        if locked_faculty.account.is_active:
+            messages.info(request, 'This faculty account was already activated by another admin.')
+            return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
+
+        if folder_id and not locked_faculty.gdrive_folder_id:
+            locked_faculty.gdrive_folder_id = folder_id
+            locked_faculty.save(update_fields=['gdrive_folder_id'])
+
+        locked_faculty.account.is_active = True
+        locked_faculty.account.save(update_fields=['is_active'])
+
+    approved_faculty = FacultyProfile.objects.select_related('account').get(pk=faculty.pk)
+
+    # Send approval email to faculty
+    email_sent, email_error = _send_faculty_approval_email(approved_faculty)
+    
+    if email_sent:
+        messages.success(
+            request, 
+            f'Faculty account approved for {approved_faculty.account.email}. Approval notification email has been sent.'
+        )
+    else:
+        messages.warning(
+            request,
+            f'Faculty account approved for {approved_faculty.account.email}, but the notification email could not be sent. Reason: {email_error or "Unknown email error."}'
+        )
+    
+    return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
+
+
+@admin_required
+@require_POST
+def reject_faculty_account_view(request, faculty_uuid):
+    faculty = get_object_or_404(
+        FacultyProfile.objects.select_related('account'),
+        uuid=faculty_uuid,
+        account__role='faculty',
+    )
+
+    with transaction.atomic():
+        locked_faculty = (
+            FacultyProfile.objects
+            .select_for_update()
+            .select_related('account')
+            .get(pk=faculty.pk)
+        )
+
+        if locked_faculty.account.is_active:
+            messages.warning(request, 'Active faculty accounts cannot be rejected from pending approvals.')
+            return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
+
+        email = locked_faculty.account.email
+        locked_faculty.account.delete()
+
+    messages.success(request, f'Faculty registration rejected and removed: {email}.')
+    return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
 
 
 
@@ -1983,22 +2156,26 @@ def account_creation_view(request):
                         applicant_email=applicant.email,
                         applicant_id_snapshot=applicant.applicant_id
                     )
-                    # Email notification to old applicant email
-                    send_mail(
-                        subject="[FEMS] Your Faculty Account Has Been Created",
-                        message=(
-                            f"Hello {applicant.first_name},\n\n"
-                            f"Your faculty account has been created.\n"
-                            f"Login Email: {email}\n"
-                            f"Temporary Password: {password}\n\n"
-                            "Please log in and change your password immediately. "
-                            "If you have any questions, contact the admin.\n\n"
-                            "This is an automated message from FEMS."
-                        ),
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[applicant.email],
-                        fail_silently=True,
-                    )
+                    # Email notification to old applicant email (match existing Brevo HTML helper pattern)
+                    try:
+                        full_name = f"{applicant.first_name} {applicant.last_name}".strip()
+                        login_url = request.build_absolute_uri(reverse('login'))
+                        send_html_email(
+                            subject="[LINANG] Faculty Account Credentials",
+                            to_emails=applicant.email,
+                            template_name="emails/faculty_welcome_credentials.html",
+                            context={
+                                "name": full_name,
+                                "email": email,
+                                "password": password,
+                                "faculty_code": faculty.faculty_code,
+                                "department": faculty.department,
+                                "login_url": login_url,
+                            },
+                        )
+                    except Exception as email_exc:
+                        logger.exception("Failed to send account creation email to %s", applicant.email)
+                        errors.append(f"{email}: Account created, but email notification failed: {email_exc}")
                     created.append(email)
             except Exception as e:
                 errors.append(f"{email}: {str(e)}")
