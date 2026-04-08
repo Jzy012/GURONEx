@@ -180,23 +180,57 @@ def applicant_dashboard(request):
     required_docs = ApplicantRequiredDocument.objects.select_related("document_category").all()
     timeline = applicant.timeline.order_by("timestamp")
 
+    step_date_fields = {
+        "demo_scheduled": "demo_scheduled_date",
+        "for_interview": "for_interview_date",
+        "psych_test": "psych_test_date",
+        "hired": "hired_date",
+        "rejected": "rejected_date",
+    }
+
+    required_status_dates = {
+        "demo_scheduled",
+        "for_interview",
+        "psych_test",
+    }
+
     STEPPER_STATUSES = [
         ("pending", "Pending"),
         ("demo_scheduled", "Demo Scheduled"),
         ("for_interview", "For Interview"),
         ("psych_test", "Psych Test"),
+        ("contract_of_service", "Contract of Service"),
+        ("first_salary_requirements", "First Salary Requirements"),
         ("hired", "Hired"),
-        ("failed", "Failed"),
     ]
+
+    if applicant.status == "rejected":
+        status_values = [value for value, _label in STEPPER_STATUSES if value != "rejected"]
+        rejected_source_status = applicant.rejected_from_status or "pending"
+        try:
+            reached_idx = status_values.index(rejected_source_status)
+        except ValueError:
+            reached_idx = 0
+
+        STEPPER_STATUSES = STEPPER_STATUSES[:reached_idx + 1] + [("rejected", "Rejected")]
+
     stepper = []
     found_active = False
     for value, label in STEPPER_STATUSES:
         is_active = (applicant.status == value)
+        step_date = None
+        date_field_name = step_date_fields.get(value)
+        if date_field_name:
+            step_date = getattr(applicant, date_field_name, None)
+        if value == "pending":
+            step_date = applicant.created_at.date()
         stepper.append({
             "value": value,
             "label": label,
             "completed": (not found_active and not is_active),
             "active": is_active,
+            "date": step_date,
+            "requires_date": value in required_status_dates,
         })
         if is_active:
             found_active = True
@@ -222,7 +256,7 @@ class IndexedFormSet(BaseFormSet):
 def applicant_upload_documents(request):
     applicant = get_object_or_404(Applicant, pk=request.session["applicant_pk"])
 
-    if applicant.status in ["hired", "failed"]:
+    if applicant.status in ["hired", "rejected"]:
         messages.error(request, "Cannot upload documents at this stage.")
         return redirect("applicants:dashboard")
 

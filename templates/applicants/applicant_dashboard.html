@@ -72,9 +72,13 @@
               bg-indigo-50 text-indigo-800 ring-1 ring-indigo-200
             {% elif applicant.status == 'psych_test' %}
               bg-purple-50 text-purple-800 ring-1 ring-purple-200
+            {% elif applicant.status == 'contract_of_service' %}
+              bg-cyan-50 text-cyan-800 ring-1 ring-cyan-200
+            {% elif applicant.status == 'first_salary_requirements' %}
+              bg-orange-50 text-orange-800 ring-1 ring-orange-200
             {% elif applicant.status == 'hired' %}
               bg-green-50 text-green-800 ring-1 ring-green-200
-            {% elif applicant.status == 'failed' %}
+            {% elif applicant.status == 'rejected' %}
               bg-red-50 text-red-800 ring-1 ring-red-200
             {% else %}
               bg-gray-50 text-gray-700 ring-1 ring-gray-200
@@ -159,6 +163,11 @@
             {% else %}text-gray-500{% endif %}">
             {{ step.label }}
           </div>
+          {% if step.requires_date %}
+            <div class="text-[11px] text-gray-500">
+              {% if step.date %}{{ step.date|date:"F j, Y" }}{% else %}No date{% endif %}
+            </div>
+          {% endif %}
           <div class="text-[11px] text-gray-500">
             {% if step.active %}Current step{% elif step.completed %}Completed{% else %}Upcoming{% endif %}
           </div>
@@ -187,6 +196,11 @@
             {% if step.active %}font-semibold text-[#800505]{% elif step.completed %}text-gray-700{% else %}text-gray-400{% endif %}
           ">
             {{ step.label }}
+          {% if step.requires_date %}
+            <div class="mt-1 text-[10px] text-gray-500">
+              {% if step.date %}{{ step.date|date:"F j, Y" }}{% else %}No date{% endif %}
+            </div>
+          {% endif %}
           </div>
         </div>
 

@@ -48,14 +48,16 @@ class Applicant(models.Model):
 
 
     status = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=[
             ('pending', 'Pending'),
             ('demo_scheduled', 'Demo Scheduled'),
             ('for_interview', 'For Interview'),
             ('psych_test', 'Psych Test'),
+            ('contract_of_service', 'Contract of Service'),
+            ('first_salary_requirements', 'First Salary Requirements'),
             ('hired', 'Hired'),
-            ('failed', 'Failed'),
+            ('rejected', 'Rejected'),
         ],
         default='pending'
     )
@@ -64,7 +66,21 @@ class Applicant(models.Model):
     for_interview_date = models.DateField(null=True, blank=True)
     psych_test_date = models.DateField(null=True, blank=True)
     hired_date = models.DateField(null=True, blank=True)
-    failed_date = models.DateField(null=True, blank=True)
+    rejected_date = models.DateField(null=True, blank=True)
+    rejected_from_status = models.CharField(
+        max_length=40,
+        choices=[
+            ('pending', 'Pending'),
+            ('demo_scheduled', 'Demo Scheduled'),
+            ('for_interview', 'For Interview'),
+            ('psych_test', 'Psych Test'),
+            ('contract_of_service', 'Contract of Service'),
+            ('first_salary_requirements', 'First Salary Requirements'),
+            ('hired', 'Hired'),
+        ],
+        null=True,
+        blank=True,
+    )
 
     # Emergency contact
     emergency_contact_name = models.CharField(max_length=100, null=True, blank=True)

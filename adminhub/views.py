@@ -1935,7 +1935,7 @@ def applicant_list_view(request):
     # 3. Stats for dashboard cards
     total_applicants = Applicant.objects.count()
     total_hired = Applicant.objects.filter(status='hired').count()
-    total_failed = Applicant.objects.filter(status='failed').count()
+    total_rejected = Applicant.objects.filter(status='rejected').count()
     total_pending = Applicant.objects.filter(status='pending').count()
 
     # 4. Pagination
@@ -1958,7 +1958,7 @@ def applicant_list_view(request):
         'status_choices': status_choices,
         'total_applicants': total_applicants,
         'total_hired': total_hired,
-        'total_failed': total_failed,
+        'total_rejected': total_rejected,
         'total_pending': total_pending,
         'search': search,
         'status': status,
@@ -1974,8 +1974,10 @@ STEPPER_STATUSES = [
     ('demo_scheduled', "Demo Scheduled"),
     ('for_interview', "For Interview"),
     ('psych_test', "Psych Test"),
+    ('contract_of_service', "Contract of Service"),
+    ('first_salary_requirements', "First Salary Requirements"),
     ('hired', "Hired"),
-    ('failed', "Failed"),
+    ('rejected', "Rejected"),
 ]
 
 STEPPER_DATE_FIELDS = {
@@ -1983,7 +1985,7 @@ STEPPER_DATE_FIELDS = {
     'for_interview': 'for_interview_date',
     'psych_test': 'psych_test_date',
     'hired': 'hired_date',
-    'failed': 'failed_date',
+    'rejected': 'rejected_date',
 }
 
 REQUIRED_STATUS_DATES = {
@@ -1994,6 +1996,8 @@ REQUIRED_STATUS_DATES = {
 
 
 def _get_next_status(current_status: str):
+    if current_status == 'rejected':
+        return None
     values = [value for value, _label in STEPPER_STATUSES]
     try:
         idx = values.index(current_status)
@@ -2016,6 +2020,20 @@ def _parse_input_date(date_raw: str):
         return None
     return datetime.datetime.strptime(date_raw, "%Y-%m-%d").date()
 
+
+def _get_rejected_reached_status(applicant: Applicant):
+    if applicant.rejected_from_status:
+        return applicant.rejected_from_status
+    if applicant.hired_date:
+        return 'hired'
+    if applicant.psych_test_date:
+        return 'psych_test'
+    if applicant.for_interview_date:
+        return 'for_interview'
+    if applicant.demo_scheduled_date:
+        return 'demo_scheduled'
+    return 'pending'
+
 @admin_required
 def applicant_detail_view(request, uuid):
     applicant = get_object_or_404(Applicant, uuid=uuid)
@@ -2027,6 +2045,7 @@ def applicant_detail_view(request, uuid):
     can_reschedule_current_step = bool(STEPPER_DATE_FIELDS.get(applicant.status))
 
     next_status = _get_next_status(applicant.status)
+    can_reject = applicant.status not in {'hired', 'rejected'}
     transition_choices = []
     if next_status:
         transition_choices.append((next_status, status_labels.get(next_status, next_status)))
@@ -2058,6 +2077,25 @@ def applicant_detail_view(request, uuid):
                 applicant.save(update_fields=[current_date_field])
                 send_applicant_status_rescheduled_email(applicant, current_status_label, reschedule_date)
                 messages.success(request, "Step date rescheduled and applicant notified.")
+
+            return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+        elif action == "reject":
+            if not can_reject:
+                messages.warning(request, "This applicant cannot be rejected at the current step.")
+                return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+            with transaction.atomic():
+                applicant.rejected_from_status = applicant.status
+                applicant.status = 'rejected'
+                if not applicant.rejected_date:
+                    applicant.rejected_date = timezone.localdate()
+                    applicant.save(update_fields=['status', 'rejected_date', 'rejected_from_status'])
+                else:
+                    applicant.save(update_fields=['status', 'rejected_from_status'])
+
+                send_applicant_status_email(applicant, 'rejected', status_date=applicant.rejected_date)
+                messages.success(request, "Applicant has been rejected.")
 
             return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
@@ -2097,15 +2135,36 @@ def applicant_detail_view(request, uuid):
                         messages.success(request, "Status updated.")
                     return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
-    # For stepper: build steps with current progress
-    status_values = [value for value, _label in STEPPER_STATUSES]
-    try:
-        current_idx = status_values.index(applicant.status)
-    except ValueError:
-        current_idx = -1
+    # For stepper: render a truncated path for rejected applicants.
+    # This keeps reached steps, then appends Rejected as the terminal step.
+    linear_stepper_statuses = [
+        ('pending', "Pending"),
+        ('demo_scheduled', "Demo Scheduled"),
+        ('for_interview', "For Interview"),
+        ('psych_test', "Psych Test"),
+        ('contract_of_service', "Contract of Service"),
+        ('first_salary_requirements', "First Salary Requirements"),
+        ('hired', "Hired"),
+    ]
+    status_values = [value for value, _label in linear_stepper_statuses]
+
+    if applicant.status == 'rejected':
+        rejected_source_status = _get_rejected_reached_status(applicant)
+        try:
+            reached_idx = status_values.index(rejected_source_status)
+        except ValueError:
+            reached_idx = 0
+        display_steps = linear_stepper_statuses[:reached_idx + 1] + [('rejected', 'Rejected')]
+        current_idx = len(display_steps) - 1
+    else:
+        display_steps = linear_stepper_statuses
+        try:
+            current_idx = status_values.index(applicant.status)
+        except ValueError:
+            current_idx = -1
 
     stepper = []
-    for idx, (value, label) in enumerate(STEPPER_STATUSES):
+    for idx, (value, label) in enumerate(display_steps):
         is_active = applicant.status == value
         step_date = _get_status_date(applicant, value)
         if value == 'pending':
@@ -2117,6 +2176,7 @@ def applicant_detail_view(request, uuid):
             "completed": idx < current_idx,
             "active": is_active,
             "date": step_date,
+            "requires_date": value in REQUIRED_STATUS_DATES,
         })
 
     return render(request, 'admin/admin_applicant_detail.html', {
@@ -2126,6 +2186,7 @@ def applicant_detail_view(request, uuid):
         'current_status_date': current_status_date,
         'can_reschedule_current_step': can_reschedule_current_step,
         'transition_choices': transition_choices,
+        'can_reject': can_reject,
         'next_status': next_status,
         'next_status_requires_date': next_status_requires_date,
         'stepper': stepper,
