@@ -957,6 +957,12 @@ class FacultyDeliverableUploadForm(forms.Form):
                 "You can no longer upload a new version."
             )
 
+        if deliverable.deadline and timezone.localdate() > deliverable.deadline:
+            raise ValidationError(
+                f"Upload is blocked. The deadline for {deliverable.document_category.name} "
+                f"was {deliverable.deadline.strftime('%b %d, %Y')}."
+            )
+
         # File type validation based on deliverable's document category
         category = deliverable.document_category  # non-null per your model
 

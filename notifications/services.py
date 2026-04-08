@@ -84,6 +84,7 @@ def _upsert_aggregate_notification(
             existing.related_type = related_type
             existing.related_id = related_id
             existing.is_important = is_important or existing.is_important
+            existing.updated_at = timezone.now()
             existing.save(
                 update_fields=[
                     "aggregate_count",
@@ -280,12 +281,76 @@ def get_user_activity_logs(user: Account, *, limit: int = 200) -> list[dict]:
     return [serialize_activity_log(item) for item in activity_logs]
 
 
+def get_admin_pending_deliverables_count() -> int:
+    # Keep sidebar count aligned with admin deliverables page logic:
+    # count only submitted deliverables currently marked Pending.
+    from faculty.models import FacultyDocument, Semester
+
+    semester = Semester.objects.filter(is_active=True).first()
+    if not semester:
+        return 0
+
+    return FacultyDocument.objects.filter(
+        semester=semester,
+        deliverable__isnull=False,
+        status="Pending",
+        is_archived=False,
+    ).count()
+
+
+def get_faculty_pending_deliverables_count(faculty) -> int:
+    # Get pending deliverables count for a specific faculty member.
+    # Count: Pending + Rejected + Not Yet Uploaded = Anything that's not Approved
+    from faculty.models import FacultyDocument, Deliverable, TeachingAssignment, Semester
+
+    if not faculty:
+        return 0
+
+    semester = Semester.objects.filter(is_active=True).first()
+    if not semester:
+        return 0
+
+    # Get all deliverables defined for this semester
+    deliverables = Deliverable.objects.filter(semester=semester)
+    deliverable_count = deliverables.count()
+
+    # Get teaching assignments for this faculty in this semester
+    ta_count = TeachingAssignment.objects.filter(
+        faculty=faculty,
+        semester=semester
+    ).count()
+
+    # Total required slots (one per TA per deliverable)
+    total_required = deliverable_count * ta_count
+
+    if total_required == 0:
+        return 0
+
+    # Count only approved documents
+    approved_count = FacultyDocument.objects.filter(
+        faculty=faculty,
+        semester=semester,
+        deliverable__isnull=False,
+        status="Approved",
+        is_archived=False,
+    ).count()
+
+    # Slots without approval = pending + rejected + not uploaded
+    return max(total_required - approved_count, 0)
+
+
 def get_user_notification_summary(user: Account, *, limit: int = 5) -> dict:
     unread_count = Notification.objects.filter(recipient=user, is_read=False).count()
-    latest = Notification.objects.filter(recipient=user).order_by("-created_at")[:limit]
+    latest = Notification.objects.filter(recipient=user, is_read=False).order_by("-updated_at", "-created_at")[:limit]
+
+    pending_deliverables_count = 0
+    if user.role in ROLE_ADMIN_GROUP:
+        pending_deliverables_count = get_admin_pending_deliverables_count()
+
     return {
         "unread_count": unread_count,
         "latest": [serialize_notification(item) for item in latest],
+        "pending_deliverables_count": pending_deliverables_count,
     }
 
 

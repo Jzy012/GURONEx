@@ -69,8 +69,17 @@
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <!-- Summary line -->
               <div class="space-y-1">
-                <div class="font-semibold text-gray-900">
+                <div class="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
                   {{ ta.subject_code }} – {{ ta.subject_description }}
+                  {% if row.has_overdue_deliverables %}
+                    <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
+                      Overdue Deliverables: {{ row.overdue_count }}
+                    </span>
+                  {% elif row.has_pending_deliverables %}
+                    <span class="inline-flex items-center rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-bold text-[#4a0101]">
+                      Pending Deliverables: {{ row.pending_count }}
+                    </span>
+                  {% endif %}
                 </div>
                 <div class="text-sm text-gray-600 flex flex-col md:flex-row md:flex-wrap md:items-center md:gap-x-4 md:gap-y-1">
                   <span class="mr-2">
@@ -93,9 +102,11 @@
               <!-- Progress + toggle button -->
               <div class="flex items-center gap-3">
                 {% if row.total_required > 0 %}
-                  <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-900 rounded">
-                    {{ row.approved_count }} / {{ row.total_required }} Approved
-                  </span>
+                  <div class="inline-flex items-center gap-1">
+                    <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-900 rounded">
+                      {{ row.approved_count }} / {{ row.total_required }} Approved
+                    </span>
+                  </div>
                 {% else %}
                   <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-500 rounded">
                     No Deliverables Configured
@@ -128,7 +139,10 @@
                         {% with d=dr.deliverable doc=dr.doc %}
                         <tr>
                           <td class="px-4 py-2">
-                            {{ d.document_category.name }}
+                            <div class="font-medium text-gray-900">{{ d.document_category.name }}</div>
+                            <div class="mt-1 text-xs text-gray-500">
+                              Deadline: {{ d.deadline|date:"M d, Y" }}
+                            </div>
                           </td>
                           <td class="px-4 py-2">
                             {% if doc %}
@@ -141,14 +155,26 @@
                                   <span class="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded-full">
                                     {{ doc.status }}
                                   </span>
-                                {% elif doc.status == 'Rejected' %}
-                                  <span class="inline-block px-2 py-1 text-xs font-semibold bg-red-100 text-red-700 rounded-full">
-                                    {{ doc.status }}
-                                  </span>
                                 {% else %}
-                                  <span class="inline-block px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded-full">
-                                    {{ doc.status }}
-                                  </span>
+                                  {% if d.deadline < today and doc.status != 'Approved' %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                      Overdue
+                                    </span>
+                                  {% else %}
+                                    {% if doc.status == 'Rejected' %}
+                                      <span class="inline-block px-2 py-1 text-xs font-semibold bg-red-100 text-red-700 rounded-full">
+                                        Rejected
+                                      </span>
+                                    {% elif doc.status == 'Pending' %}
+                                      <span class="inline-block px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded-full">
+                                        Pending
+                                      </span>
+                                    {% else %}
+                                      <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-500 rounded-full">
+                                        {{ doc.status }}
+                                      </span>
+                                    {% endif %}
+                                  {% endif %}
                                 {% endif %}
                               </button>
                             {% else %}

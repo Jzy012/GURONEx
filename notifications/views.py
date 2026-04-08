@@ -43,7 +43,7 @@ def notification_list_api(request):
 	if type_filter:
 		queryset = queryset.filter(notification_type=type_filter)
 
-	items = [serialize_notification(item) for item in queryset.order_by("-created_at")[:200]]
+	items = [serialize_notification(item) for item in queryset.order_by("-updated_at", "-created_at")[:200]]
 	return JsonResponse({"items": items})
 
 
@@ -72,7 +72,7 @@ def mark_all_notifications_read_api(request):
 
 @admin_required
 def admin_notifications_page(request):
-	notifications = Notification.objects.filter(recipient=request.user).order_by("-created_at")[:200]
+	notifications = Notification.objects.filter(recipient=request.user).order_by("-updated_at", "-created_at")[:200]
 	return render(
 		request,
 		"admin/admin_notifications.html",
@@ -85,7 +85,7 @@ def admin_notifications_page(request):
 
 @faculty_required
 def faculty_notifications_page(request):
-	notifications = Notification.objects.filter(recipient=request.user).order_by("-created_at")[:200]
+	notifications = Notification.objects.filter(recipient=request.user).order_by("-updated_at", "-created_at")[:200]
 	return render(
 		request,
 		"faculty/faculty_notifications.html",

@@ -66,7 +66,7 @@
     <!-- Completed Submissions (faculty fully complete) -->
     <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
       <div>
-        <h2 class="text-sm text-gray-500">Completed Submissions (Faculty)</h2>
+        <h2 class="text-sm text-gray-500">Completed Submissions</h2>
         <p class="text-2xl font-semibold">{{ completed_submissions }}</p>
       </div>
       <div class="p-3 bg-green-100 rounded-xl">
@@ -92,71 +92,160 @@
     </div>
   </div>
 
-  <!-- Active Deliverables + Management side by side on md+ -->
-  <div class="mt-4 flex flex-col md:flex-row gap-4 md:items-stretch">
-    <!-- Active Deliverables: ~70% width on md+, full on mobile -->
-    <div class="w-full md:w-2/3 bg-white shadow rounded-lg p-6 flex flex-col">
-      <h3 class="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-[#800505]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 8v4l3 3m6 1A9 9 0 1 1 3 12a9 9 0 0 1 18 0Z"/>
-        </svg>
-        Active Deliverables for this Semester
-      </h3>
+    <!-- Combined Active Deliverables + Management -->
+  <section class="mt-4 bg-white shadow-sm border border-gray-100 rounded-xl p-4 sm:p-6 flex flex-col gap-4 sm:gap-5">
+    <!-- Header: title + academic period + warning -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <div class="space-y-2">
+        <div class="flex items-start sm:items-center gap-2 sm:gap-3">
+          <span class="inline-flex items-center justify-center rounded-full bg-red-50 text-[#800505] p-1.5 shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4l3 3m6 1A9 9 0 1 1 3 12a9 9 0 0 1 18 0Z"/>
+            </svg>
+          </span>
+          <div class="min-w-0">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-900 truncate">
+              Deliverables & Management – Active Semester
+            </h3>
+            <p class="text-xs sm:text-[13px] text-gray-500">
+              Overview of required deliverables, deadline, and key actions.
+            </p>
+          </div>
+        </div>
 
-      {% if deliverables_list %}
-        <ul class="divide-y divide-gray-200 flex-1">
-          {% for d in deliverables_list %}
-          <li class="py-3 flex justify-between items-center">
-            <span class="font-medium text-gray-900">{{ d.name }}</span>
-            <span class="text-sm text-gray-600">
-              Deadline:
-              <span class="font-semibold text-[#800505]">
-                {{ d.deadline|date:"M d, Y" }}
-              </span>
+        {% if academic_year_str and semester_str %}
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <span class="inline-flex items-center gap-1 rounded-full bg-green-50 text-green-700 px-2 py-1 font-semibold">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+              {{ academic_year_str }} — {{ semester_str }} · Active
             </span>
-          </li>
-          {% empty %}
-          <li class="py-3">No active deliverables.</li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="text-sm text-gray-500 flex-1">
-          No active deliverables for this semester.
-        </p>
-      {% endif %}
-    </div>
-
-    <!-- Deliverable Management: ~30% width on md+, full on mobile -->
-    <div class="w-full md:w-1/3 bg-white shadow rounded-lg border p-6 flex flex-col justify-between gap-3">
-      <div>
-        <h3 class="font-semibold mb-2 text-lg text-[#800505] flex items-center gap-2">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
-          </svg>
-          Deliverable Management
-        </h3>
-        <p class="text-sm text-gray-600 mb-3">
-          Configure and assign deliverables for the active semester.
-        </p>
+            {% if semester_date_mismatch %}
+              <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 px-2 py-1">
+                <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                     stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 9v3.75m0 3.75h.007v.008H12v-.008Z" />
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M2.25 12a9.75 9.75 0 1 1 19.5 0 9.75 9.75 0 0 1-19.5 0Z" />
+                </svg>
+                Date range mismatch – review Academic Year settings.
+              </span>
+            {% endif %}
+          </div>
+        {% endif %}
       </div>
 
-      <div class="flex flex-wrap gap-3">
+      <!-- Primary management actions -->
+      <div class="flex flex-wrap items-center gap-2 justify-start lg:justify-end">
         <a href="{% url 'adminhub:assign_deliverables' %}"
-           class="flex items-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow transition duration-200 text-sm font-semibold">
+           class="inline-flex items-center justify-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-xs sm:text-sm font-semibold">
           Assign Deliverables
         </a>
         <a href="{% url 'adminhub:deliverable_template' %}"
-           class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-[#800505] border border-[#800505]/40 rounded-lg shadow transition duration-200 text-sm font-semibold">
-          Deliverable Templates
+           class="inline-flex items-center justify-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white border border-[#800505]/40 rounded-lg shadow-sm text-xs sm:text-sm font-semibold">
+          Manage Templates
         </a>
       </div>
     </div>
-  </div>
+
+    <div class="space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 sm:px-4 py-3">
+        <div class="min-w-0">
+          <p class="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+            Deadline
+          </p>
+          {% if deliverables_list %}
+            {# Use first deliverable's deadline as the displayed global deadline #}
+            <p class="mt-0.5 text-sm sm:text-base font-semibold text-[#800505]">
+              {{ deliverables_list.0.deadline|date:"M d, Y" }}
+            </p>
+            <p class="text-xs text-gray-500">
+              Applied to all active deliverables for this semester.
+            </p>
+          {% else %}
+            <p class="mt-0.5 text-sm sm:text-base font-semibold text-gray-500">
+              No deadline set
+            </p>
+            <p class="text-xs text-gray-500">
+              Add deliverables and set a deadline to enforce submission dates.
+            </p>
+          {% endif %}
+        </div>
+
+        {% if deliverables_list %}
+          <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+            <button type="button" id="open-edit-deadline-modal"
+                    class="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-xs sm:text-sm font-semibold rounded-lg shadow-sm hover:bg-gray-50 text-gray-800">
+              Edit Deadline
+            </button>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Short list of deliverables -->
+      <div class="rounded-lg border  border-gray-200 bg-white">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-3 border-b border-gray-100">
+          <div class="flex items-center gap-2">
+            <h4 class="text-sm font-semibold text-gray-800">
+              Deliverables
+            </h4>
+            {% if deliverables_list %}
+              <span class="inline-flex items-center rounded-full bg-gray-100 text-gray-700 text-[11px] px-2 py-0.5">
+                {{ deliverables_list|length }}
+                {% if deliverables_list|length == 1 %} active deliverable{% else %} active deliverables{% endif %}
+              </span>
+            {% endif %}
+          </div>
+
+          {% if deliverables_list and deliverables_list|length > 2 %}
+            <button type="button" id="open-all-deliverables-modal"
+                    class="text-xs font-semibold text-[#800505] hover:underline">
+              View all
+            </button>
+          {% endif %}
+        </div>
+
+        {% if deliverables_list %}
+          <ul class="divide-y divide-gray-100">
+            {% for d in deliverables_list|slice:":2" %}
+              <li class="px-3 sm:px-4 py-3 flex items-start gap-2">
+                <span class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-50 text-[#800505] text-xs font-bold shrink-0">
+                  {{ forloop.counter }}
+                </span>
+                <div class="min-w-0">
+                  <p class="font-medium text-gray-900 leading-snug break-words">
+                    {{ d.name }}
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    Included in this semester’s requirement.
+                  </p>
+                </div>
+              </li>
+            {% endfor %}
+
+            {% if deliverables_list|length > 2 %}
+              <li class="px-3 sm:px-4 py-2 text-xs text-gray-500 text-center">
+                Showing first 2 of {{ deliverables_list|length }} deliverables.
+                <button type="button" id="open-all-deliverables-modal-inline"
+                        class="ml-1 text-[#800505] font-semibold hover:underline">
+                  View all
+                </button>
+              </li>
+            {% endif %}
+          </ul>
+        {% else %}
+          <div class="px-4 py-6 text-center text-sm text-gray-500">
+            No active deliverables for this semester.
+          </div>
+        {% endif %}
+      </div>
+
+    <!-- Remove the empty right column completely -->
+  </section>
 
   <!-- Search & Status Filter Form -->
-  <div class="bg-white p-4 rounded-lg shadow flex flex-col gap-4 mt-8">
+  <div class="bg-white p-4 sm:p-5 rounded-lg shadow flex flex-col gap-4 mt-8">
     <form method="get" class="flex-1 flex flex-wrap gap-4">
       <div class="flex-1 min-w-[200px]">
         <label class="block text-sm font-medium text-gray-600 mb-1">Search</label>
@@ -164,7 +253,7 @@
                value="{{ search|default_if_none:'' }}"
                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
       </div>
-      <div class="min-w-[200px]">
+      <div class="min-w-[160px] sm:min-w-[200px]">
         <label class="block text-sm font-medium text-gray-600 mb-1">Status</label>
         <select name="status"
                 class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
@@ -173,34 +262,40 @@
           <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
         </select>
       </div>
-      <div class="flex items-end">
+      <div class="w-full sm:w-auto flex items-end">
         <button type="submit"
-                class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow transition duration-200 text-sm font-semibold">
+                class="w-full sm:w-auto px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow transition duration-200 text-sm font-semibold">
           Filter
         </button>
       </div>
     </form>
   </div>
 
-  <!-- Per-Faculty Submission Status (desktop table) -->
+  <!-- Per-Faculty Submission Status (desktop/tablet table) -->
   <div class="hidden sm:block bg-white rounded-lg shadow-md overflow-x-auto mt-8">
     <table class="min-w-full border-collapse text-sm">
       <thead class="bg-gray-100 border-t border-gray-200">
         <tr class="text-left font-semibold text-gray-700">
-          <th class="px-5 py-4 border-b">Name</th>
-          <th class="px-5 py-4 border-b">Email</th>
-          <th class="px-5 py-4 border-b">Employment Status</th>
-          <th class="px-5 py-4 border-b text-center">Submission Progress</th>
-          <th class="px-5 py-4 border-b text-center">Deliverable Status</th>
-          <th class="px-5 py-4 border-b">Actions</th>
+          <th class="px-5 py-4 border-b whitespace-nowrap">Name</th>
+          <th class="px-5 py-4 border-b whitespace-nowrap">Email</th>
+          <th class="px-5 py-4 border-b whitespace-nowrap">Employment Status</th>
+          <th class="px-5 py-4 border-b text-center whitespace-nowrap">Submission Progress</th>
+          <th class="px-5 py-4 border-b text-center whitespace-nowrap">Deliverable Status</th>
+          <th class="px-5 py-4 border-b whitespace-nowrap">Actions</th>
         </tr>
       </thead>
       <tbody class="text-gray-900">
         {% for faculty in page_obj %}
         <tr class="hover:bg-gray-50 transition">
-          <td class="px-5 py-4 border-b">{{ faculty.name }}</td>
-          <td class="px-5 py-4 border-b">{{ faculty.email }}</td>
-          <td class="px-5 py-4 border-b">
+          <td class="px-5 py-4 border-b align-top">
+            <div class="flex items-center gap-2 max-w-xs">
+              <span class="truncate">{{ faculty.name }}</span>
+            </div>
+          </td>
+          <td class="px-5 py-4 border-b align-top max-w-xs">
+            <span class="break-all text-xs sm:text-sm">{{ faculty.email }}</span>
+          </td>
+          <td class="px-5 py-4 border-b align-top">
             {% if faculty.status_label %}
               <span class="inline-block px-2 py-1 text-xs font-semibold bg-blue-50 text-blue-800 rounded-full">
                 {{ faculty.status_label }}
@@ -209,7 +304,7 @@
               <span class="text-xs text-gray-500">N/A</span>
             {% endif %}
           </td>
-          <td class="px-5 py-4 border-b text-center">
+          <td class="px-5 py-4 border-b text-center align-top">
             {% if faculty.total_required > 0 %}
               <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-900 rounded">
                 {{ faculty.approved_count }} / {{ faculty.total_required }} Docs
@@ -220,14 +315,23 @@
               </span>
             {% endif %}
           </td>
-          <td class="px-5 py-4 border-b text-center">
+          <td class="px-5 py-4 border-b text-center align-top">
             {% if faculty.total_required > 0 and faculty.approved_count == faculty.total_required %}
               <span class="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded-full">
                 Completed
               </span>
+            {% elif faculty.pending_docs > 0 %}
+              <div class="inline-flex items-center gap-1">
+                <span class="inline-block px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded-full">
+                  Pending
+                </span>
+                <span class="inline-flex min-w-5 h-5 px-1 items-center justify-center rounded-full bg-amber-400 text-[#4a0101] text-[11px] font-bold">
+                  {{ faculty.pending_docs }}
+                </span>
+              </div>
             {% elif faculty.total_required > 0 %}
-              <span class="inline-block px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded-full">
-                Pending
+              <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-600 rounded-full">
+                No Pending
               </span>
             {% else %}
               <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-500 rounded-full">
@@ -235,9 +339,9 @@
               </span>
             {% endif %}
           </td>
-          <td class="px-5 py-4 border-b">
+          <td class="px-5 py-4 border-b align-top">
             <a href="{% url 'adminhub:faculty_deliverables' faculty.faculty_uuid %}"
-               class="text-[#800505] hover:underline font-medium">
+               class="text-[#800505] hover:underline font-medium text-sm">
               View
             </a>
           </td>
@@ -253,64 +357,80 @@
     </table>
   </div>
 
-  <!-- Per-Faculty Submission Status (mobile cards, reference-style with pills, no pending docs row) -->
+  <!-- Per-Faculty Submission Status (mobile cards) -->
   <div class="sm:hidden space-y-5 mt-8">
     {% for faculty in page_obj %}
-      <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200">
+      <div class="bg-white rounded-xl shadow-lg p-4 border border-gray-200">
         <!-- Header: name + view link -->
-        <div class="flex justify-between items-center mb-3 border-b border-gray-300 pb-2">
-          <h3 class="text-lg font-semibold text-gray-900 truncate">{{ faculty.name }}</h3>
+        <div class="flex justify-between items-center mb-3 border-b border-gray-200 pb-2 gap-3">
+          <div class="min-w-0">
+            <h3 class="text-base font-semibold text-gray-900 truncate">{{ faculty.name }}</h3>
+            {% if faculty.pending_docs > 0 %}
+              <span class="mt-1 inline-flex items-center rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-bold text-[#4a0101]">
+                Pending: {{ faculty.pending_docs }}
+              </span>
+            {% endif %}
+          </div>
           <a href="{% url 'adminhub:faculty_deliverables' faculty.faculty_uuid %}"
-             class="text-[#800505] hover:underline text-sm font-semibold whitespace-nowrap">
+             class="text-[#800505] hover:underline text-xs font-semibold whitespace-nowrap">
             View
           </a>
         </div>
 
         <!-- Info grid -->
-        <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-gray-700 text-sm">
+        <div class="grid grid-cols-1 xs:grid-cols-2 gap-y-2 gap-x-4 text-gray-700 text-xs">
           <div>
             <p class="font-semibold">Email</p>
-            <p class="break-all">{{ faculty.email }}</p>
+            <p class="break-all text-[11px] sm:text-xs">{{ faculty.email }}</p>
           </div>
 
-          <div>
+          <div class="mt-1 xs:mt-0">
             <p class="font-semibold">Employment Status</p>
             {% if faculty.status_label %}
-              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-800">
+              <span class="inline-block mt-0.5 px-2 py-1 text-[11px] font-semibold rounded-full bg-blue-50 text-blue-800">
                 {{ faculty.status_label }}
               </span>
             {% else %}
-              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-500">
+              <span class="inline-block mt-0.5 px-2 py-1 text-[11px] font-semibold rounded-full bg-gray-200 text-gray-500">
                 N/A
               </span>
             {% endif %}
           </div>
 
-          <div>
+          <div class="mt-1">
             <p class="font-semibold">Submission Progress</p>
             {% if faculty.total_required > 0 %}
-              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-900">
+              <span class="inline-block mt-0.5 px-2 py-1 text-[11px] font-semibold rounded bg-gray-100 text-gray-900">
                 {{ faculty.approved_count }} / {{ faculty.total_required }} Docs
               </span>
             {% else %}
-              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded bg-gray-200 text-gray-500">
+              <span class="inline-block mt-0.5 px-2 py-1 text-[11px] font-semibold rounded bg-gray-200 text-gray-500">
                 No Deliverables
               </span>
             {% endif %}
           </div>
 
-          <div>
+          <div class="mt-1">
             <p class="font-semibold">Deliverable Status</p>
             {% if faculty.total_required > 0 and faculty.approved_count == faculty.total_required %}
-              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
+              <span class="inline-block mt-0.5 px-2 py-1 text-[11px] font-semibold rounded-full bg-green-100 text-green-700">
                 Completed
               </span>
+            {% elif faculty.pending_docs > 0 %}
+              <div class="mt-0.5 inline-flex items-center gap-1">
+                <span class="inline-block px-2 py-1 text-[11px] font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                  Pending
+                </span>
+                <span class="inline-flex min-w-5 h-5 px-1 items-center justify-center rounded-full bg-amber-400 text-[#4a0101] text-[10px] font-bold">
+                  {{ faculty.pending_docs }}
+                </span>
+              </div>
             {% elif faculty.total_required > 0 %}
-              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                Pending
+              <span class="inline-block mt-0.5 px-2 py-1 text-[11px] font-semibold rounded-full bg-gray-200 text-gray-600">
+                No Pending
               </span>
             {% else %}
-              <span class="inline-block mt-0.5 px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-500">
+              <span class="inline-block mt-0.5 px-2 py-1 text-[11px] font-semibold rounded-full bg-gray-200 text-gray-500">
                 No Deliverables
               </span>
             {% endif %}
@@ -369,4 +489,223 @@
   {% endif %}
 
 </div>
+
+{% if deliverables_list %}
+<!-- Edit Deadline Modal -->
+<div id="editDeadlineModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-lg w-full">
+    <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+      <h3 class="text-lg font-semibold text-gray-900">Edit Deliverable Deadline</h3>
+      <button type="button" id="close-edit-deadline-modal" class="text-gray-400 hover:text-gray-600">&times;</button>
+    </div>
+
+    <form id="editDeadlineForm" method="post" action="{% url 'adminhub:update_deliverable_deadline_universal' %}" class="px-5 py-4 space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Scope</label>
+        <div class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-800">
+          All active deliverables ({{ deliverables_list|length }}) for {{ academic_year_str }} — {{ semester_str }}
+        </div>
+      </div>
+
+      <div>
+        <label for="deadline-input" class="block text-sm font-medium text-gray-700 mb-1">New Deadline</label>
+        <input id="deadline-input" type="date" name="deadline" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#800505] focus:outline-none" required>
+      </div>
+
+      <div class="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+        <button type="button" id="cancel-edit-deadline" class="w-full sm:w-auto px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 text-sm">Cancel</button>
+        <button type="button" id="open-confirm-edit-deadline" class="w-full sm:w-auto px-4 py-2 rounded-md bg-[#800505] text-white hover:bg-[#a80707] font-semibold text-sm">Review Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Confirm Deadline Modal -->
+<div id="confirmDeadlineModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-lg w-full">
+    <div class="px-5 py-4 border-b border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-900">Confirm Deadline Update</h3>
+      <p class="text-xs text-gray-500 mt-1">Please verify details before saving.</p>
+    </div>
+
+    <div class="px-5 py-4 space-y-2 text-sm text-gray-700">
+      <div><span class="font-semibold text-gray-900">Deliverables Affected:</span> {{ deliverables_list|length }}</div>
+      <div><span class="font-semibold text-gray-900">New Deadline:</span> <span id="confirm-new-deadline"></span></div>
+      <div><span class="font-semibold text-gray-900">Academic Period:</span> {{ academic_year_str }} — {{ semester_str }}</div>
+    </div>
+
+    <div class="px-5 py-3 border-t border-gray-200 flex flex-col sm:flex-row justify-end gap-2 bg-gray-50">
+      <button type="button" id="back-to-edit-deadline" class="w-full sm:w-auto px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 text-sm">Back</button>
+      <button type="button" id="confirm-submit-deadline" class="w-full sm:w-auto px-4 py-2 rounded-md bg-[#800505] text-white hover:bg-[#a80707] font-semibold text-sm">Confirm & Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- All Deliverables Modal -->
+<div id="allDeliverablesModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+    <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+      <div>
+        <h3 class="text-lg font-semibold text-gray-900">All Active Deliverables</h3>
+        {% if academic_year_str and semester_str %}
+          <p class="text-xs text-gray-500 mt-0.5">
+            {{ academic_year_str }} — {{ semester_str }} · {{ deliverables_list|length }} items
+          </p>
+        {% endif %}
+      </div>
+      <button type="button" id="close-all-deliverables-modal"
+              class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+    </div>
+
+    <div class="px-5 py-3 border-b border-gray-100 bg-gray-50 text-xs text-gray-600">
+      This list mirrors the current active deliverables for the semester. Any template or assignment changes will be reflected here.
+    </div>
+
+    <div class="flex-1 overflow-y-auto">
+      <ul class="divide-y divide-gray-100">
+        {% for d in deliverables_list %}
+          <li class="px-5 py-3 flex items-start gap-3">
+            <span class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-50 text-[#800505] text-xs font-bold shrink-0">
+              {{ forloop.counter }}
+            </span>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 leading-snug break-words">
+                {{ d.name }}
+              </p>
+              <p class="text-xs text-gray-500 mt-0.5">
+                Part of this semester’s required submissions.
+              </p>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="px-5 py-3 border-t border-gray-200 flex justify-end bg-gray-50">
+      <button type="button" id="close-all-deliverables-modal-footer"
+              class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 text-sm font-semibold">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const editModal = document.getElementById('editDeadlineModal');
+    const confirmModal = document.getElementById('confirmDeadlineModal');
+    const openEditBtn = document.getElementById('open-edit-deadline-modal');
+    const closeEditBtn = document.getElementById('close-edit-deadline-modal');
+    const cancelEditBtn = document.getElementById('cancel-edit-deadline');
+    const openConfirmBtn = document.getElementById('open-confirm-edit-deadline');
+    const backBtn = document.getElementById('back-to-edit-deadline');
+    const confirmSubmitBtn = document.getElementById('confirm-submit-deadline');
+
+    const form = document.getElementById('editDeadlineForm');
+    const deadlineInput = document.getElementById('deadline-input');
+    const confirmNew = document.getElementById('confirm-new-deadline');
+
+    // All deliverables modal elements
+    const allDeliverablesModal = document.getElementById('allDeliverablesModal');
+    const openAllBtnHeader = document.getElementById('open-all-deliverables-modal');
+    const openAllBtnInline = document.getElementById('open-all-deliverables-modal-inline');
+    const closeAllBtn = document.getElementById('close-all-deliverables-modal');
+    const closeAllBtnFooter = document.getElementById('close-all-deliverables-modal-footer');
+
+    function openModal(modal) {
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeModal(modal) {
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // Open edit deadline
+    if (openEditBtn) {
+      openEditBtn.addEventListener('click', function () {
+        openModal(editModal);
+      });
+    }
+
+    // Close/cancel edit deadline
+    [closeEditBtn, cancelEditBtn].forEach(function (btn) {
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        closeModal(editModal);
+      });
+    });
+
+    // Open confirm deadline modal
+    if (openConfirmBtn) {
+      openConfirmBtn.addEventListener('click', function () {
+        if (!deadlineInput || !deadlineInput.value) {
+          return;
+        }
+
+        const newDate = new Date(deadlineInput.value + 'T00:00:00');
+        confirmNew.textContent = newDate.toLocaleDateString(undefined, {
+          year: 'numeric', month: 'short', day: '2-digit'
+        });
+
+        closeModal(editModal);
+        openModal(confirmModal);
+      });
+    }
+
+    // Back from confirm to edit
+    if (backBtn) {
+      backBtn.addEventListener('click', function () {
+        closeModal(confirmModal);
+        openModal(editModal);
+      });
+    }
+
+    // Final submit
+    if (confirmSubmitBtn) {
+      confirmSubmitBtn.addEventListener('click', function () {
+        if (form) form.submit();
+      });
+    }
+
+    // Click outside to close deadline modals
+    [editModal, confirmModal].forEach(function (modal) {
+      if (!modal) return;
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) {
+          closeModal(modal);
+        }
+      });
+    });
+
+    // Open all deliverables modal
+    [openAllBtnHeader, openAllBtnInline].forEach(function (btn) {
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        openModal(allDeliverablesModal);
+      });
+    });
+
+    // Close all deliverables modal
+    [closeAllBtn, closeAllBtnFooter].forEach(function (btn) {
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        closeModal(allDeliverablesModal);
+      });
+    });
+
+    if (allDeliverablesModal) {
+      allDeliverablesModal.addEventListener('click', function (e) {
+        if (e.target === allDeliverablesModal) {
+          closeModal(allDeliverablesModal);
+        }
+      });
+    }
+  });
+</script>
 {% endblock %}

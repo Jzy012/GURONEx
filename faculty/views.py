@@ -268,7 +268,12 @@ from django.utils import timezone
 @faculty_required
 def faculty_documents_view(request):
     faculty_profile = request.user.faculty_profile
-    documents = faculty_profile.documents.filter(is_archived=False).order_by("-uploaded_at")  # or paginate as needed
+    documents = (
+        faculty_profile.documents
+        .filter(is_archived=False)
+        .filter(FacultyDocument.documents_tab_filter())
+        .order_by("-uploaded_at")
+    )
 
     total_documents = documents.count()
     pending_documents = documents.filter(status="Pending").count()
@@ -1206,6 +1211,7 @@ def faculty_deliverables_view(request):
             'academic_year_str': '',
             'semester_str': '',
             'assignment_rows': [],
+            'total_pending_deliverables': 0,
             'can_request_clearance': False,
         })
         return render(request, 'faculty/faculty_deliverables.html', data)
@@ -1225,6 +1231,9 @@ def faculty_deliverables_view(request):
 
     assignment_rows = []
     all_assignments_complete = True  # for clearance
+    total_pending_deliverables = 0
+    pending_slots = 0
+    overdue_slots = 0
 
     for ta in assignments:
         docs_qs = FacultyDocument.objects.filter(
@@ -1235,14 +1244,22 @@ def faculty_deliverables_view(request):
         ).select_related('deliverable', 'document_category')
 
         approved_count = docs_qs.filter(status='Approved').count()
+        # Pending count: any slot not approved (pending + rejected + not uploaded)
+        pending_count = max(total_required_per_assignment - approved_count, 0)
+        total_pending_deliverables += pending_count
 
         deliverable_rows = []
         for d in deliverables:
             # latest document for this assignment+deliverable
             doc = docs_qs.filter(deliverable=d).order_by('-uploaded_at').first()
+            if not (doc and doc.status == 'Approved'):
+                pending_slots += 1
+                if today > d.deadline:
+                    overdue_slots += 1
             deliverable_rows.append({
                 'deliverable': d,
                 'doc': doc,
+                'is_deadline_passed': today > d.deadline,
             })
 
         # Decide if this assignment is "complete" (all required approved)
@@ -1258,6 +1275,8 @@ def faculty_deliverables_view(request):
             'ta': ta,
             'approved_count': approved_count,
             'total_required': total_required_per_assignment,
+            'pending_count': pending_count,
+            'has_pending_deliverables': pending_count > 0,
             'deliverable_rows': deliverable_rows,
             'is_complete': assignment_complete,
         })
@@ -1270,10 +1289,13 @@ def faculty_deliverables_view(request):
         'academic_year_str': academic_year_str,
         'semester_str': semester_str,
         'assignment_rows': assignment_rows,
+        'total_pending_deliverables': total_pending_deliverables,
         'can_request_clearance': all_assignments_complete and assignments.exists() and deliverables.exists(),
+        'upload_blocked_due_deadline': pending_slots > 0 and pending_slots == overdue_slots,
     })
 
     return render(request, 'faculty/faculty_deliverables.html', data)
+
 
 
 
@@ -1335,6 +1357,9 @@ def faculty_deliverable_upload(request):
     allowed_deliverables_map = {}
     deliverables_catalog = {}  # id -> display label
     active_semester = Semester.objects.filter(is_active=True).first()
+    today = timezone.localdate()
+    pending_slots = 0
+    overdue_slots = 0
     if active_semester and faculty:
         assignments = TeachingAssignment.objects.filter(
             faculty=faculty,
@@ -1361,9 +1386,24 @@ def faculty_deliverable_upload(request):
                     .order_by("-uploaded_at")
                     .first()
                 )
+                if doc and doc.status == "Approved":
+                    continue
+
+                pending_slots += 1
+                if today > d.deadline:
+                    overdue_slots += 1
+                    continue
+
                 if not doc or doc.status != "Approved":
                     allowed_ids.append(d.id)
             allowed_deliverables_map[ta.id] = allowed_ids
+
+    upload_blocked_due_deadline = pending_slots > 0 and pending_slots == overdue_slots
+    deadline_block_message = ""
+    if upload_blocked_due_deadline:
+        deadline_block_message = (
+            "Upload is blocked because all pending deliverables are already past their deadline."
+        )
 
     if request.method == "POST":
         formset = DocumentFormSet(request.POST, request.FILES, form_kwargs=form_kwargs)
@@ -1394,6 +1434,8 @@ def faculty_deliverable_upload(request):
                 data["deliverables_catalog_json"] = json.dumps(
                     deliverables_catalog, cls=DjangoJSONEncoder
                 )
+                data["upload_blocked_due_deadline"] = upload_blocked_due_deadline
+                data["deadline_block_message"] = deadline_block_message
                 return render(request, "faculty/faculty_deliverables_upload.html", data)
 
             service = CentralGoogleDriveService()
@@ -1411,6 +1453,19 @@ def faculty_deliverable_upload(request):
 
                 try:
                     category = deliverable.document_category
+                    document_name = FacultyDocument.classroom_document_name(category, deliverable.semester)
+
+                    existing_docs = list(
+                        FacultyDocument.objects.filter(
+                            faculty=faculty,
+                            semester=deliverable.semester,
+                            teaching_assignment=teaching_assignment,
+                            deliverable=deliverable,
+                        )
+                        .exclude(status="Approved")
+                        .order_by("-uploaded_at")
+                    )
+                    existing_doc = existing_docs[0] if existing_docs else None
 
                     # Upload new file to Drive
                     media = MediaIoBaseUpload(
@@ -1431,42 +1486,43 @@ def faculty_deliverable_upload(request):
                         .execute()
                     )
 
-                    # Find existing non-approved document for this TA+deliverable
-                    existing_doc = (
-                        FacultyDocument.objects.filter(
-                            faculty=faculty,
-                            semester=deliverable.semester,
-                            teaching_assignment=teaching_assignment,
-                            deliverable=deliverable,
-                        )
-                        .exclude(status="Approved")
-                        .order_by("-uploaded_at")
-                        .first()
-                    )
-
                     if existing_doc:
-                        # OPTIONAL: delete old file in Drive
+                        # Delete the old Drive file before repointing the record.
                         try:
                             service.service.files().delete(fileId=existing_doc.google_drive_id).execute()
                         except Exception as e:
                             print("Error deleting old Drive file:", e)
 
+                        # Remove any older duplicate rows for this same assignment/deliverable.
+                        for stale_doc in existing_docs[1:]:
+                            try:
+                                if stale_doc.google_drive_id:
+                                    service.service.files().delete(fileId=stale_doc.google_drive_id).execute()
+                            except Exception as e:
+                                print("Error deleting stale Drive file:", e)
+                            stale_doc.delete()
+
                         # Update existing record
-                        existing_doc.document_name = category.name
+                        existing_doc.document_name = document_name
+                        existing_doc.uploaded_by = account
                         existing_doc.document_category = category
                         existing_doc.file_path = upload["webViewLink"]
                         existing_doc.google_drive_id = upload["id"]
                         existing_doc.file_size = file.size
+                        existing_doc.expiry_date = None
                         existing_doc.status = "Pending"
                         existing_doc.admin_remarks = ""
                         existing_doc.uploaded_at = timezone.now()
+                        existing_doc.semester = deliverable.semester
+                        existing_doc.deliverable = deliverable
+                        existing_doc.teaching_assignment = teaching_assignment
                         existing_doc.save()
                     else:
                         # Create new record
                         FacultyDocument.objects.create(
                             faculty=faculty,
                             uploaded_by=account,
-                            document_name=category.name,
+                            document_name=document_name,
                             document_category=category,
                             file_path=upload["webViewLink"],
                             google_drive_id=upload["id"],
@@ -1526,6 +1582,8 @@ def faculty_deliverable_upload(request):
     data["deliverables_catalog_json"] = json.dumps(
         deliverables_catalog, cls=DjangoJSONEncoder
     )
+    data["upload_blocked_due_deadline"] = upload_blocked_due_deadline
+    data["deadline_block_message"] = deadline_block_message
     return render(request, "faculty/faculty_deliverables_upload.html", data)
 
 

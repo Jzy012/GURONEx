@@ -5,7 +5,7 @@
 
   <!-- Header buttons, responsive -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    <h2 class="text-2xl sm:text-3xl font-bold text-gray-900">📚 Teaching Assignments for {{ faculty.name }}</h2>
+    <h2 class="text-2xl sm:text-3xl font-bold text-gray-900">Teaching Assignments for {{ faculty.name }}</h2>
     <div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
       <a href="{% url 'adminhub:teaching_assignment_create' faculty.uuid %}"
          class="flex items-center gap-2 w-full sm:w-auto px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition font-semibold text-xs sm:text-sm ">

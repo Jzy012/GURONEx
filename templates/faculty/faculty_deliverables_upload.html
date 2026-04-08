@@ -50,6 +50,12 @@
     </div>
   {% endif %}
 
+  {% if upload_blocked_due_deadline %}
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
+      {{ deadline_block_message|default:"Upload is blocked due to deadline." }}
+    </div>
+  {% endif %}
+
   <form method="post" enctype="multipart/form-data" id="uploadForm" class="space-y-6">
     {% csrf_token %}
     {{ formset.management_form }}
@@ -205,14 +211,16 @@
 
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
       <button type="button" id="add-form-btn"
-        class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg shadow-sm text-sm font-semibold">
+        class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg shadow-sm text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+        {% if upload_blocked_due_deadline %}disabled{% endif %}>
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
         </svg>
         Add Another Upload
       </button>
       <button type="submit"
-        class="inline-flex items-center justify-center gap-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition duration-200">
+        class="inline-flex items-center justify-center gap-2 px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        {% if upload_blocked_due_deadline %}disabled{% endif %}>
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
              stroke-width="2" stroke="currentColor" class="w-5 h-5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
@@ -279,6 +287,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  const uploadsBlocked = {{ upload_blocked_due_deadline|yesno:"true,false" }};
   const addBtn = document.getElementById('add-form-btn');
   const cardsContainer = document.getElementById('formset-cards');
   const totalForms = document.getElementById('id_form-TOTAL_FORMS');
@@ -403,6 +412,16 @@ document.addEventListener('DOMContentLoaded', function() {
   bindFileInputEvents();
   bindTeachingAssignmentChangeHandlers();
 
+  if (uploadsBlocked) {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+    }
+    if (addBtn) {
+      addBtn.disabled = true;
+    }
+  }
+
   // Initial populate of deliverables (only when options are empty)
   cardsContainer.querySelectorAll('select[name$="-teaching_assignment"]').forEach(function(selectEl) {
     const card = selectEl.closest('.card-row');
@@ -416,6 +435,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   addBtn.addEventListener('click', function() {
+    if (uploadsBlocked) return;
     if (cardsContainer.querySelectorAll('.card-row').length >= maxForms) return;
     const newCard = emptyCard.cloneNode(true);
     newCard.querySelectorAll('input[type="file"]').forEach(f => f.value = '');
@@ -513,6 +533,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Intercept submit for confirmation
   form.addEventListener('submit', function(e) {
+    if (uploadsBlocked) {
+      e.preventDefault();
+      return;
+    }
     if (form.dataset.uploadConfirmed === 'true') {
       return; // already confirmed
     }

@@ -3,6 +3,7 @@ import logging
 import uuid
 
 from django.db import models, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from base.models import Account
@@ -390,6 +391,18 @@ class FacultyDocument(models.Model):
     def __str__(self):
         sem = f" - {self.semester}" if self.semester else ""
         return f"{self.document_name} (Faculty: {self.faculty.account.email}){sem}"
+
+    @staticmethod
+    def classroom_document_name(document_category, semester):
+        return f"{document_category.name} - {semester.get_semester_type_display()} {semester.academic_year}"
+
+    @classmethod
+    def documents_tab_filter(cls):
+        return Q(deliverable__isnull=True, teaching_assignment__isnull=True) | Q(status='Approved')
+
+    @property
+    def is_classroom_management_upload(self):
+        return self.deliverable_id is not None or self.teaching_assignment_id is not None
 
 
     @property

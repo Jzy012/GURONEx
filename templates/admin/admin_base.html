@@ -165,6 +165,9 @@
                     d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
             </svg>
             <span>Deliverables</span>
+            <span id="pendingDeliverablesNavBadge" class="{% if notification_pending_deliverables_count %}inline-flex{% else %}hidden{% endif %} ml-auto min-w-5 h-5 px-1 items-center justify-center rounded-full bg-amber-300 text-[#4a0101] text-[11px] font-bold">
+              {% if notification_pending_deliverables_count > 99 %}99+{% else %}{{ notification_pending_deliverables_count }}{% endif %}
+            </span>
           </a>
           <a href="{% url 'adminhub:applicant_list' %}" class="flex items-center gap-3 px-3 py-2 rounded hover:bg-neutral-700 transition-all duration-200">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
@@ -295,6 +298,7 @@
     const notifDropdown = document.getElementById('notifDropdown');
     const notifDropdownList = document.getElementById('notifDropdownList');
     const notifMarkAllBtn = document.getElementById('notifMarkAllBtn');
+    const pendingDeliverablesNavBadge = document.getElementById('pendingDeliverablesNavBadge');
 
     function renderDropdown(items) {
       const unreadItems = (items || []).filter((item) => !item.is_read);
@@ -331,6 +335,17 @@
       notifBadge.classList.toggle('inline-flex', unread > 0);
     }
 
+    function updatePendingDeliverablesNavBadge(count) {
+      if (!pendingDeliverablesNavBadge) {
+        return;
+      }
+
+      const safeCount = Number.isFinite(Number(count)) ? Number(count) : 0;
+      pendingDeliverablesNavBadge.textContent = safeCount > 99 ? '99+' : String(safeCount);
+      pendingDeliverablesNavBadge.classList.toggle('hidden', safeCount <= 0);
+      pendingDeliverablesNavBadge.classList.toggle('inline-flex', safeCount > 0);
+    }
+
     function parseUnreadCount(rawCount, items) {
       const parsed = Number(rawCount);
       if (Number.isFinite(parsed) && parsed >= 0) {
@@ -348,8 +363,12 @@
           const unreadFromList = latest.filter((item) => !item.is_read).length;
           const unreadFromCount = parseUnreadCount(data.unread_count ?? data.unreadCount, latest);
           const unread = Math.max(unreadFromCount, unreadFromList);
+          const pendingDeliverablesCount = Number(
+            data.pending_deliverables_count ?? 0
+          );
 
           updateBadgeCount(unread);
+          updatePendingDeliverablesNavBadge(pendingDeliverablesCount);
           renderDropdown(latest);
           if (keepOpen) {
             notifDropdown.classList.remove('hidden');
@@ -426,9 +445,7 @@
         if (Number.isFinite(unread)) {
           updateBadgeCount(unread);
         }
-        if (!notifDropdown.classList.contains('hidden')) {
-          refreshNotificationsMenu();
-        }
+        refreshNotificationsMenu({ keepOpen: !notifDropdown.classList.contains('hidden') });
       } catch (e) {
         console.error('Notification websocket parse error', e);
       }

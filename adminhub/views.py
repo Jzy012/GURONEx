@@ -169,7 +169,12 @@ def documents(request):
     category_id = request.GET.get('category')
     status_filter = request.GET.get('status')
 
-    documents = FacultyDocument.objects.select_related('faculty__account', 'document_category').filter(is_archived=False)
+    documents = (
+        FacultyDocument.objects
+        .select_related('faculty__account', 'document_category')
+        .filter(is_archived=False)
+        .filter(FacultyDocument.documents_tab_filter())
+    )
 
     if search_query:
         documents = documents.filter(
@@ -1478,7 +1483,7 @@ def deliverables_view(request):
     total_faculty = FacultyProfile.objects.count()
 
     completed_submissions = 0          # number of fully-complete faculty
-    pending_submissions = 0            # total number of pending document slots
+    pending_submissions = 0            # total number of submitted deliverables with Pending status
     deliverables_list = []
     academic_year_str = ""
     semester_str = ""
@@ -1507,6 +1512,7 @@ def deliverables_view(request):
         # For the "Active Deliverables" list
         deliverables_list = [
             {
+                "id": d.id,
                 "name": d.document_category.name,
                 "deadline": d.deadline,
             } for d in deliverables
@@ -1538,12 +1544,19 @@ def deliverables_view(request):
                     semester=semester,
                     deliverable_id__in=deliverable_ids,
                     status="Approved",
+                    is_archived=False,
                 ).count()
             else:
                 approved_count = 0
 
-            # Pending docs for this faculty (document-level)
-            faculty_pending_docs = max(total_required - approved_count, 0)
+            # Pending docs for this faculty (submitted deliverables currently in Pending status)
+            faculty_pending_docs = FacultyDocument.objects.filter(
+                faculty=faculty,
+                semester=semester,
+                deliverable_id__in=deliverable_ids,
+                status="Pending",
+                is_archived=False,
+            ).count()
             total_pending_docs_global += faculty_pending_docs
 
             faculty_status = {
@@ -1551,7 +1564,8 @@ def deliverables_view(request):
                 "email": faculty.account.email,
                 "approved_count": approved_count,
                 "total_required": total_required,
-                "pending_docs": faculty_pending_docs,  
+                "pending_docs": faculty_pending_docs,
+                "has_pending_deliverables": faculty_pending_docs > 0,
                 "faculty_uuid": faculty.uuid,
                 # Employment status info
                 "status_label": faculty.status.name if faculty.status else None,
@@ -1559,13 +1573,11 @@ def deliverables_view(request):
             }
 
             # Filter by faculty-level completion if requested
-            if status_filter == "completed" and (
-                approved_count != total_required or total_required == 0
+            if status_filter == "completed" and not (
+                total_required > 0 and approved_count == total_required
             ):
                 continue
-            if status_filter == "pending" and (
-                approved_count == total_required and total_required > 0
-            ):
+            if status_filter == "pending" and faculty_pending_docs <= 0:
                 continue
 
             faculty_statuses_raw.append(faculty_status)
@@ -1636,6 +1648,55 @@ def assign_deliverables_view(request):
         form = AssignDeliverablesForm()
 
     return render(request, 'admin/admin_assign_deliverables.html', {'form': form})
+
+
+@admin_required
+@require_POST
+def update_deliverable_deadline_universal(request):
+    deadline_raw = (request.POST.get('deadline') or '').strip()
+    if not deadline_raw:
+        messages.error(request, 'Please provide a valid deadline date.')
+        return redirect('adminhub:deliverables')
+
+    try:
+        new_deadline = datetime.date.fromisoformat(deadline_raw)
+    except ValueError:
+        messages.error(request, 'Invalid deadline date format.')
+        return redirect('adminhub:deliverables')
+
+    semester = Semester.objects.filter(is_active=True).first()
+    if not semester:
+        messages.error(request, 'No active semester found.')
+        return redirect('adminhub:deliverables')
+
+    deliverables = list(Deliverable.objects.filter(semester=semester).select_related('document_category'))
+    if not deliverables:
+        messages.info(request, 'No deliverables found for the active semester.')
+        return redirect('adminhub:deliverables')
+
+    old_deadlines = {str(d.id): d.deadline.isoformat() if d.deadline else None for d in deliverables}
+    for d in deliverables:
+        d.deadline = new_deadline
+    Deliverable.objects.bulk_update(deliverables, ['deadline'])
+
+    log_activity(
+        actor=request.user,
+        action='deliverable_deadline_bulk_updated',
+        target_type='Semester',
+        target_id=str(semester.id),
+        details={
+            'target_name': str(semester),
+            'updated_count': len(deliverables),
+            'old_deadlines': old_deadlines,
+            'new_deadline': new_deadline.isoformat(),
+        },
+    )
+
+    messages.success(
+        request,
+        f"Deadline updated to {new_deadline.strftime('%b %d, %Y')} for {len(deliverables)} deliverable(s).",
+    )
+    return redirect('adminhub:deliverables')
 
 
 
@@ -1731,10 +1792,8 @@ def faculty_deliverables(request, faculty_uuid):
             semester=semester,
             teaching_assignment=ta,
             deliverable__in=deliverables,
+            is_archived=False,
         ).select_related('deliverable', 'document_category')
-
-        approved_count = docs_qs.filter(status='Approved').count()
-        submitted_count = docs_qs.exclude(status='Rejected').count()  # tweak if needed
 
         # Build a list of (deliverable, doc) pairs for the template
         deliverable_rows = []
@@ -1745,11 +1804,31 @@ def faculty_deliverables(request, faculty_uuid):
                 'doc': doc,
             })
 
+        approved_count = sum(
+            1 for row in deliverable_rows if row['doc'] and row['doc'].status == 'Approved'
+        )
+        submitted_count = sum(
+            1 for row in deliverable_rows if row['doc'] and row['doc'].status != 'Rejected'
+        )
+        pending_count = sum(
+            1 for row in deliverable_rows if row['doc'] and row['doc'].status == 'Pending'
+        )
+        overdue_count = sum(
+            1
+            for row in deliverable_rows
+            if row['deliverable'].deadline < today
+            and (not row['doc'] or row['doc'].status != 'Approved')
+        )
+
         assignment_rows.append({
             'ta': ta,
             'approved_count': approved_count,
             'submitted_count': submitted_count,
             'total_required': total_required_per_assignment,
+            'pending_count': pending_count,
+            'overdue_count': overdue_count,
+            'has_pending_deliverables': pending_count > 0,
+            'has_overdue_deliverables': overdue_count > 0,
             'deliverable_rows': deliverable_rows,
         })
 
@@ -1759,6 +1838,7 @@ def faculty_deliverables(request, faculty_uuid):
     context = {
         'faculty': faculty,
         'semester': semester,
+        'today': today,
         'academic_year_str': academic_year_str,
         'semester_str': semester_str,
         'semester_date_mismatch': semester_date_mismatch,
