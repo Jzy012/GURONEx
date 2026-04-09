@@ -169,11 +169,16 @@ def documents(request):
     category_id = request.GET.get('category')
     status_filter = request.GET.get('status')
 
+    # Applicant-origin documents are copied during account creation without uploaded_by.
+    # Keep them visible here only when approved to avoid showing non-approved duplicates.
+    applicant_origin_filter = Q(uploaded_by__isnull=False) | Q(uploaded_by__isnull=True, status='Approved')
+
     documents = (
         FacultyDocument.objects
         .select_related('faculty__account', 'document_category')
         .filter(is_archived=False)
         .filter(FacultyDocument.documents_tab_filter())
+        .filter(applicant_origin_filter)
     )
 
     if search_query:
@@ -2038,7 +2043,6 @@ def _get_rejected_reached_status(applicant: Applicant):
 def applicant_detail_view(request, uuid):
     applicant = get_object_or_404(Applicant, uuid=uuid)
     documents = ApplicantDocument.objects.filter(applicant=applicant, is_archived=False)
-
     status_labels = dict(STEPPER_STATUSES)
     current_status_label = status_labels.get(applicant.status, applicant.status)
     current_status_date = _get_status_date(applicant, applicant.status)
@@ -2374,8 +2378,12 @@ def account_creation_view(request):
                         faculty.save()
                     except Exception as e:
                         errors.append(f"{email}: Drive folder error: {e}")
-                    # Copy applicant docs to faculty and Drive
-                    for doc in ApplicantDocument.objects.filter(applicant=applicant):
+                    # Copy only active approved applicant docs to faculty and Drive.
+                    for doc in ApplicantDocument.objects.filter(
+                        applicant=applicant,
+                        is_archived=False,
+                        status='Approved',
+                    ):
                         doc_name = f"{applicant.first_name} {applicant.last_name}"
                         if applicant.suffix:
                             doc_name += f" {applicant.suffix}"

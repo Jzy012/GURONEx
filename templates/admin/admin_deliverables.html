@@ -116,12 +116,14 @@
 
         {% if academic_year_str and semester_str %}
           <div class="flex flex-wrap items-center gap-2 text-xs">
-            <span class="inline-flex items-center gap-1 rounded-full bg-green-50 text-green-700 px-2 py-1 font-semibold">
+            <span class="inline-flex items-center gap-1 rounded-full bg-green-50 text-green-700 px-2 py-1 font-semibold"
+                  style="background-color:#ecfdf3;color:#15803d;">
               <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
               {{ academic_year_str }} — {{ semester_str }} · Active
             </span>
             {% if semester_date_mismatch %}
-              <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 px-2 py-1">
+              <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 px-2 py-1"
+                    style="background-color:#fffbeb;color:#a16207;">
                 <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                      stroke-width="1.5" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round"
@@ -137,13 +139,16 @@
       </div>
 
       <!-- Primary management actions -->
-      <div class="flex flex-wrap items-center gap-2 justify-start lg:justify-end">
+      <div class="flex flex-wrap items-center gap-2 justify-start lg:justify-end"
+           style="display:flex;flex-wrap:wrap;gap:.5rem;justify-content:flex-end;">
         <a href="{% url 'adminhub:assign_deliverables' %}"
-           class="inline-flex items-center justify-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-xs sm:text-sm font-semibold">
+           class="inline-flex items-center justify-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-xs sm:text-sm font-semibold"
+           style="background-color:#800505;color:#fff;">
           Assign Deliverables
         </a>
         <a href="{% url 'adminhub:deliverable_template' %}"
-           class="inline-flex items-center justify-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white border border-[#800505]/40 rounded-lg shadow-sm text-xs sm:text-sm font-semibold">
+           class="inline-flex items-center justify-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white border border-[#800505]/40 rounded-lg shadow-sm text-xs sm:text-sm font-semibold"
+           style="background-color:#800505;color:#fff;border-color:#80050566;">
           Manage Templates
         </a>
       </div>
@@ -191,7 +196,8 @@
               Deliverables
             </h4>
             {% if deliverables_list %}
-              <span class="inline-flex items-center rounded-full bg-gray-100 text-gray-700 text-[11px] px-2 py-0.5">
+              <span class="inline-flex items-center rounded-full bg-gray-100 text-gray-700 text-[11px] px-2 py-0.5"
+                    style="background-color:#f3f4f6;color:#374151;">
                 {{ deliverables_list|length }}
                 {% if deliverables_list|length == 1 %} active deliverable{% else %} active deliverables{% endif %}
               </span>

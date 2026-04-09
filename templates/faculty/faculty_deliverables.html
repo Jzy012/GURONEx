@@ -15,7 +15,8 @@
     </h2>
     <div class="flex gap-2">
       {% if upload_blocked_due_deadline %}
-        <span class="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-500 rounded-lg shadow text-sm font-semibold whitespace-nowrap cursor-not-allowed">
+        <span class="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-500 rounded-lg shadow text-sm font-semibold whitespace-nowrap cursor-not-allowed"
+              style="background-color:#e5e7eb;color:#6b7280;">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
@@ -23,7 +24,8 @@
         </span>
       {% else %}
         <a href="{% url 'faculty:faculty_deliverables_upload' %}"
-           class="flex items-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow transition duration-200 text-sm font-semibold whitespace-nowrap">
+           class="flex items-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow transition duration-200 text-sm font-semibold whitespace-nowrap"
+           style="background-color:#800505;color:#fff;">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
@@ -31,7 +33,8 @@
         </a>
       {% endif %}
       <a href="{% url 'faculty:home' %}"
-        class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+        class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold"
+        style="background-color:#800505;color:#fff;">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
              stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -54,7 +57,7 @@
         <div class="flex-shrink-0">
         </div>
         <div>
-          <p class="font-semibold text-amber-900">Pending Deliverables</p>
+          <p class="font-semibold text-amber-900" style="color:#92400e;">Pending Deliverables</p>
           <p class="text-sm text-amber-800">You have <span class="font-bold">{{ total_pending_deliverables }}</span> deliverable{{ total_pending_deliverables|pluralize }} to upload/awaiting admin review.</p>
         </div>
       </div>
@@ -62,7 +65,7 @@
   {% endif %}
 
   {% if upload_blocked_due_deadline %}
-    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800" style="background-color:#fef2f2;color:#991b1b;">
       Upload is blocked due to deadline. All pending deliverables for this semester are already past their deadline.
     </div>
   {% endif %}
@@ -107,32 +110,32 @@
               <!-- Progress + toggle button -->
               <div class="flex items-center gap-3 flex-wrap">
                 {% if row.total_required > 0 %}
-                  <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-900 rounded">
+                  <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-900 rounded" style="background-color:#f3f4f6;color:#111827;">
                     {{ row.approved_count }} / {{ row.total_required }} Approved
                   </span>
                   {% if row.has_pending_deliverables %}
                     <div class="inline-flex items-center gap-1">
-                      <span class="inline-block px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded">
+                      <span class="inline-block px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded" style="background-color:#fef9c3;color:#854d0e;">
                         Pending
                       </span>
-                      <span class="inline-flex min-w-5 h-5 px-1 items-center justify-center rounded-full bg-amber-400 text-[#4a0101] text-[11px] font-bold">
+                      <span class="inline-flex min-w-5 h-5 px-1 items-center justify-center rounded-full bg-amber-400 text-[#4a0101] text-[11px] font-bold" style="background-color:#f59e0b;color:#4a0101;">
                         {{ row.pending_count }}
                       </span>
                     </div>
                   {% endif %}
                   {% if row.is_complete %}
-                    <span class="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded">
+                    <span class="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded" style="background-color:#dcfce7;color:#15803d;">
                       Complete
                     </span>
                   {% else %}
                     {% if not row.has_pending_deliverables %}
-                      <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-600 rounded">
+                      <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-600 rounded" style="background-color:#e5e7eb;color:#4b5563;">
                         No Pending
                       </span>
                     {% endif %}
                   {% endif %}
                 {% else %}
-                  <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-500 rounded">
+                  <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-200 text-gray-500 rounded" style="background-color:#e5e7eb;color:#6b7280;">
                     No Deliverables Configured
                   </span>
                 {% endif %}
@@ -182,20 +185,20 @@
                                 </span>
                               {% else %}
                                 {% if dr.is_deadline_passed and doc.status != 'Approved' %}
-                                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700" style="background-color:#fee2e2;color:#b91c1c;">
                                     Overdue
                                   </span>
                                 {% else %}
                                   {% if doc.status == 'Rejected' %}
-                                    <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-red-100 text-red-700 rounded">
+                                      <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-red-100 text-red-700 rounded" style="background-color:#fee2e2;color:#b91c1c;">
                                       Rejected
                                     </span>
                                   {% elif doc.status == 'Pending' %}
-                                    <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded">
+                                      <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 rounded" style="background-color:#fef9c3;color:#854d0e;">
                                       Pending
                                     </span>
                                   {% else %}
-                                    <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-500 rounded-full">
+                                      <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-500 rounded-full" style="background-color:#f3f4f6;color:#6b7280;">
                                       {{ doc.status }}
                                     </span>
                                   {% endif %}
