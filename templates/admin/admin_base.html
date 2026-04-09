@@ -73,7 +73,8 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
         <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
       </svg>
-      <span id="notifBadge" class="{% if notification_unread_count %}inline-flex{% else %}hidden{% endif %} absolute -top-1 -right-1 min-w-5 h-5 px-1 items-center justify-center rounded-full bg-amber-400 text-[#4a0101] text-[11px] font-bold">{{ notification_unread_count }}</span>
+      <span id="notifBadge" class="{% if notification_unread_count %}inline-flex{% else %}hidden{% endif %} absolute -top-1 -right-1 min-w-5 h-5 px-1 items-center justify-center rounded-full bg-amber-400 text-[#4a0101] text-[11px] font-bold"
+        style="min-width:20px;width:20px;height:20px;padding:0;border-radius:9999px;line-height:1;background-color:#f59e0b;color:#4a0101;">{{ notification_unread_count }}</span>
     </button>
 
     <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white text-gray-800 rounded-lg shadow-xl border border-gray-200 z-50">
@@ -166,7 +167,7 @@
             </svg>
             <span>Deliverables</span>
             <span id="pendingDeliverablesNavBadge" class="{% if notification_pending_deliverables_count %}inline-flex{% else %}hidden{% endif %} ml-auto min-w-5 h-5 px-1 items-center justify-center rounded-full bg-amber-300 text-[#4a0101] text-[11px] font-bold"
-                  style="background-color:#fcd34d;color:#4a0101;">
+              style="min-width:20px;width:20px;height:20px;padding:0;border-radius:9999px;line-height:1;background-color:#fcd34d;color:#4a0101;">
               {% if notification_pending_deliverables_count > 99 %}99+{% else %}{{ notification_pending_deliverables_count }}{% endif %}
             </span>
           </a>
