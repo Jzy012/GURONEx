@@ -6,7 +6,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "tailwind:init": "tailwindcss init",
-    "tailwind": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch"
+    "tailwind": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch",
+    "postinstall": "npm run build:css",
+    "build:css": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --minify",
+    "build": "npm run build:css",
+    "heroku-postbuild": "npm run build:css"
 
   },
   "repository": {
