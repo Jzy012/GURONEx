@@ -73,8 +73,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'FEMS.middleware.twofa.TwoFAMiddleware',  # Custom 2FA middleware
-    'FEMS.middleware.cachecontrol.AuthSensitiveCacheControlMiddleware',  # Custom Cache Control middleware
+    'FEMS.middleware.twofa.TwoFAMiddleware', 
+    'FEMS.middleware.cachecontrol.AuthSensitiveCacheControlMiddleware',  
 ]
 
 ROOT_URLCONF = 'FEMS.urls'
