@@ -31,7 +31,7 @@ class CentralGoogleDriveService:
         self.client_id = client_secrets["client_id"]
         self.client_secret = client_secrets["client_secret"]
         self.creds = self._get_or_refresh_credentials()
-        self.service = build("drive", "v3", credentials=self.creds)
+        self.service = build("drive", "v3", credentials=self.creds, cache_discovery=False)
 
     def _get_or_refresh_credentials(self):
         creds = Credentials(
