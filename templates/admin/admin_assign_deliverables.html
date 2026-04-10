@@ -18,8 +18,15 @@
     <div class="grid grid-cols-1 gap-3">
       {% for field in form %}
         <div>
-          <label class="block text-xs font-semibold text-[#800505] mb-1">{{ field.label }}</label>
-          {{ field }}
+          {% if field.field.widget.input_type == 'checkbox' %}
+            <label class="inline-flex items-center gap-2 text-xs font-semibold text-[#800505] mb-1">
+              {{ field }}
+              <span>{{ field.label }}</span>
+            </label>
+          {% else %}
+            <label class="block text-xs font-semibold text-[#800505] mb-1">{{ field.label }}</label>
+            {{ field }}
+          {% endif %}
           {% if field.help_text %}
             <p class="text-xs text-gray-500 mt-1">{{ field.help_text }}</p>
           {% endif %}

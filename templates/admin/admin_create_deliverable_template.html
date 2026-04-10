@@ -43,6 +43,19 @@
               <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
             {% endif %}
           </div>
+        {% elif field.field.widget.input_type == 'checkbox' %}
+          <div>
+            <label class="inline-flex items-center gap-2 text-sm font-semibold text-[#800505]">
+              {{ field }}
+              <span>{{ field.label }}</span>
+            </label>
+            {% if field.help_text %}
+              <p class="text-xs text-gray-500 mt-1">{{ field.help_text }}</p>
+            {% endif %}
+            {% if field.errors %}
+              <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
+            {% endif %}
+          </div>
         {% else %}
           <div>
             <label class="block text-xs font-semibold text-[#800505] mb-1">{{ field.label }}</label>

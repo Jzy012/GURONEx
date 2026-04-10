@@ -177,8 +177,6 @@ def resend_otp_view(request):
             "message": "You’ve reached the maximum number of OTP requests today. Please try again tomorrow."
         }, status=429)
 
-    UserOTP.objects.filter(user=user, purpose="password_reset", is_used=False).update(is_used=True)
-
     otp_obj, raw_otp = UserOTP.create_for_user(user, purpose='password_reset', expiry_minutes=10)
     send_otp_email(email, raw_otp, purpose='password_reset')
 
@@ -241,8 +239,6 @@ def resend_two_factor_otp_view(request):
             "success": False,
             "message": "You’ve reached the maximum number of code requests today. Please try again tomorrow."
         }, status=429)
-
-    UserOTP.objects.filter(user=user, purpose="login_2fa", is_used=False).update(is_used=True)
 
     otp_obj, raw_otp = UserOTP.create_for_user(user, purpose='login_2fa', expiry_minutes=10)
     send_otp_email(user.email, raw_otp, purpose='login_2fa')

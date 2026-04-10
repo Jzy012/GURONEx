@@ -1,35 +1,58 @@
-from django.shortcuts import render, redirect
-from base.decorators import faculty_required, admin_required
-from base.forms import TwoFactorToggleForm, FacultyPublicSignupForm
+import calendar
+import io
+import json
+import mimetypes
+from datetime import date
+from io import BytesIO
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.core.paginator import Paginator
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
+from django.db.models import Q, Sum
+from django.forms import BaseFormSet, formset_factory
+from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.timezone import localtime
 from django.views.decorators.cache import never_cache
-from base.utils.faculty_data import get_faculty_data
-from notifications.services import ROLE_ADMIN_GROUP, log_activity, notify_role
-from .models import FacultyProfile
-# Create your views here.
+from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
 
-from django.shortcuts import render
-from django.db.models import Q
-from base.decorators import faculty_required
-from base.utils.faculty_data import get_faculty_data
-from faculty.models import FacultyDocument, FacultyRequest, Deliverable, Semester
-from adminhub.models import Announcement
+from adminhub.models import Announcement, AnnouncementViewLog, DocumentTemplate
 from adminhub.tasks import publish_due_scheduled_announcements_task
-from django.utils import timezone
-
-from django.db.models import Q
-from django.utils import timezone
-
+from base.decorators import faculty_required
+from base.forms import (
+    FacultyDeliverableUploadForm,
+    FacultyDocumentUploadForm,
+    FacultyPublicSignupForm,
+    IndexedFormSet as BaseIndexedFormSet,
+    TwoFactorToggleForm,
+)
+from base.utils.dtr_workinghours import calculate_total_working_hours
+from base.utils.faculty_data import get_faculty_data
 from faculty.models import (
+    Deliverable,
+    DocumentCategory,
     FacultyDocument,
+    FacultyProfile,
     FacultyRequest,
     Semester,
-    Deliverable,
     TeachingAssignment,
 )
+from notifications.services import ROLE_ADMIN_GROUP, log_activity, notify_role
+from rfid.models import AttendanceLog
+from rfid.views import format_log
+from services.dtr_service import DTRCalculator
+from services.google_drive_service import CentralGoogleDriveService
+
+# Create your views here.
 
 
 @never_cache
@@ -115,44 +138,36 @@ def home(request):
     faculty = request.user.faculty_profile
     today = timezone.localdate()
 
-    # Pending Documents (status = Pending, for this faculty)
     pending_documents = FacultyDocument.objects.filter(
         faculty=faculty,
         status="Pending",
         is_archived=False,
     ).count()
 
-    # Pending Requests (status = Pending or Open, for this faculty)
     pending_requests = FacultyRequest.objects.filter(
         faculty=faculty,
-        status__in=["Pending", "Open"]  # keep "Open" only if it exists in STATUS_CHOICES
+        status__in=["Pending", "Open"] 
     ).count()
 
-    # Active Semester
     semester = Semester.objects.filter(
         is_active=True,
         start_date__lte=today,
         end_date__gte=today
     ).first()
 
-    # ================== Deliverables to Upload (per TA, per Deliverable) ==================
     pending_deliverables = 0
     if semester:
-        # All deliverables for this semester
         deliverables = Deliverable.objects.filter(
             semester=semester
         )
         deliverable_ids = list(deliverables.values_list('id', flat=True))
         deliverable_count = len(deliverable_ids)
 
-        # How many teaching assignments this faculty has in this semester
         ta_count = TeachingAssignment.objects.filter(
             faculty=faculty,
             semester=semester,
         ).count()
 
-        # Total required documents for this faculty in this semester
-        # (same logic as admin: #deliverables * #teaching_assignments)
         total_required = deliverable_count * ta_count
 
         if total_required > 0:
@@ -166,12 +181,9 @@ def home(request):
         else:
             approved_count = 0
 
-        # Pending document slots (never negative)
         pending_deliverables = max(total_required - approved_count, 0)
 
-    # Recent Announcements (latest 3)
     try:
-        # Catch up due scheduled announcements so faculty sees newly published items.
         publish_due_scheduled_announcements_task.delay(limit=20)
     except Exception:
         pass
@@ -183,14 +195,11 @@ def home(request):
     ).filter(
         Q(end_date__gte=today) | Q(end_date__isnull=True)
     ).filter(
-        # Keep legacy announcements (no schedule) visible, while requiring scheduled ones to be published.
         Q(scheduled_publish_at__isnull=True) | Q(published_at__isnull=False)
     ).order_by('-created_at')[:3]
 
-    # Faculty profile object to pass explicitly
     faculty_profile = faculty
 
-    # Teaching assignments for current active semester only
     teaching_assignments_qs = TeachingAssignment.objects.filter(
         faculty=faculty
     )
@@ -202,7 +211,6 @@ def home(request):
         'start_time'
     )
 
-    # Group by day for simple weekly schedule
     DAYS_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
     schedule_by_day = {d: [] for d in DAYS_ORDER}
     for ta in teaching_assignments:
@@ -262,9 +270,6 @@ def faculty_2fa(request):
 
 
 
-from django.db.models import Sum, Q
-from django.utils import timezone
-
 @faculty_required
 def faculty_documents_view(request):
     faculty_profile = request.user.faculty_profile
@@ -280,8 +285,6 @@ def faculty_documents_view(request):
     total_storage_bytes = documents.aggregate(total=Sum("file_size"))["total"] or 0
 
     def filesizeformat(num):
-        # You can use Django's default 'filesizeformat' on the template for this.
-        # This is just for reference if you want to format in Python.
         for unit in ['bytes','KB','MB','GB','TB']:
             if num < 1024.0:
                 return "%3.1f %s" % (num, unit)
@@ -296,18 +299,6 @@ def faculty_documents_view(request):
         "total_storage": filesizeformat(total_storage_bytes),
     }
     return render(request, "faculty/faculty_documents.html", context)
-
-
-from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponse, StreamingHttpResponse, Http404
-from django.urls import reverse
-import mimetypes
-import io
-
-from faculty.models import FacultyDocument
-from services.google_drive_service import CentralGoogleDriveService
-from googleapiclient.http import MediaIoBaseDownload
-
 
 
 def _stream_drive_media(drive_service: CentralGoogleDriveService, file_id: str, chunk_size: int = 1024 * 256):
@@ -327,6 +318,12 @@ def _stream_drive_media(drive_service: CentralGoogleDriveService, file_id: str, 
         yield remaining
 
 
+def _finalize_response(resp: HttpResponse):
+    resp['X-Frame-Options'] = 'SAMEORIGIN'
+    resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
+
+
 def download_document(request, uid):
     """
     Streams or returns bytes for a document stored on Google Drive.
@@ -339,7 +336,6 @@ def download_document(request, uid):
     drive = CentralGoogleDriveService()
     want_inline = request.GET.get('inline', '0').lower() in ('1', 'true', 'yes')
 
-    # Get metadata
     try:
         meta = drive.service.files().get(fileId=file_id, fields='mimeType, name, size').execute()
         mime_type = meta.get('mimeType')
@@ -347,12 +343,6 @@ def download_document(request, uid):
     except Exception:
         raise Http404("Could not retrieve file metadata from Google Drive.")
 
-    def _finalize_response(resp: HttpResponse):
-        resp['X-Frame-Options'] = 'SAMEORIGIN'
-        resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        return resp
-
-    # Google-native types -> export to PDF
     if mime_type and mime_type.startswith('application/vnd.google-apps.'):
         export_mime = 'application/pdf'
         try:
@@ -367,7 +357,6 @@ def download_document(request, uid):
         resp['Content-Length'] = str(len(exported_bytes))
         return _finalize_response(resp)
 
-    # Binary files -> stream
     content_type = mime_type or mimetypes.guess_type(name_on_drive)[0] or 'application/octet-stream'
     inline_allowed = (content_type == 'application/pdf') or content_type.startswith('image/')
 
@@ -379,20 +368,6 @@ def download_document(request, uid):
     response = StreamingHttpResponse(_stream_drive_media(drive, file_id), content_type=content_type)
     response['Content-Disposition'] = f'attachment; filename="{name_on_drive}"'
     return _finalize_response(response)
-
-
-from django.forms import formset_factory, BaseFormSet
-from django.shortcuts import render, redirect
-from django.contrib import messages
-
-from base.decorators import faculty_required
-from base.utils.faculty_data import get_faculty_data
-from base.forms import FacultyDocumentUploadForm  # ensure this points to the updated form
-from services.google_drive_service import CentralGoogleDriveService
-from .models import FacultyDocument
-
-import io
-from googleapiclient.http import MediaIoBaseUpload
 
 
 class IndexedFormSet(BaseFormSet):
@@ -439,7 +414,6 @@ def faculty_document_upload(request):
         )
 
         if formset.is_valid():
-            # Enforce "at least one non-empty row" (like deliverables)
             non_empty_count = 0
             for form in formset:
                 cd = form.cleaned_data
@@ -461,7 +435,6 @@ def faculty_document_upload(request):
                 data["formset"] = formset
                 return render(request, "faculty/faculty_document_upload.html", data)
 
-            # At least one row is non-empty & valid → process uploads
             service = CentralGoogleDriveService()
             success_count = 0
 
@@ -472,7 +445,6 @@ def faculty_document_upload(request):
                 file = cd.get("file")
                 expiry = cd.get("expiry_date")
 
-                # Skip fully empty rows (allowed and ignored)
                 if not category and not name and not file and not expiry:
                     continue
 
@@ -550,16 +522,6 @@ def faculty_document_upload(request):
 
 
 
-from django.shortcuts import render
-from django.utils import timezone
-import calendar
-from django.core.paginator import Paginator
-
-from rfid.models import AttendanceLog
-from .models import FacultyProfile
-from rfid.views import format_log  # <-- import your formatting utility
-
-
 @faculty_required
 def faculty_attendance_logs_view(request):
     faculty = request.user.faculty_profile
@@ -597,23 +559,14 @@ def faculty_attendance_logs_view(request):
 
 
 
-from django.shortcuts import render
-from datetime import date
-import calendar
-
-from faculty.models import TeachingAssignment
-from rfid.models import AttendanceLog
-from services.dtr_service import DTRCalculator
-
 @faculty_required
 def faculty_teaching_assignment_dtr_view(request):
     faculty = request.user.faculty_profile
     today = date.today()
     year = int(request.GET.get('year', today.year))
     month = int(request.GET.get('month', today.month))
-    day_of_week = request.GET.get('day', '')  # '' means show all
+    day_of_week = request.GET.get('day', '')  
 
-    # All teaching assignments for this faculty
     assignments = (
         TeachingAssignment.objects
         .filter(faculty=faculty)
@@ -621,12 +574,9 @@ def faculty_teaching_assignment_dtr_view(request):
         .order_by('semester', 'day_of_week', 'start_time')
     )
 
-    # DTR for the selected month and year
     dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
 
-    # Get all logs by date for the month
-    from calendar import monthrange
-    days_in_month = monthrange(year, month)[1]
+    days_in_month = calendar.monthrange(year, month)[1]
     logs_by_date = {}
     for day_num in range(1, days_in_month + 1):
         current_date = date(year, month, day_num)
@@ -636,7 +586,6 @@ def faculty_teaching_assignment_dtr_view(request):
             .order_by('time_in')
         )
 
-    # Post-process DTR rows so every attendance log is shown, even unmatched ones
     for row in dtr:
         day_logs = logs_by_date.get(row['date'], [])
         assignment_status_logs = set(
@@ -644,7 +593,6 @@ def faculty_teaching_assignment_dtr_view(request):
             for status in row['statuses']
             if status['attendance_log']
         )
-        # Add logs that aren't matched to any assignment
         for log in day_logs:
             if log.id not in assignment_status_logs:
                 row['statuses'].append({
@@ -652,7 +600,6 @@ def faculty_teaching_assignment_dtr_view(request):
                     'attendance_log': log,
                     'status': 'has log',
                 })
-        # If there are logs but no assignment and no status yet, add a status for each log
         if not row['statuses'] and day_logs:
             for log in day_logs:
                 row['statuses'].append({
@@ -660,7 +607,6 @@ def faculty_teaching_assignment_dtr_view(request):
                     'attendance_log': log,
                     'status': 'has log',
                 })
-        # If still no statuses (no assignment, no log), keep 'no assignment'
         elif not row['statuses']:
             row['statuses'].append({
                 'assignment': None,
@@ -668,14 +614,12 @@ def faculty_teaching_assignment_dtr_view(request):
                 'status': 'no assignment',
             })
 
-    # ==== Handle Filtering by day ====
     if day_of_week:
         dtr = [
             row for row in dtr
             if row['date'].strftime('%a').lower()[:3] == day_of_week
         ]
 
-    # For year dropdown, show last 3 years and next year
     year_choices = [today.year - 1, today.year, today.year + 1]
 
     months = [(i, calendar.month_name[i]) for i in range(1, 13)]
@@ -707,26 +651,6 @@ def faculty_teaching_assignment_dtr_view(request):
 
 
 
-from django.shortcuts import render
-from django.http import HttpResponse
-from datetime import date
-import calendar
-from io import BytesIO
-
-from django.utils.timezone import localtime
-
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-from reportlab.lib import colors
-from reportlab.lib.units import cm
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-
-from faculty.models import FacultyProfile
-from services.dtr_service import DTRCalculator
-from base.decorators import faculty_required
-from base.utils.dtr_workinghours import calculate_total_working_hours
-
-
 @faculty_required
 def faculty_dtr_export_preview(request):
     faculty: FacultyProfile = request.user.faculty_profile
@@ -735,7 +659,6 @@ def faculty_dtr_export_preview(request):
     months = [(i, calendar.month_name[i]) for i in range(1, 13)]
     year_choices = [today.year - 1, today.year, today.year + 1]
 
-    # Get selected or current month/year
     month = int(request.GET.get("month", today.month))
     year = int(request.GET.get("year", today.year))
     days_in_month = calendar.monthrange(year, month)[1]
@@ -743,11 +666,9 @@ def faculty_dtr_export_preview(request):
 
     dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
 
-    # Build rows: [{day, am_in, am_out, pm_in, pm_out}]
     rows = []
     for day_num in range(1, days_in_month + 1):
         am_in = am_out = pm_in = pm_out = ""
-        # same logic as admin: use the first attendance_log for that day
         logs = [
             status["attendance_log"]
             for status in dtr[day_num - 1]["statuses"]
@@ -848,7 +769,6 @@ def faculty_dtr_export_view(request):
 
     buffer = BytesIO()
 
-    # MINIMUM margins (to maximize printable area)
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
@@ -1077,14 +997,6 @@ def faculty_dtr_export_view(request):
 
 
 
-from django.shortcuts import render
-from django.utils import timezone
-from adminhub.models import Announcement, AnnouncementViewLog
-from base.models import Account  # if not already imported
-from django.db.models import Q
-
-
-
 @faculty_required
 def faculty_announcements_view(request):
     data = get_faculty_data(request)
@@ -1094,12 +1006,10 @@ def faculty_announcements_view(request):
     selected_year = request.GET.get('year', '')
 
     try:
-        # Catch up due scheduled announcements whenever this page is opened.
         publish_due_scheduled_announcements_task.delay(limit=20)
     except Exception:
         pass
 
-    # Show only published and active announcements visible to this faculty user.
     announcements = Announcement.objects.filter(
         visible_to_roles__contains=[user.role],
         is_active=True,
@@ -1108,7 +1018,6 @@ def faculty_announcements_view(request):
     ).filter(
         Q(end_date__gte=today) | Q(end_date__isnull=True)
     ).filter(
-        # Keep legacy announcements (no schedule) visible, while requiring scheduled ones to be published.
         Q(scheduled_publish_at__isnull=True) | Q(published_at__isnull=False)
     ).order_by('-created_at')
 
@@ -1120,7 +1029,6 @@ def faculty_announcements_view(request):
 
     years = [item.year for item in Announcement.objects.filter(visible_to_roles__contains=[user.role]).dates('created_at', 'year', order='DESC')]
 
-    # Get UUIDs of announcements the user has already seen
     seen_ids = AnnouncementViewLog.objects.filter(user=user).values_list('announcement__uuid', flat=True)
 
     return render(request,  'faculty/faculty_announcements.html',  {
@@ -1135,8 +1043,6 @@ def faculty_announcements_view(request):
 
 
 
-from django.http import JsonResponse, Http404
-
 @faculty_required
 def view_announcement_ajax(request, uuid):
     user = request.user
@@ -1150,7 +1056,6 @@ def view_announcement_ajax(request, uuid):
         announcement.scheduled_publish_at is None or announcement.published_at is not None
     )
 
-    # Check if user is allowed to see this announcement and it is currently visible.
     if (
         user.role not in announcement.visible_to_roles
         or not announcement.is_active
@@ -1160,7 +1065,6 @@ def view_announcement_ajax(request, uuid):
     ):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
 
-    # Mark as seen if not already logged
     AnnouncementViewLog.objects.get_or_create(user=user, announcement=announcement)
 
     data = {
@@ -1172,25 +1076,6 @@ def view_announcement_ajax(request, uuid):
     return JsonResponse(data)
 
 
-
-
-from django.utils import timezone
-from faculty.models import Deliverable, FacultyDocument, Semester
-from base.utils.faculty_data import get_faculty_data
-from django.shortcuts import render
-from base.decorators import faculty_required
-
-from django.utils import timezone
-from django.shortcuts import render
-from base.decorators import faculty_required
-from base.utils.faculty_data import get_faculty_data
-
-from faculty.models import (
-    Deliverable,
-    FacultyDocument,
-    Semester,
-    TeachingAssignment,
-)
 
 
 @faculty_required
@@ -1216,13 +1101,11 @@ def faculty_deliverables_view(request):
         })
         return render(request, 'faculty/faculty_deliverables.html', data)
 
-    # Teaching assignments for this faculty in the active semester
     assignments = TeachingAssignment.objects.filter(
         faculty=faculty,
         semester=semester
     ).order_by('day_of_week', 'start_time')
 
-    # Deliverables defined for this semester
     deliverables = Deliverable.objects.filter(
         semester=semester
     ).select_related('document_category')
@@ -1230,7 +1113,7 @@ def faculty_deliverables_view(request):
     total_required_per_assignment = deliverables.count()
 
     assignment_rows = []
-    all_assignments_complete = True  # for clearance
+    all_assignments_complete = True 
     total_pending_deliverables = 0
     pending_slots = 0
     overdue_slots = 0
@@ -1244,13 +1127,11 @@ def faculty_deliverables_view(request):
         ).select_related('deliverable', 'document_category')
 
         approved_count = docs_qs.filter(status='Approved').count()
-        # Pending count: any slot not approved (pending + rejected + not uploaded)
         pending_count = max(total_required_per_assignment - approved_count, 0)
         total_pending_deliverables += pending_count
 
         deliverable_rows = []
         for d in deliverables:
-            # latest document for this assignment+deliverable
             doc = docs_qs.filter(deliverable=d).order_by('-uploaded_at').first()
             if not (doc and doc.status == 'Approved'):
                 pending_slots += 1
@@ -1262,11 +1143,10 @@ def faculty_deliverables_view(request):
                 'is_deadline_passed': today > d.deadline,
             })
 
-        # Decide if this assignment is "complete" (all required approved)
         if total_required_per_assignment > 0:
             assignment_complete = (approved_count == total_required_per_assignment)
         else:
-            assignment_complete = True  # no deliverables defined = trivially complete
+            assignment_complete = True 
 
         if not assignment_complete:
             all_assignments_complete = False
@@ -1304,36 +1184,6 @@ def faculty_deliverables_view(request):
 
 
 
-from base.forms import FacultyDeliverableUploadForm
-from .models import FacultyDocument, Deliverable
-from services.google_drive_service import CentralGoogleDriveService
-from base.forms import FacultyDeliverableUploadForm, IndexedFormSet
-
-
-
-from django.forms import formset_factory
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.utils import timezone
-
-from django.forms import formset_factory
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.utils import timezone
-
-from base.decorators import faculty_required
-from base.utils.faculty_data import get_faculty_data
-
-from base.forms import IndexedFormSet, FacultyDeliverableUploadForm
-from .models import FacultyDocument, Deliverable, Semester, TeachingAssignment
-from services.google_drive_service import CentralGoogleDriveService
-
-import io
-from googleapiclient.http import MediaIoBaseUpload
-import json
-from django.core.serializers.json import DjangoJSONEncoder
-
-
 @faculty_required
 def faculty_deliverable_upload(request):
     data = get_faculty_data(request)
@@ -1342,7 +1192,7 @@ def faculty_deliverable_upload(request):
 
     DocumentFormSet = formset_factory(
         FacultyDeliverableUploadForm,
-        formset=IndexedFormSet,
+        formset=BaseIndexedFormSet,
         extra=1,
         max_num=10,
         validate_max=True,
@@ -1353,7 +1203,6 @@ def faculty_deliverable_upload(request):
         "request": request,
     }
 
-    # Build allowed-deliverables-per-TA map and deliverables_catalog for JS
     allowed_deliverables_map = {}
     deliverables_catalog = {}  # id -> display label
     active_semester = Semester.objects.filter(is_active=True).first()
@@ -1369,7 +1218,6 @@ def faculty_deliverable_upload(request):
             semester=active_semester,
         ).select_related("document_category")
 
-        # Use str(d) so JS labels match server-rendered labels (including semester)
         for d in deliverables:
             deliverables_catalog[d.id] = str(d)
 
@@ -1409,7 +1257,6 @@ def faculty_deliverable_upload(request):
         formset = DocumentFormSet(request.POST, request.FILES, form_kwargs=form_kwargs)
 
         if formset.is_valid():
-            # Enforce "at least one upload card" here (view-level check)
             non_empty_count = 0
             for form in formset:
                 cd = form.cleaned_data
@@ -1420,7 +1267,6 @@ def faculty_deliverable_upload(request):
                     non_empty_count += 1
 
             if non_empty_count == 0:
-                # Add a non-form error and re-render
                 formset._non_form_errors = formset.error_class(
                     ["Please fill out at least one upload card before submitting."]
                 )
@@ -1487,7 +1333,6 @@ def faculty_deliverable_upload(request):
                     )
 
                     if existing_doc:
-                        # Delete the old Drive file before repointing the record.
                         try:
                             service.service.files().delete(fileId=existing_doc.google_drive_id).execute()
                         except Exception as e:
@@ -1502,7 +1347,6 @@ def faculty_deliverable_upload(request):
                                 print("Error deleting stale Drive file:", e)
                             stale_doc.delete()
 
-                        # Update existing record
                         existing_doc.document_name = document_name
                         existing_doc.uploaded_by = account
                         existing_doc.document_category = category
@@ -1518,7 +1362,6 @@ def faculty_deliverable_upload(request):
                         existing_doc.teaching_assignment = teaching_assignment
                         existing_doc.save()
                     else:
-                        # Create new record
                         FacultyDocument.objects.create(
                             faculty=faculty,
                             uploaded_by=account,
@@ -1592,14 +1435,6 @@ def faculty_deliverable_upload(request):
 
 
 
-from base.decorators import faculty_required
-from faculty.models import DocumentCategory
-from adminhub.models import DocumentTemplate
-from django.core.paginator import Paginator
-from django.db.models import Q
-from django.shortcuts import render
-
-
 @faculty_required
 def faculty_document_templates(request):
     """
@@ -1658,14 +1493,6 @@ def faculty_document_templates(request):
 
 
 
-
-def _finalize_response(resp: HttpResponse):
-    resp['X-Frame-Options'] = 'SAMEORIGIN'
-    resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    return resp
-
-from django.http import StreamingHttpResponse, Http404, HttpResponse
-import mimetypes
 
 @faculty_required
 def download_document_template(request, uid):

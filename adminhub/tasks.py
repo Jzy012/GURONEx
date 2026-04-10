@@ -9,6 +9,10 @@ from applicant.models import Applicant
 from base.models import Account
 from base.utils.email import send_html_email
 from notifications.services import log_activity, notify_role
+from services.deliverable_assignment_service import (
+    auto_assign_deliverables_for_semester,
+    ensure_auto_assign_for_active_semesters,
+)
 
 
 DEFAULT_ANNOUNCEMENT_ROLES = ["admin", "faculty"]
@@ -73,7 +77,9 @@ def sync_active_academic_calendar_task(self, ref_date=None):
             ref_date = datetime.date.fromisoformat(ref_date)
         except (TypeError, ValueError):
             ref_date = timezone.localdate()
-    return _sync_active_academic_calendar(ref_date=ref_date)
+    payload = _sync_active_academic_calendar(ref_date=ref_date)
+    payload["auto_assign"] = ensure_auto_assign_for_active_semesters(ref_date=ref_date)
+    return payload
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
@@ -103,11 +109,13 @@ def activate_semester_start_task(self, semester_id):
 
     AcademicYear.update_active_years(ref_date=today)
     Semester.update_active_semesters(ref_date=today)
+    auto_assign_result = auto_assign_deliverables_for_semester(semester.id)
 
     return {
         "activated": True,
         "semester_id": semester_id,
         "today": str(today),
+        "auto_assign": auto_assign_result,
     }
 
 

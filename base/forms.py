@@ -540,8 +540,10 @@ class AnnouncementForm(forms.ModelForm):
 
 class AssignDeliverablesForm(forms.Form):
     semester = forms.ModelChoiceField(queryset=Semester.objects.all())
-    template = forms.ModelChoiceField(queryset=DeliverableTemplate.objects.all())
+    enable_auto_assign = forms.BooleanField(required=False, initial=True, label="Enable Auto-Assign")
+    template = forms.ModelChoiceField(queryset=DeliverableTemplate.objects.all(), required=False)
     deadline = forms.DateField(
+        required=False,
         widget=forms.DateInput(attrs={'type': 'date'})
     )
 
@@ -552,12 +554,28 @@ class AssignDeliverablesForm(forms.Form):
             "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
         )
         for fname, field in self.fields.items():
-            if fname == "deadline":
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs["class"] = "rounded text-[#800505] focus:ring-[#800505]"
+            elif fname == "deadline":
                 field.widget.attrs["class"] = field_class
                 field.widget.attrs["placeholder"] = field.label
             else:
                 field.widget.attrs["class"] = field_class
                 field.widget.attrs["placeholder"] = field.label
+
+    def clean(self):
+        cleaned_data = super().clean()
+        enable_auto_assign = cleaned_data.get("enable_auto_assign")
+        template = cleaned_data.get("template")
+        deadline = cleaned_data.get("deadline")
+
+        if not enable_auto_assign:
+            if template is None:
+                self.add_error("template", "Template is required when auto-assign is disabled.")
+            if deadline is None:
+                self.add_error("deadline", "Deadline is required when auto-assign is disabled.")
+
+        return cleaned_data
 
 
 
@@ -749,9 +767,16 @@ class DeliverableTemplateForm(forms.ModelForm):
         label="Required Documents"
     )
 
+    is_default = forms.BooleanField(
+            required=False,
+            label="Default",
+            widget=forms.CheckboxInput(attrs={
+                "class": "h-4 w-4 text-[#800505] rounded focus:ring-[#800505]"
+    })
+        )
     class Meta:
         model = DeliverableTemplate
-        fields = ['name', 'document_categories']
+        fields = ['name', 'is_default', 'document_categories']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -761,8 +786,11 @@ class DeliverableTemplateForm(forms.ModelForm):
         )
         for fname, field in self.fields.items():
             if not isinstance(field.widget, forms.CheckboxSelectMultiple):
-                field.widget.attrs["class"] = field_class
-                field.widget.attrs["placeholder"] = field.label
+                if isinstance(field.widget, forms.CheckboxInput):
+                    field.widget.attrs["class"] = "rounded text-[#800505] focus:ring-[#800505]"
+                else:
+                    field.widget.attrs["class"] = field_class
+                    field.widget.attrs["placeholder"] = field.label
         # Add custom class to checklist for template targeting (optional)
         if "document_categories" in self.fields:
             self.fields["document_categories"].widget.attrs["class"] = "custom-checklist"

@@ -111,6 +111,7 @@ from faculty.models import (
 from rfid.models import AttendanceLog, RFIDTag
 from rfid.views import format_log
 from services.dtr_service import DTRCalculator
+from services.deliverable_assignment_service import auto_assign_deliverables_for_semester
 from services.google_drive_service import CentralGoogleDriveService, get_google_drive_status
 from notifications.services import log_activity, notify_role, notify_user
 
@@ -1485,7 +1486,7 @@ def deliverables_view(request):
     else:
         semester = None
 
-    total_faculty = FacultyProfile.objects.count()
+    total_faculty = 0
 
     completed_submissions = 0          # number of fully-complete faculty
     pending_submissions = 0            # total number of submitted deliverables with Pending status
@@ -1523,8 +1524,16 @@ def deliverables_view(request):
             } for d in deliverables
         ]
 
-        # Faculty base queryset, with status preloaded
-        faculty_qs = FacultyProfile.objects.select_related('account', 'status').all()
+        assignment_faculty_ids = TeachingAssignment.objects.filter(
+            semester=semester,
+        ).values_list('faculty_id', flat=True).distinct()
+
+        # Faculty base queryset scoped only to faculty with assignments in this semester
+        faculty_qs = FacultyProfile.objects.select_related('account', 'status').filter(
+            id__in=assignment_faculty_ids,
+        )
+        total_faculty = faculty_qs.count()
+
         if search:
             faculty_qs = faculty_qs.filter(
                 Q(name__icontains=search) | Q(account__email__icontains=search)
@@ -1595,6 +1604,7 @@ def deliverables_view(request):
         # pending_submissions: total pending docs across all faculty
         pending_submissions = total_pending_docs_global
     else:
+        total_faculty = 0
         completed_submissions = 0
         pending_submissions = 0
 
@@ -1631,23 +1641,49 @@ def assign_deliverables_view(request):
         form = AssignDeliverablesForm(request.POST)
         if form.is_valid():
             semester = form.cleaned_data['semester']
+            enable_auto_assign = form.cleaned_data['enable_auto_assign']
             template = form.cleaned_data['template']
             deadline = form.cleaned_data['deadline']
 
-            count = 0
-            for doc_category in template.document_categories.all():
-                if not Deliverable.objects.filter(
-                    semester=semester,
-                    document_category=doc_category
-                ).exists():
-                    Deliverable.objects.create(
-                        semester=semester,
-                        document_category=doc_category,
-                        deadline=deadline
+            if enable_auto_assign:
+                result = auto_assign_deliverables_for_semester(
+                    semester_id=semester.id,
+                    deadline=deadline,
+                )
+                if not result.get('ok'):
+                    messages.error(
+                        request,
+                        "Auto-assign failed. No source deliverables found from previous semester or default template.",
                     )
-                    count += 1
+                    return redirect('adminhub:assign_deliverables')
 
-            messages.success(request, f"{count} deliverables assigned to {semester}.")
+                source_label = (
+                    "previous semester"
+                    if result.get('source_type') == 'previous_semester'
+                    else "default template"
+                )
+                messages.success(
+                    request,
+                    (
+                        f"{result.get('created_count', 0)} deliverables auto-assigned to {semester} "
+                        f"from {source_label}."
+                    ),
+                )
+            else:
+                count = 0
+                for doc_category in template.document_categories.all():
+                    if not Deliverable.objects.filter(
+                        semester=semester,
+                        document_category=doc_category
+                    ).exists():
+                        Deliverable.objects.create(
+                            semester=semester,
+                            document_category=doc_category,
+                            deadline=deadline
+                        )
+                        count += 1
+
+                messages.success(request, f"{count} deliverables assigned to {semester}.")
             return redirect('adminhub:deliverables')  # Adjust to your dashboard/redirect
     else:
         form = AssignDeliverablesForm()
@@ -4117,13 +4153,26 @@ def document_category_create_or_edit(request, id=None):
     if request.method == "POST":
         form = DocumentCategoryForm(request.POST, instance=category)
         if form.is_valid():
-            saved_category = form.save()
+            with transaction.atomic():
+                saved_category = form.save()
+
+                if saved_category.is_required:
+                    ApplicantRequiredDocument.objects.update_or_create(
+                        document_category=saved_category,
+                        defaults={"is_required": True},
+                    )
+                else:
+                    ApplicantRequiredDocument.objects.filter(
+                        document_category=saved_category
+                    ).delete()
+
             messages.success(request, success_message)
             return JsonResponse(
                 {
                     "success": True,
                     "id": saved_category.id,
                     "name": saved_category.name,
+                    "is_required": saved_category.is_required,
                 }
             )
         else:

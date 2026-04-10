@@ -1,19 +1,19 @@
 {% extends 'admin/admin_base.html' %}
 
 {% block content %}
-<div class="space-y-4">
+<div class="space-y-4 px-4 sm:px-6 lg:px-8">
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <h2 class="text-3xl font-bold text-gray-900">Archived Documents</h2>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 w-full sm:w-auto">
       <a href="{% url 'adminhub:documents' %}"
-         class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 text-sm font-semibold">
+         class="flex items-center justify-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 text-sm font-semibold w-full sm:w-auto">
         <span>Back to Documents</span>
       </a>
     </div>
   </div>
 
-  <form method="get" class="bg-white p-4 rounded-lg shadow flex flex-col sm:flex-row gap-4">
-    <div class="min-w-[170px]">
+  <form method="get" class="bg-white p-4 rounded-lg shadow flex flex-col lg:flex-row gap-4">
+    <div class="min-w-0 lg:min-w-[170px]">
       <label class="block text-sm font-medium text-gray-600 mb-1">Type</label>
       <select name="type" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
         <option value="all" {% if selected_type == 'all' %}selected{% endif %}>All</option>
@@ -22,13 +22,13 @@
       </select>
     </div>
 
-    <div class="flex-1 min-w-[200px]">
+    <div class="flex-1 min-w-0 lg:min-w-[200px]">
       <label class="block text-sm font-medium text-gray-600 mb-1">Search</label>
       <input type="text" name="q" value="{{ search_query }}" placeholder="Search name, email, or document..."
              class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
     </div>
 
-    <div class="min-w-[200px]">
+    <div class="min-w-0 lg:min-w-[200px]">
       <label class="block text-sm font-medium text-gray-600 mb-1">Category</label>
       <select name="category" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
         <option value="">All Categories</option>
@@ -38,7 +38,7 @@
       </select>
     </div>
 
-    <div class="min-w-[200px]">
+    <div class="min-w-0 lg:min-w-[200px]">
       <label class="block text-sm font-medium text-gray-600 mb-1">Status</label>
       <select name="status" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
         <option value="">All Statuses</option>
@@ -48,8 +48,8 @@
       </select>
     </div>
 
-    <div class="flex items-end">
-      <button type="submit" class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow transition duration-200 text-sm font-semibold">Filter</button>
+    <div class="flex items-end w-full lg:w-auto">
+      <button type="submit" class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow transition duration-200 text-sm font-semibold w-full lg:w-auto">Filter</button>
     </div>
   </form>
 
@@ -71,7 +71,7 @@
   <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
 
     <!-- LEFT CARD -->
-    <div class="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+    <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
       
       <label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
         <input id="selectAllDesktop"
@@ -86,12 +86,12 @@
       </span>
 
       <!-- SELECTED ACTIONS -->
-      <div id="selectedActions" class="hidden items-center gap-2">
+      <div id="selectedActions" class="hidden flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
         <button type="submit"
                 data-action="restore_selected"
                 data-confirm-message="Restore selected documents?"
                 data-summary-mode="selected"
-                class="bulk-selected-btn px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition">
+                class="bulk-selected-btn px-3 py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition w-full sm:w-auto">
           Restore Selected
         </button>
 
@@ -99,26 +99,26 @@
                 data-action="delete_selected"
                 data-confirm-message="Delete selected documents permanently?"
                 data-summary-mode="selected"
-                class="bulk-selected-btn px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-[#800505] text-xs font-semibold hover:bg-red-100 transition">
+                class="bulk-selected-btn px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-[#800505] text-xs font-semibold hover:bg-red-100 transition w-full sm:w-auto">
           Delete Selected
         </button>
       </div>
     </div>
 
     <!-- RIGHT CARD -->
-    <div class="flex flex-wrap items-center gap-2 bg-white border border-gray-200 rounded-lg p-3 shadow-sm lg:ml-auto">
+    <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 bg-white border border-gray-200 rounded-lg p-3 shadow-sm lg:ml-auto">
       
       <button type="submit"
               data-action="restore_all"
               data-confirm-message="Restore all currently filtered archived documents?"
-              class="px-2.5 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition">
+              class="px-3 py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition w-full sm:w-auto">
         Restore All
       </button>
 
       <button type="submit"
               data-action="delete_all"
               data-confirm-message="Delete all currently filtered archived documents permanently?"
-              class="px-2.5 py-1.5 rounded-lg border border-red-200 bg-red-50 text-[#800505] text-xs font-semibold hover:bg-red-100 transition">
+              class="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-[#800505] text-xs font-semibold hover:bg-red-100 transition w-full sm:w-auto">
         Delete All
       </button>
     </div>
@@ -126,7 +126,7 @@
   </div>
 </form>
 
-  <div class="hidden sm:block bg-white rounded-lg shadow-md overflow-x-auto">
+  <div class="hidden md:block bg-white rounded-lg shadow-md overflow-x-auto">
     <table class="min-w-full border-collapse text-sm">
       <thead class="bg-gray-100 border-t border-gray-200">
         <tr class="text-left font-semibold text-gray-700">
@@ -185,32 +185,58 @@
     </table>
   </div>
 
-  <div class="sm:hidden space-y-4">
+  <div class="md:hidden space-y-4">
     {% for doc in page_obj %}
-      <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200 space-y-2">
-        <div class="flex justify-between items-start gap-2">
-          <div>
-            <input type="checkbox" name="selected_docs_mobile" value="{{ doc.type }}:{{ doc.id }}" form="bulkActionForm" class="doc-checkbox-mobile mr-2 rounded border-gray-300 text-[#800505] focus:ring-[#800505] align-middle">
-            <p class="text-xs capitalize text-gray-500 font-semibold">{{ doc.type|title }}</p>
-            <h3 class="text-base font-semibold text-gray-900">{{ doc.document_name }}</h3>
+      <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+        <div class="px-5 pt-5 pb-4 border-b border-gray-100">
+          <div class="flex items-start gap-3">
+            <label class="mt-0.5 inline-flex items-center">
+              <input type="checkbox" name="selected_docs_mobile" value="{{ doc.type }}:{{ doc.id }}" form="bulkActionForm" class="doc-checkbox-mobile rounded border-gray-300 text-[#800505] focus:ring-[#800505]">
+            </label>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2 mb-1">
+                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                  {{ doc.type|title }}
+                </span>
+              </div>
+              <h3 class="text-base font-semibold text-gray-900 break-words leading-snug">{{ doc.document_name }}</h3>
+            </div>
+            <a href="{{ doc.view_url }}" target="_blank" rel="noopener noreferrer" class="text-[#800505] hover:underline text-sm font-semibold shrink-0 pt-0.5">View</a>
           </div>
-          <a href="{{ doc.view_url }}" target="_blank" rel="noopener noreferrer" class="text-[#800505] hover:underline text-sm font-semibold">View</a>
         </div>
-        <p class="text-sm"><span class="font-semibold">Owner:</span> {{ doc.owner_name }}</p>
-        <p class="text-sm"><span class="font-semibold">Category:</span> {{ doc.category_name }}</p>
-        <p class="text-sm"><span class="font-semibold">Status:</span> {{ doc.status }}</p>
-        <p class="text-sm"><span class="font-semibold">Archived:</span> {{ doc.archived_at|date:"M d, Y H:i" }}</p>
-        <p class="text-sm"><span class="font-semibold">By:</span> {{ doc.archived_by }}</p>
-        <form method="post" action="{{ doc.restore_url }}" class="js-confirm-form" data-confirm-message="Restore this document?" data-doc-name="{{ doc.document_name|escape }}" data-owner="{{ doc.owner_name|escape }}" data-category="{{ doc.category_name|escape }}">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <button type="submit" class="text-green-700 hover:underline font-semibold text-sm">Restore</button>
-        </form>
-        <form method="post" action="{{ doc.delete_url }}" class="js-confirm-form" data-confirm-message="Delete this document permanently?" data-doc-name="{{ doc.document_name|escape }}" data-owner="{{ doc.owner_name|escape }}" data-category="{{ doc.category_name|escape }}">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <button type="submit" class="text-red-700 hover:underline font-semibold text-sm">Delete Permanently</button>
-        </form>
+        <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Owner</p>
+            <p class="font-medium break-words">{{ doc.owner_name }}</p>
+            <p class="text-xs text-gray-500 break-words">{{ doc.owner_email }}</p>
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Category</p>
+            <p class="font-medium break-words">{{ doc.category_name }}</p>
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Archived At</p>
+            <p class="font-medium">{{ doc.archived_at|date:"M d, Y H:i" }}</p>
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Archived By</p>
+            <p class="font-medium break-words">{{ doc.archived_by }}</p>
+          </div>
+        </div>
+        <div class="px-5 pb-5 pt-0">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <form method="post" action="{{ doc.restore_url }}" class="js-confirm-form w-full" data-confirm-message="Restore this document?" data-doc-name="{{ doc.document_name|escape }}" data-owner="{{ doc.owner_name|escape }}" data-category="{{ doc.category_name|escape }}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit" class="w-full px-4 py-2.5 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 font-semibold text-sm transition">Restore</button>
+            </form>
+            <form method="post" action="{{ doc.delete_url }}" class="js-confirm-form w-full" data-confirm-message="Delete this document permanently?" data-doc-name="{{ doc.document_name|escape }}" data-owner="{{ doc.owner_name|escape }}" data-category="{{ doc.category_name|escape }}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit" class="w-full px-4 py-2.5 rounded-lg border border-red-200 bg-red-50 text-[#800505] hover:bg-red-100 font-semibold text-sm transition">Delete Permanently</button>
+            </form>
+          </div>
+        </div>
       </div>
     {% empty %}
       <p class="text-center text-gray-500 font-semibold">No archived documents found.</p>
@@ -218,22 +244,22 @@
   </div>
 
   {% if page_obj.has_other_pages %}
-    <nav aria-label="Page navigation" class="flex justify-center mt-6 space-x-2">
+    <nav aria-label="Page navigation" class="flex flex-wrap justify-center mt-6 gap-2">
       {% if page_obj.has_previous %}
-        <a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.previous_page_number }}"
-           class="px-3 py-1 rounded bg-[#800505] hover:bg-[#a80707] text-white font-semibold">Prev</a>
+          <a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.previous_page_number }}"
+            class="px-3 py-1 rounded bg-[#800505] hover:bg-[#a80707] text-white font-semibold">Prev</a>
       {% endif %}
       <span class="px-3 py-1 rounded bg-gray-200">{{ page_obj.number }} / {{ paginator.num_pages }}</span>
       {% if page_obj.has_next %}
-        <a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.next_page_number }}"
-           class="px-3 py-1 rounded bg-[#800505] hover:bg-[#a80707] text-white font-semibold">Next</a>
+          <a href="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page_obj.next_page_number }}"
+            class="px-3 py-1 rounded bg-[#800505] hover:bg-[#a80707] text-white font-semibold">Next</a>
       {% endif %}
     </nav>
   {% endif %}
 </div>
 
-<div id="actionConfirmModal" class="hidden fixed inset-0 z-[60] bg-gray-900/60 items-center justify-center px-4 py-6 sm:p-0">
-  <div class="w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-200">
+<div id="actionConfirmModal" class="hidden fixed inset-0 z-[60] bg-gray-900/60 items-end sm:items-center justify-center px-4 py-4 sm:p-6">
+  <div class="w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
     <div class="px-5 py-4 border-b border-gray-100">
       <h3 class="text-lg font-semibold text-gray-900">Please Confirm</h3>
       <p id="actionConfirmMessage" class="mt-1 text-sm text-gray-600">Are you sure?</p>
@@ -244,9 +270,9 @@
         <p id="actionConfirmSummaryRow" class="hidden"><span class="font-semibold">Summary:</span> <span id="actionConfirmSummary">-</span></p>
       </div>
     </div>
-    <div class="px-5 py-4 flex justify-end gap-2">
-      <button type="button" id="actionConfirmCancel" class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-100 transition">Cancel</button>
-      <button type="button" id="actionConfirmProceed" class="px-4 py-2 rounded-lg bg-[#800505] hover:bg-[#a80707] text-white text-sm font-semibold shadow transition">Confirm</button>
+    <div class="px-5 py-4 flex flex-col sm:flex-row justify-end gap-2 border-t border-gray-100">
+      <button type="button" id="actionConfirmCancel" class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-100 transition w-full sm:w-auto">Cancel</button>
+      <button type="button" id="actionConfirmProceed" class="px-4 py-2 rounded-lg bg-[#800505] hover:bg-[#a80707] text-white text-sm font-semibold shadow transition w-full sm:w-auto">Confirm</button>
     </div>
   </div>
 </div>

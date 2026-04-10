@@ -1,6 +1,6 @@
 {% extends 'admin/admin_base.html' %}
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-8">
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-0 space-y-8">
 
   <!-- Header -->
   <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -10,14 +10,14 @@
         View and manage faculty information, employment status, documents, and attendance logs.
       </p>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
       {% if faculty.faculty_code %}
-        <span class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
-          Code: <span class="ml-1 font-mono">{{ faculty.faculty_code }}</span>
+        <span class="inline-flex items-center justify-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700 w-full sm:w-auto">
+          Faculty Code: <span class="ml-1 font-mono">{{ faculty.faculty_code }}</span>
         </span>
       {% endif %}
       <a href="{% url 'adminhub:faculty_list' %}"
-         class="inline-flex items-center justify-center rounded-lg bg-[#800505] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
+         class="inline-flex items-center justify-center rounded-lg bg-[#800505] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50 w-full sm:w-auto">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
              stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -28,7 +28,7 @@
   </div>
 
   <!-- Faculty Overview -->
-  <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
+  <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
       <div class="space-y-1">
         <div class="flex flex-wrap items-center gap-2">
@@ -49,10 +49,10 @@
 
       <!-- Edit button (blue, more aesthetic) -->
             <!-- Edit button (blue, more aesthetic) -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 w-full sm:w-auto">
         <button type="button"
                 onclick="document.getElementById('editModal').classList.remove('hidden');"
-                class="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm
+                class="inline-flex items-center justify-center gap-1.5 rounded-full border border-blue-200 bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm
                        hover:bg-blue-600 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-300/70">
           <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/15">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none"
@@ -116,7 +116,7 @@
   </section>
 
   <!-- Recent Attendance Logs -->
-  <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+  <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5">
     <div class="flex items-center justify-between gap-2 mb-3">
       <h3 class="text-sm font-semibold text-gray-900">Recent Attendance Logs</h3>
       <p class="text-xs text-gray-500">Last 10 records for this faculty.</p>
@@ -178,7 +178,7 @@
   </section>
 
   <!-- Uploaded Documents -->
-  <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+  <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-4">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h3 class="text-sm font-semibold text-gray-900">Uploaded Documents</h3>
@@ -187,7 +187,7 @@
     </div>
 
     <!-- Desktop table -->
-    <div class="hidden sm:block overflow-x-auto">
+    <div class="hidden md:block overflow-x-auto">
       <table class="min-w-full text-sm border border-gray-100 rounded-lg overflow-hidden">
         <thead>
           <tr class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
@@ -293,18 +293,18 @@
     </div>
 
     <!-- Mobile cards -->
-    <div class="sm:hidden space-y-4">
+    <div class="md:hidden space-y-4">
       {% for doc in documents %}
-      <div class="border border-gray-100 rounded-lg p-4 shadow-sm bg-white">
-        <div class="flex items-start justify-between gap-3 mb-2">
-          <div>
-            <div class="font-semibold text-gray-900">{{ doc.document_category.name|default:"Uncategorized" }}</div>
-            <div class="text-xs text-gray-600 break-all">{{ doc.document_name }}</div>
+      <div class="border border-gray-100 rounded-xl p-4 shadow-sm bg-white">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div class="min-w-0 flex-1">
+            <div class="font-semibold text-gray-900 break-words">{{ doc.document_category.name|default:"Uncategorized" }}</div>
+            <div class="text-xs text-gray-600 break-words">{{ doc.document_name }}</div>
           </div>
           {% if doc.google_drive_id %}
             <a href="{% url 'adminhub:download_faculty_document' doc.pk %}?inline=1"
                target="_blank" rel="noopener noreferrer"
-               class="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-[#800505] shadow-sm
+               class="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-[#800505] shadow-sm shrink-0
                       hover:bg-[#800505]/5 hover:border-[#800505]/40">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -315,7 +315,7 @@
             </a>
           {% endif %}
         </div>
-        <div class="text-xs text-gray-700 space-y-1.5">
+        <div class="text-xs text-gray-700 space-y-2">
           <div>
             <span class="text-gray-500">Status:</span>
             <button type="button"
@@ -349,7 +349,7 @@
             <form method="post" action="{% url 'adminhub:archive_faculty_document' doc.pk %}" class="js-confirm-form" data-confirm-message="Archive this document?" data-doc-name="{{ doc.document_name|escape }}" data-owner="{{ faculty.name|escape }}" data-category="{{ doc.document_category.name|default:'Uncategorized'|escape }}">
               {% csrf_token %}
               <input type="hidden" name="next" value="{{ request.get_full_path }}">
-              <button type="submit" class="text-red-700 hover:underline text-xs font-semibold">Archive</button>
+              <button type="submit" class="w-full sm:w-auto px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 text-xs font-semibold">Archive</button>
             </form>
           </div>
         </div>
@@ -362,8 +362,8 @@
 </div>
 
 <!-- Edit Faculty Modal -->
-<div id="editModal" class="hidden fixed inset-0 z-50 bg-gray-900/70 flex items-center justify-center">
-  <div class="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-[#800505]/10 p-0 overflow-hidden">
+<div id="editModal" class="hidden fixed inset-0 z-50 bg-gray-900/70 flex items-end sm:items-center justify-center p-4 sm:p-6">
+  <div class="relative w-full max-w-lg bg-white rounded-t-2xl sm:rounded-xl shadow-2xl border border-[#800505]/10 p-0 overflow-hidden max-h-[92vh] overflow-y-auto">
 
     <!-- Modal header -->
     <div class="flex items-center gap-2 px-6 py-4 bg-[#800505] border-b border-[#a80707]">
@@ -381,7 +381,7 @@
       </button>
     </div>
 
-    <form method="POST" action="{% url 'adminhub:edit_faculty' faculty.uuid %}" class="p-6 space-y-5">
+    <form method="POST" action="{% url 'adminhub:edit_faculty' faculty.uuid %}" class="p-4 sm:p-6 space-y-5">
       {% csrf_token %}
 
       <!-- Email field -->
@@ -395,7 +395,6 @@
 
       <hr class="my-2 border-gray-200">
 
-      <!-- Other fields (includes faculty_code) -->
       <div class="grid grid-cols-1 gap-4">
         {% for field in form %}
           {% if field.name != 'email' %}
@@ -410,13 +409,13 @@
         {% endfor %}
       </div>
 
-      <div class="flex justify-end gap-2 pt-2">
+      <div class="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
         <button type="button"
-          class="bg-gray-200 hover:bg-gray-300 text-[#800505] font-semibold px-4 py-2 rounded-lg border border-gray-300 shadow-sm transition"
+          class="bg-gray-200 hover:bg-gray-300 text-[#800505] font-semibold px-4 py-2 rounded-lg border border-gray-300 shadow-sm transition w-full sm:w-auto"
           onclick="document.getElementById('editModal').classList.add('hidden')"
         >Cancel</button>
         <button type="submit"
-          class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold px-4 py-2 rounded-lg shadow transition"
+          class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold px-4 py-2 rounded-lg shadow transition w-full sm:w-auto"
         >Save Changes</button>
       </div>
     </form>
@@ -426,8 +425,8 @@
 <!-- Modals for each faculty document -->
 {% for doc in documents %}
   <div id="modal-{{ doc.pk }}"
-       class="hidden fixed inset-0 z-50 bg-gray-900/60 items-center justify-center px-4 py-6 sm:p-0">
-    <div class="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col max-h-[90vh]">
+       class="hidden fixed inset-0 z-50 bg-gray-900/60 items-end sm:items-center justify-center px-4 py-4 sm:p-6">
+    <div class="relative w-full max-w-lg bg-white rounded-t-2xl sm:rounded-xl shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] overflow-hidden">
       <!-- Header -->
       <div class="flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 bg-[#800505] rounded-t-xl">
         <div>
@@ -583,8 +582,8 @@
   </div>
 {% endfor %}
 
-<div id="actionConfirmModal" class="hidden fixed inset-0 z-[60] bg-gray-900/60 items-center justify-center px-4 py-6 sm:p-0">
-  <div class="w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-200">
+<div id="actionConfirmModal" class="hidden fixed inset-0 z-[60] bg-gray-900/60 items-end sm:items-center justify-center px-4 py-4 sm:p-6">
+  <div class="w-full max-w-md bg-white rounded-t-2xl sm:rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
     <div class="px-5 py-4 border-b border-gray-100">
       <h3 class="text-lg font-semibold text-gray-900">Please Confirm</h3>
       <p id="actionConfirmMessage" class="mt-1 text-sm text-gray-600">Are you sure?</p>
@@ -594,9 +593,9 @@
         <p><span class="font-semibold">Category:</span> <span id="actionConfirmCategory">-</span></p>
       </div>
     </div>
-    <div class="px-5 py-4 flex justify-end gap-2">
-      <button type="button" id="actionConfirmCancel" class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-100 transition">Cancel</button>
-      <button type="button" id="actionConfirmProceed" class="px-4 py-2 rounded-lg bg-[#800505] hover:bg-[#a80707] text-white text-sm font-semibold shadow transition">Confirm</button>
+    <div class="px-5 py-4 flex flex-col sm:flex-row justify-end gap-2 border-t border-gray-100">
+      <button type="button" id="actionConfirmCancel" class="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-100 transition w-full sm:w-auto">Cancel</button>
+      <button type="button" id="actionConfirmProceed" class="px-4 py-2 rounded-lg bg-[#800505] hover:bg-[#a80707] text-white text-sm font-semibold shadow transition w-full sm:w-auto">Confirm</button>
     </div>
   </div>
 </div>

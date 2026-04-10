@@ -287,10 +287,21 @@ class Semester(models.Model):
 
 class DeliverableTemplate(models.Model):
     name = models.CharField(max_length=100, unique=True)  # e.g., "Standard Semester Deliverables"
+    is_default = models.BooleanField(default=False)
     document_categories = models.ManyToManyField(
         DocumentCategory,
         related_name='included_in_templates'
     )
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            if self.is_default:
+                DeliverableTemplate.objects.filter(is_default=True).exclude(pk=self.pk).update(is_default=False)
+            super().save(*args, **kwargs)
+
+    @classmethod
+    def get_default(cls):
+        return cls.objects.filter(is_default=True).order_by('-id').first()
 
     def __str__(self):
         return self.name

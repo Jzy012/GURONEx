@@ -85,7 +85,7 @@ class UserOTP(models.Model):
 
     def mark_as_used(self):
         self.is_used = True
-        self.save()
+        self.save(update_fields=["is_used"])
 
     @staticmethod
     def generate_otp(length=6):

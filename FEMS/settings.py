@@ -256,6 +256,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "notifications.tasks.cleanup_notifications_task",
         "schedule": crontab(minute=10, hour=1),
     },
+    "cleanup-user-otps-daily": {
+        "task": "base.tasks.cleanup_user_otps_task",
+        "schedule": crontab(minute=15, hour=1),
+    },
     "deliverable-deadline-reminders-daily": {
         "task": "notifications.tasks.send_deliverable_deadline_reminders_task",
         "schedule": crontab(minute=20, hour=7),
