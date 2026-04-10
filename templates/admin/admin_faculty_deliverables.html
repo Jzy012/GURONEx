@@ -72,11 +72,13 @@
                 <div class="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
                   {{ ta.subject_code }} – {{ ta.subject_description }}
                   {% if row.has_overdue_deliverables %}
-                    <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">
+                    <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700"
+                          style="background-color:#fee2e2;color:#b91c1c;">
                       Overdue Deliverables: {{ row.overdue_count }}
                     </span>
                   {% elif row.has_pending_deliverables %}
-                    <span class="inline-flex items-center rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-bold text-[#4a0101]">
+                    <span class="inline-flex items-center rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-bold text-[#4a0101]"
+                          style="background-color:#f59e0b;color:#4a0101;">
                       Pending Deliverables: {{ row.pending_count }}
                     </span>
                   {% endif %}

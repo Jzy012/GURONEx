@@ -19,7 +19,7 @@ cryptography==45.0.5
 cssselect2==0.8.0
 daphne==4.2.1
 dj-database-url==2.3.0
-Django==5.2
+Django>=5.2.13
 django-environ==0.12.0
 djangorestframework==3.16.1
 fonttools==4.61.0
