@@ -2,10 +2,10 @@
 module.exports = {
   content: [
     './templates/**/*.html',
-    './templates/*.html',        
+    './templates/*.html',
+    './**/templates/**/*.html',
     './static/**/*.js',
     './static/**/*.css',
-    './**/*.py',
   ],
   safelist: [
     'bg-red-100',
@@ -22,6 +22,8 @@ module.exports = {
     'text-gray-700',
     'bg-black/40',
     'bg-silhouette-overlay',
+    // Keep responsive visibility/display utilities used by desktop/mobile table variants.
+    { pattern: /^(block|hidden|table|table-row|table-cell|flex|grid)$/ , variants: ['sm', 'md', 'lg'] },
   ],
   theme: {
     extend: {
