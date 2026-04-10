@@ -3,12 +3,15 @@ nixPkgs = ["python311", "nodejs_20"]
 
 [phases.install]
 cmds = [
-  "pip install -r requirements.txt",
-  "npm ci"
+  "python -m pip install --upgrade pip",
+  "pip install -r requirements.txt"
 ]
 
 [phases.build]
 cmds = [
+  "node -v",
+  "npm -v",
+  "npm ci",
   "npm run build:css",
   "python manage.py collectstatic --noinput",
   "python manage.py migrate --noinput"
