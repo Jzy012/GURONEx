@@ -21,3 +21,37 @@
   background-color: rgba(0, 0, 0, 0.5);        /* dark overlay */
   backdrop-filter: grayscale(100%) blur(1px);  /* silhouette effect */
 }
+
+/* Fallback for responsive table/card wrappers if breakpoint utilities are missing in deployed CSS. */
+.hidden.sm\:block,
+.hidden.md\:block,
+.hidden.lg\:block,
+.hidden.sm\:table,
+.hidden.md\:table,
+.hidden.lg\:table {
+  display: none;
+}
+
+.sm\:hidden,
+.md\:hidden,
+.lg\:hidden {
+  display: block;
+}
+
+@media (min-width: 640px) {
+  .hidden.sm\:block { display: block; }
+  .hidden.sm\:table { display: table; }
+  .sm\:hidden { display: none; }
+}
+
+@media (min-width: 768px) {
+  .hidden.md\:block { display: block; }
+  .hidden.md\:table { display: table; }
+  .md\:hidden { display: none; }
+}
+
+@media (min-width: 1024px) {
+  .hidden.lg\:block { display: block; }
+  .hidden.lg\:table { display: table; }
+  .lg\:hidden { display: none; }
+}
