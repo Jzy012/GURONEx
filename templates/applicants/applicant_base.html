@@ -33,6 +33,30 @@
     </div>
   </div>
 
+    <script>
+      function applyResponsiveWrappers() {
+        const isSmUp = window.matchMedia('(min-width: 640px)').matches;
+        const isMdUp = window.matchMedia('(min-width: 768px)').matches;
+
+        document.querySelectorAll('.responsive-desktop-sm').forEach((element) => {
+          element.style.setProperty('display', isSmUp ? 'block' : 'none', 'important');
+        });
+        document.querySelectorAll('.responsive-mobile-sm').forEach((element) => {
+          element.style.setProperty('display', isSmUp ? 'none' : 'block', 'important');
+        });
+        document.querySelectorAll('.responsive-desktop-md').forEach((element) => {
+          element.style.setProperty('display', isMdUp ? 'block' : 'none', 'important');
+        });
+        document.querySelectorAll('.responsive-mobile-md').forEach((element) => {
+          element.style.setProperty('display', isMdUp ? 'none' : 'block', 'important');
+        });
+      }
+
+      window.addEventListener('DOMContentLoaded', applyResponsiveWrappers);
+      window.addEventListener('resize', applyResponsiveWrappers);
+      applyResponsiveWrappers();
+    </script>
+
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>

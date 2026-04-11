@@ -206,6 +206,24 @@
   const overlay = document.getElementById("sidebarOverlay");
   const mainContent = document.getElementById("mainContent");
 
+  function applyResponsiveWrappers() {
+    const isSmUp = window.matchMedia('(min-width: 640px)').matches;
+    const isMdUp = window.matchMedia('(min-width: 768px)').matches;
+
+    document.querySelectorAll('.responsive-desktop-sm').forEach((element) => {
+      element.style.setProperty('display', isSmUp ? 'block' : 'none', 'important');
+    });
+    document.querySelectorAll('.responsive-mobile-sm').forEach((element) => {
+      element.style.setProperty('display', isSmUp ? 'none' : 'block', 'important');
+    });
+    document.querySelectorAll('.responsive-desktop-md').forEach((element) => {
+      element.style.setProperty('display', isMdUp ? 'block' : 'none', 'important');
+    });
+    document.querySelectorAll('.responsive-mobile-md').forEach((element) => {
+      element.style.setProperty('display', isMdUp ? 'none' : 'block', 'important');
+    });
+  }
+
   function isDesktop() {
     return window.matchMedia('(min-width: 768px)').matches;
   }
@@ -254,6 +272,10 @@
   }
 
   window.addEventListener('resize', handleResize);
+  window.addEventListener('resize', applyResponsiveWrappers);
+
+  window.addEventListener('DOMContentLoaded', applyResponsiveWrappers);
+  applyResponsiveWrappers();
 
   isDesktop() ? openSidebar() : closeSidebar();
 
