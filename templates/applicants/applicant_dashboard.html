@@ -140,7 +140,7 @@
   </div>
 
   <!-- Mobile: vertical list -->
-  <div class="sm:hidden space-y-3">
+  <div class="responsive-mobile-sm sm:hidden space-y-3">
     {% for step in stepper %}
       <div class="flex items-center gap-3 p-3 rounded-lg border
         {% if step.active %}border-[#800505]/30 bg-[#800505]/5
@@ -226,7 +226,7 @@
       </div>
 
       <!-- Desktop table -->
-      <div class="hidden sm:block overflow-x-auto">
+      <div class="responsive-desktop-sm hidden sm:block overflow-x-auto">
         <table class="min-w-full text-sm border border-gray-100 rounded-lg overflow-hidden">
           <thead>
             <tr class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
@@ -295,7 +295,7 @@
       </div>
 
       <!-- Mobile cards -->
-      <div class="sm:hidden space-y-4">
+      <div class="responsive-mobile-sm sm:hidden space-y-4">
         {% for doc in documents %}
         <div class="border border-gray-100 rounded-lg p-4 shadow-sm bg-white">
           <div class="flex items-start justify-between gap-3 mb-2">

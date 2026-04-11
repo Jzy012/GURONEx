@@ -278,7 +278,7 @@
   </div>
 
   <!-- Per-Faculty Submission Status (desktop/tablet table) -->
-  <div class="hidden sm:block bg-white rounded-lg shadow-md overflow-x-auto mt-8">
+  <div class="responsive-desktop-sm hidden sm:block bg-white rounded-lg shadow-md overflow-x-auto mt-8">
     <table class="min-w-full border-collapse text-sm">
       <thead class="bg-gray-100 border-t border-gray-200">
         <tr class="text-left font-semibold text-gray-700">
@@ -365,7 +365,7 @@
   </div>
 
   <!-- Per-Faculty Submission Status (mobile cards) -->
-  <div class="sm:hidden space-y-5 mt-8">
+  <div class="responsive-mobile-sm sm:hidden space-y-5 mt-8">
     {% for faculty in page_obj %}
       <div class="bg-white rounded-xl shadow-lg p-4 border border-gray-200">
         <!-- Header: name + view link -->

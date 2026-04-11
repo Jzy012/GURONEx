@@ -56,7 +56,7 @@
   </form>
 
   <!-- Desktop Table (sm and up) -->
-  <div class="hidden sm:block bg-white rounded-lg shadow w-full max-w-full">
+  <div class="responsive-desktop-sm hidden sm:block bg-white rounded-lg shadow w-full max-w-full">
     <table class="w-full border-collapse text-sm">
       <thead class="bg-gray-100 border-t border-gray-200">
         <tr class="text-left font-semibold text-gray-700">
@@ -82,7 +82,7 @@
   </div>
 
   <!-- Mobile Cards (below sm) -->
-  <div class="sm:hidden space-y-5">
+  <div class="responsive-mobile-sm sm:hidden space-y-5">
     {% for log in logs %}
     <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200">
       <div class="flex justify-between items-center mb-3 border-b border-gray-300 pb-2">

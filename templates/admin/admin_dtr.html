@@ -144,7 +144,7 @@
     </div>
 
     <!-- Desktop Table (sm and up) -->
-    <div class="hidden sm:block bg-white rounded-lg shadow-md overflow-x-auto">
+    <div class="responsive-desktop-sm hidden sm:block bg-white rounded-lg shadow-md overflow-x-auto">
       <table class="min-w-full border-collapse text-xs sm:text-sm">
         <thead class="bg-gray-100 border-t border-gray-200">
           <tr class="text-left font-semibold text-gray-700">
@@ -288,7 +288,7 @@
     </div>
 
     <!-- Mobile Cards (below sm) -->
-    <div class="sm:hidden space-y-5">
+    <div class="responsive-mobile-sm sm:hidden space-y-5">
       {% for row in dtr %}
         {% for status in row.statuses %}
           <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200">

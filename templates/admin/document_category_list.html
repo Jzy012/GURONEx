@@ -33,7 +33,7 @@
   </form>
 
   <!-- Categories Table -->
-  <div class="hidden sm:block bg-white shadow rounded-lg overflow-x-auto">
+  <div class="responsive-desktop-sm hidden sm:block bg-white shadow rounded-lg overflow-x-auto">
     <table class="min-w-full border-collapse text-sm">
       <thead class="bg-gray-100">
         <tr class="text-left text-gray-700 font-semibold">
@@ -90,7 +90,7 @@
   </div>
 
   <!-- Mobile Cards (below sm) -->
-  <div class="sm:hidden space-y-5">
+  <div class="responsive-mobile-sm sm:hidden space-y-5">
     {% for category in page_obj %}
     <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-200">
       <div class="flex justify-between items-start gap-4 mb-3 border-b border-gray-200 pb-3">
