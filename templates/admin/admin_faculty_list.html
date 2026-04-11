@@ -124,14 +124,14 @@
   <!-- 3. Search & Filter Form -->
   <div class="bg-white p-4 rounded-lg shadow flex flex-col gap-4 
               col-span-1 sm:col-span-2 lg:col-span-4 row-start-4 lg:row-start-2 lg:col-start-1">
-    <form method="get" class="flex-1 flex flex-col lg:flex-row gap-4">
-      <div class="flex-1 min-w-0 lg:min-w-[200px]">
+    <form method="get" class="flex-1 admin-filter-form">
+      <div class="flex-1 min-w-0 lg:min-w-[200px] admin-filter-field admin-filter-field-grow">
         <label class="block text-sm font-medium text-gray-600 mb-1">Search</label>
         <input type="text" name="search" placeholder="Search faculty..."
                value="{{ request.GET.search }}"
                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
       </div>
-      <div class="min-w-0 lg:min-w-[200px]">
+      <div class="min-w-0 lg:min-w-[200px] admin-filter-field">
         <label class="block text-sm font-medium text-gray-600 mb-1">Status</label>
         <select name="status"
                 class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
@@ -143,7 +143,7 @@
           {% endfor %}
         </select>
       </div>
-      <div class="flex items-end w-full lg:w-auto">
+      <div class="flex items-end w-full lg:w-auto admin-filter-action">
         <button type="submit"
                 class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow transition duration-200 text-sm font-semibold w-full lg:w-auto">
           Filter

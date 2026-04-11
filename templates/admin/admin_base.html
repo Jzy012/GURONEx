@@ -18,6 +18,53 @@
       transition: margin-left 0.3s ease;
     }
 
+    /* Stable filter form layout fallback for admin pages. */
+    .admin-filter-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .admin-filter-field {
+      min-width: 0;
+    }
+
+    .admin-filter-action {
+      width: 100%;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .admin-filter-action > button,
+    .admin-filter-action > a {
+      width: 100%;
+    }
+
+    @media (min-width: 1024px) {
+      .admin-filter-form {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+
+      .admin-filter-field {
+        min-width: 200px;
+      }
+
+      .admin-filter-field-grow {
+        flex: 1 1 260px;
+      }
+
+      .admin-filter-action {
+        width: auto;
+      }
+
+      .admin-filter-action > button,
+      .admin-filter-action > a {
+        width: auto;
+      }
+    }
+
     /* Fallback styling so badge keeps circular shape even if some utility classes are missing in built CSS */
     #notifBadge {
       position: absolute;
