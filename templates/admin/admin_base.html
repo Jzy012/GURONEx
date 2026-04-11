@@ -65,6 +65,58 @@
       }
     }
 
+    /* Stable command/button group layout fallback for admin pages. */
+    .admin-button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .admin-button-wrapper {
+      width: 100%;
+    }
+
+    .admin-button-wrapper > a,
+    .admin-button-wrapper > button {
+      width: 100%;
+    }
+
+    .admin-button-subgroup {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    @media (min-width: 640px) {
+      .admin-button-subgroup {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .admin-button-group {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .admin-button-wrapper {
+        width: auto;
+      }
+
+      .admin-button-wrapper > a,
+      .admin-button-wrapper > button {
+        width: auto;
+      }
+
+      .admin-button-subgroup {
+        grid-template-columns: auto auto;
+        width: auto;
+      }
+    }
+
     /* Fallback styling so badge keeps circular shape even if some utility classes are missing in built CSS */
     #notifBadge {
       position: absolute;

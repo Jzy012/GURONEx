@@ -22,9 +22,9 @@
   </div>
 
   <!-- Commands Row: upper right, above search bar, responsive -->
-  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 sm:gap-4 mb-2">
+  <div class="admin-button-group mb-2">
     <!-- Manual Attendance Log button on the left -->
-    <div class="w-full lg:w-auto">
+    <div class="admin-button-wrapper">
       <a href="{% url 'adminhub:manual_attendance_log' %}"
          class="flex items-center justify-center gap-1 sm:gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 text-xs sm:text-sm font-semibold w-full lg:w-auto">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -34,7 +34,7 @@
       </a>
     </div>
     <!-- Other command buttons -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full lg:w-auto">
+    <div class="admin-button-subgroup">
       <a href="{% url 'adminhub:pair_rfid' %}"
          class="flex items-center justify-center gap-1 sm:gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 text-xs sm:text-sm font-semibold w-full lg:w-auto">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -53,8 +53,8 @@
   </div>
 
   <!-- Filter/Search Bar (responsive style tweaks) -->
-  <form method="get" class="bg-white p-4 rounded-lg shadow flex flex-col gap-3 sm:flex-row sm:gap-4">
-    <div class="flex-1 min-w-0 sm:min-w-[200px]">
+  <form method="get" class="bg-white p-4 rounded-lg shadow admin-filter-form">
+    <div class="flex-1 min-w-0 sm:min-w-[200px] admin-filter-field admin-filter-field-grow">
       <label class="block text-xs sm:text-sm font-medium text-gray-600 mb-1">Faculty</label>
       <select name="faculty_id" id="faculty-select" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
         <option value="">All Faculties</option>
@@ -63,7 +63,7 @@
         {% endfor %}
       </select>
     </div>
-    <div class="min-w-0 sm:min-w-[120px]">
+    <div class="min-w-0 sm:min-w-[120px] admin-filter-field">
       <label class="block text-xs sm:text-sm font-medium text-gray-600 mb-1">Month</label>
       <select name="month" id="month-select" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
         {% for m, month_name in month_range %}
@@ -71,7 +71,7 @@
         {% endfor %}
       </select>
     </div>
-    <div class="min-w-0 sm:min-w-[120px]">
+    <div class="min-w-0 sm:min-w-[120px] admin-filter-field">
       <label class="block text-xs sm:text-sm font-medium text-gray-600 mb-1">Year</label>
       <select name="year" id="year-select" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none">
         {% for y in years %}
@@ -79,7 +79,7 @@
         {% endfor %}
       </select>
     </div>
-    <div class="flex items-end w-full sm:w-auto">
+    <div class="flex items-end w-full sm:w-auto admin-filter-action">
       <button type="submit" class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-xs sm:text-sm font-semibold w-full sm:w-auto">
         Filter
       </button>
