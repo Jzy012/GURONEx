@@ -165,3 +165,21 @@ class DocumentTemplate(models.Model):
 
     def __str__(self):
         return self.name or f"Template {self.uid}"
+
+
+class AttendanceFeatureSetting(models.Model):
+    enable_faculty_manual_attendance = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Attendance Feature Setting"
+        verbose_name_plural = "Attendance Feature Setting"
+
+    def __str__(self):
+        state = "Enabled" if self.enable_faculty_manual_attendance else "Disabled"
+        return f"Faculty Manual Attendance: {state}"
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

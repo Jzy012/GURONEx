@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import AdminProfile, Announcement, AnnouncementViewLog, CreatedAccountLog, DocumentTemplate
+from .models import (
+    AdminProfile,
+    Announcement,
+    AnnouncementViewLog,
+    AttendanceFeatureSetting,
+    CreatedAccountLog,
+    DocumentTemplate,
+)
  
 # Register your models here.
 
@@ -22,5 +29,10 @@ class AnnouncementViewLogAdmin(admin.ModelAdmin):
     list_display = ('user', 'announcement', 'seen_at')
     list_filter = ('seen_at',)
     search_fields = ('user__email', 'announcement__title')
+
+
+@admin.register(AttendanceFeatureSetting)
+class AttendanceFeatureSettingAdmin(admin.ModelAdmin):
+    list_display = ('enable_faculty_manual_attendance', 'updated_at')
 
 

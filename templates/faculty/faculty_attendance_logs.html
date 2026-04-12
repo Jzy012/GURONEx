@@ -12,6 +12,15 @@
       My Attendance Logs
     </h2>
     <div class="flex flex-row gap-2">
+      {% if enable_faculty_manual_attendance %}
+      <a href="{% url 'faculty:faculty_manual_attendance_log' %}"
+         class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Manual Attendance Log
+      </a>
+      {% endif %}
       <a href="{% url 'faculty:faculty_teaching_assignment' %}"
          class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 opacity-80">

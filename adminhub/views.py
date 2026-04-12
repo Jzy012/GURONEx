@@ -51,7 +51,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 
 # Local Imports
-from adminhub.models import Announcement, DocumentTemplate, PUPSite, DocumentCategory, CreatedAccountLog
+from adminhub.models import Announcement, AttendanceFeatureSetting, DocumentTemplate, PUPSite, DocumentCategory, CreatedAccountLog
 from adminhub.tasks import (
     DEFAULT_ANNOUNCEMENT_ROLES,
     publish_due_scheduled_announcements_task,
@@ -2734,6 +2734,7 @@ def rfid_pairing_tap_api(request):
 
 @admin_required
 def manual_attendance_log_view(request):
+    attendance_feature_settings = AttendanceFeatureSetting.get_solo()
     faculties_qs = FacultyProfile.objects.all().order_by('name')
     faculties = [
         {'uuid': str(faculty.uuid), 'name': faculty.name, 'pk': faculty.pk}
@@ -2746,6 +2747,33 @@ def manual_attendance_log_view(request):
     initial = {
         'date': timezone.localdate()
     }
+
+    if request.method == "POST" and request.POST.get("action") == "toggle_faculty_manual_attendance":
+        enable_requested = request.POST.get("enable_faculty_manual_attendance") == "1"
+        previous_state = attendance_feature_settings.enable_faculty_manual_attendance
+
+        if previous_state != enable_requested:
+            attendance_feature_settings.enable_faculty_manual_attendance = enable_requested
+            attendance_feature_settings.save(update_fields=["enable_faculty_manual_attendance", "updated_at"])
+
+            log_activity(
+                actor=request.user,
+                action='faculty_manual_attendance_toggle_updated',
+                target_type='AttendanceFeatureSetting',
+                target_id=str(attendance_feature_settings.pk),
+                details={
+                    'target_name': 'Faculty Manual Attendance Toggle',
+                    'previous_state': previous_state,
+                    'current_state': enable_requested,
+                },
+            )
+
+            status_text = "enabled" if enable_requested else "disabled"
+            messages.success(request, f"Faculty manual attendance has been {status_text}.")
+        else:
+            messages.info(request, "No changes were applied to faculty manual attendance.")
+
+        return redirect('adminhub:manual_attendance_log')
 
     if request.method == "POST":
         faculty_id = request.POST.get('faculty', None)
@@ -2821,6 +2849,7 @@ def manual_attendance_log_view(request):
         'teaching_assignments': teaching_assignments,
         'message': message,
         'message_class': message_class,
+        'enable_faculty_manual_attendance': attendance_feature_settings.enable_faculty_manual_attendance,
         **initial,
     })
 

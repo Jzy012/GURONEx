@@ -1,4 +1,5 @@
 import calendar
+import datetime
 import io
 import json
 import mimetypes
@@ -25,12 +26,13 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
 
-from adminhub.models import Announcement, AnnouncementViewLog, DocumentTemplate
+from adminhub.models import Announcement, AnnouncementViewLog, AttendanceFeatureSetting, DocumentTemplate
 from adminhub.tasks import publish_due_scheduled_announcements_task
 from base.decorators import faculty_required
 from base.forms import (
     FacultyDeliverableUploadForm,
     FacultyDocumentUploadForm,
+    ManualAttendanceLogForm,
     FacultyPublicSignupForm,
     IndexedFormSet as BaseIndexedFormSet,
     TwoFactorToggleForm,
@@ -524,6 +526,7 @@ def faculty_document_upload(request):
 
 @faculty_required
 def faculty_attendance_logs_view(request):
+    attendance_feature_settings = AttendanceFeatureSetting.get_solo()
     faculty = request.user.faculty_profile
     month = int(request.GET.get('month', timezone.now().month))
     year = int(request.GET.get('year', timezone.now().year))
@@ -554,8 +557,101 @@ def faculty_attendance_logs_view(request):
         "years": range(2020, timezone.now().year + 2),
         "querystring": querystring,
         "logs_total": logs_qs.count(),
+        "enable_faculty_manual_attendance": attendance_feature_settings.enable_faculty_manual_attendance,
     }
     return render(request, "faculty/faculty_attendance_logs.html", context)
+
+
+@faculty_required
+def faculty_manual_attendance_log_view(request):
+    attendance_feature_settings = AttendanceFeatureSetting.get_solo()
+    if not attendance_feature_settings.enable_faculty_manual_attendance:
+        messages.error(request, "Faculty manual attendance is currently disabled by the administrator.")
+        return redirect('faculty:faculty_attendance_logs')
+
+    faculty = request.user.faculty_profile
+    today = timezone.localdate()
+    message = ""
+    message_class = ""
+    initial = {
+        'date': today,
+        'time_in': '',
+        'time_out': '',
+        'selected_assignments': [],
+    }
+
+    if request.method == "POST":
+        mutable_post = request.POST.copy()
+        mutable_post["faculty"] = str(faculty.pk)
+        initial.update({
+            'date': request.POST.get('date', today),
+            'time_in': request.POST.get('time_in', ''),
+            'time_out': request.POST.get('time_out', ''),
+            'selected_assignments': [str(v) for v in request.POST.getlist('teaching_assignments')],
+        })
+
+        form = ManualAttendanceLogForm(mutable_post, faculty=faculty)
+        if form.is_valid():
+            cleaned = form.cleaned_data
+            if cleaned['date'] != today:
+                form.add_error('date', "Faculty manual attendance can only be logged for today.")
+            else:
+                attendance = form.save(commit=False)
+                attendance.faculty = faculty
+                attendance.time_in = datetime.datetime.combine(cleaned['date'], cleaned['time_in'], tzinfo=timezone.get_current_timezone())
+                attendance.time_out = datetime.datetime.combine(cleaned['date'], cleaned['time_out'], tzinfo=timezone.get_current_timezone())
+                attendance.uid = request.POST.get('uid', '')
+                attendance.is_manual = True
+                attendance.save()
+                form.save_m2m()
+                messages.success(request, "Manual attendance logged successfully.")
+                return redirect('faculty:faculty_attendance_logs')
+
+        if form.errors:
+            error_msgs = []
+            for error in form.non_field_errors():
+                error_msgs.append(f"{error}")
+            for field in form:
+                for error in field.errors:
+                    error_msgs.append(f"{field.label}: {error}")
+            message = "<br>".join(error_msgs)
+            message_class = "bg-red-100 text-red-800"
+    else:
+        form = ManualAttendanceLogForm(initial={'faculty': faculty.pk, 'date': today}, faculty=faculty)
+
+    active_sem = Semester.objects.filter(is_active=True).first()
+    teaching_assignments = []
+    assignments_qs = TeachingAssignment.objects.filter(faculty=faculty)
+    if active_sem:
+        assignments_qs = assignments_qs.filter(semester=active_sem)
+
+    for ta in assignments_qs:
+        start_12 = ta.start_time.strftime('%I:%M %p').lstrip('0')
+        end_12 = ta.end_time.strftime('%I:%M %p').lstrip('0')
+        display = f"{ta.subject_code} ({ta.get_day_of_week_display()} {start_12} - {end_12}"
+        if ta.room:
+            display += f" - {ta.room}"
+        display += ")"
+        teaching_assignments.append({
+            'id': ta.id,
+            'faculty_pk': str(faculty.pk),
+            'subject_code': ta.subject_code,
+            'subject_description': ta.subject_description,
+            'year_section': ta.year_section,
+            'start_time': ta.start_time.strftime('%H:%M'),
+            'end_time': ta.end_time.strftime('%H:%M'),
+            'day_of_week': ta.day_of_week,
+            'room': ta.room,
+            'display': display,
+        })
+
+    return render(request, 'faculty/faculty_manual_attendance_log.html', {
+        'today': today,
+        'teaching_assignments': teaching_assignments,
+        'message': message,
+        'message_class': message_class,
+        **initial,
+    })
 
 
 

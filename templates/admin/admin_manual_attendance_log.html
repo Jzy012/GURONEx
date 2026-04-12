@@ -26,8 +26,82 @@
   }
 </style>
 
-<div class="max-w-lg mx-auto my-10 bg-white rounded-lg shadow-xl border border-[#800505]/10 p-0 overflow-hidden"
+<div class="max-w-lg mx-auto my-10 space-y-4"
      x-data="{ showConfirm: false }" x-cloak>
+
+ <!-- Box 1: Faculty Manual Attendance Toggle -->
+<div class="bg-white rounded-xl shadow-lg border border-[#800505]/10 overflow-hidden">
+
+  <!-- Header bar (MATCHES BOX 2 but slightly refined) -->
+  <div class="flex items-center gap-3 px-5 py-3 bg-[#800505] border-b border-[#a80707]">
+    <h2 class="text-base font-semibold text-white tracking-wide flex-1">
+      Faculty Manual Attendance Access
+    </h2>
+  </div>
+
+  <!-- Content -->
+  <div class="p-6 space-y-6">
+
+    <!-- Description -->
+    <p class="text-sm text-gray-600 leading-relaxed">
+        Enable or disable faculty access to manual attendance logging. When enabled, faculty can submit their own attendance entries.
+    </p>
+
+    <!-- Toggle Section -->
+    <div class="bg-gray-50 border border-gray-100 rounded-lg p-4 space-y-4">
+
+      <label for="faculty_manual_toggle" class="block text-sm font-semibold text-[#800505]">
+        Enable Faculty Manual Attendance
+      </label>
+
+      <!-- KEEP ORIGINAL TOGGLE DESIGN -->
+      <div class="flex items-center justify-between gap-4">
+
+        <div class="flex items-center gap-4">
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              id="faculty_manual_toggle"
+              {% if enable_faculty_manual_attendance %}checked{% endif %}
+              class="sr-only peer"
+            >
+            <div class="w-11 h-6 bg-gray-200 rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#800505] peer-checked:bg-[#800505] transition duration-300"></div>
+            <div class="absolute left-1 top-1 bg-white w-4 h-4 rounded-full shadow transition duration-300 peer-checked:translate-x-5"></div>
+          </label>
+        </div>
+
+        <!-- Status Badge -->
+        {% if enable_faculty_manual_attendance %}
+          <span class="text-xs font-semibold px-3 py-1 rounded-full bg-green-50 border border-green-200 text-green-800">
+            Enabled
+          </span>
+        {% else %}
+          <span class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
+            Disabled
+          </span>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <!-- Action Button -->
+    <button type="button" id="openToggleConfirm"
+      class="w-full py-2.5 px-4 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition duration-150">
+      Save Changes
+    </button>
+
+    <!-- Message -->
+    {% if message %}
+      <div class="rounded-lg px-4 py-3 text-sm {{ message_class }}">
+        {% autoescape off %}{{ message }}{% endautoescape %}
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+  <!-- Box 2: Manual Attendance Form -->
+  <div class="bg-white rounded-lg shadow-xl border border-[#800505]/10 p-0 overflow-hidden">
 
   <!-- Header bar -->
   <div class="flex items-center gap-2 px-4 py-3 bg-[#800505] border-b border-[#a80707]">
@@ -45,6 +119,12 @@
     </a>
   </div>
 
+  <form id="facultyToggleSubmitForm" method="post" class="hidden">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="toggle_faculty_manual_attendance">
+    <input type="hidden" name="enable_faculty_manual_attendance" id="toggleHiddenValue" value="{% if enable_faculty_manual_attendance %}1{% else %}0{% endif %}">
+  </form>
+
   <form id="manualAttendanceForm"
         class="px-4 py-6 space-y-8"
         method="post"
@@ -52,11 +132,6 @@
         @submit.prevent="showConfirm = true"
   >
     {% csrf_token %}
-    {% if message %}
-      <div class="rounded-lg px-4 py-3 mb-4 text-sm {{ message_class }}">
-        {% autoescape off %}{{ message }}{% endautoescape %}
-      </div>
-    {% endif %}
 
     <!-- Faculty select -->
     <div x-data="facultySelect" x-init="init()" class="relative">
@@ -236,6 +311,30 @@
       </button>
     </div>
   </form>
+  </div>
+
+  <!-- Toggle confirmation modal -->
+  <div id="toggleConfirmModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" aria-modal="true" role="dialog">
+    <div class="fixed inset-0 bg-black/40" id="toggleConfirmBackdrop"></div>
+    <div class="relative w-full max-w-lg bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden">
+      <div class="px-6 py-5 border-b bg-gray-50 flex items-start justify-between">
+        <h3 class="text-lg font-semibold text-[#800505]">Confirm Toggle Update</h3>
+        <button type="button" id="toggleConfirmClose" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M6 18L18 6"/>
+          </svg>
+          <span class="sr-only">Close</span>
+        </button>
+      </div>
+      <div class="px-6 py-5">
+        <p id="toggleConfirmMessage" class="text-sm text-gray-700"></p>
+      </div>
+      <div class="px-6 py-4 bg-gray-50 border-t flex items-center justify-end gap-3">
+        <button type="button" id="toggleConfirmCancel" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-100">Cancel</button>
+        <button type="button" id="toggleConfirmSubmit" class="px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold">Confirm</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Confirmation Modal -->
   <div
@@ -568,6 +667,46 @@ function updateDateHighlightAndDayLabel() {
     }
 }
 document.addEventListener("DOMContentLoaded", function(){
+  const toggleInput = document.getElementById('faculty_manual_toggle');
+  const toggleHiddenValue = document.getElementById('toggleHiddenValue');
+  const openToggleConfirm = document.getElementById('openToggleConfirm');
+  const toggleConfirmModal = document.getElementById('toggleConfirmModal');
+  const toggleConfirmBackdrop = document.getElementById('toggleConfirmBackdrop');
+  const toggleConfirmClose = document.getElementById('toggleConfirmClose');
+  const toggleConfirmCancel = document.getElementById('toggleConfirmCancel');
+  const toggleConfirmSubmit = document.getElementById('toggleConfirmSubmit');
+  const toggleConfirmMessage = document.getElementById('toggleConfirmMessage');
+  const facultyToggleForm = document.getElementById('facultyToggleSubmitForm');
+
+  function closeToggleModal() {
+    if (!toggleConfirmModal) return;
+    toggleConfirmModal.classList.add('hidden');
+    toggleConfirmModal.classList.remove('flex');
+  }
+
+  if (openToggleConfirm && toggleInput && toggleHiddenValue && toggleConfirmMessage && facultyToggleForm) {
+    openToggleConfirm.addEventListener('click', function() {
+      const willEnable = !!toggleInput.checked;
+      toggleHiddenValue.value = willEnable ? '1' : '0';
+      toggleConfirmMessage.textContent = willEnable
+        ? 'Are you sure you want to enable faculty manual attendance? Faculty will be allowed to submit manual logs.'
+        : 'Are you sure you want to disable faculty manual attendance? Faculty manual attendance will be blocked immediately.';
+      if (toggleConfirmModal) {
+        toggleConfirmModal.classList.remove('hidden');
+        toggleConfirmModal.classList.add('flex');
+      }
+    });
+
+    if (toggleConfirmBackdrop) toggleConfirmBackdrop.addEventListener('click', closeToggleModal);
+    if (toggleConfirmClose) toggleConfirmClose.addEventListener('click', closeToggleModal);
+    if (toggleConfirmCancel) toggleConfirmCancel.addEventListener('click', closeToggleModal);
+    if (toggleConfirmSubmit) {
+      toggleConfirmSubmit.addEventListener('click', function() {
+        facultyToggleForm.submit();
+      });
+    }
+  }
+
   const assignments = JSON.parse(document.getElementById('teaching-assignments').textContent);
   const faculties = JSON.parse(document.getElementById('faculties-data').textContent);
   const facultyIdInput = document.getElementById('faculty_id');

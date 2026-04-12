@@ -1,0 +1,358 @@
+{% extends 'faculty/faculty_base.html' %}
+{% block content %}
+<style>
+  [x-cloak] { display: none !important; }
+  .modal-assignment-list {
+    list-style: none;
+    padding-left: 0;
+    margin-left: 0;
+  }
+</style>
+
+<div class="max-w-lg mx-auto my-10 bg-white rounded-lg shadow-xl border border-[#800505]/10 p-0 overflow-hidden"
+     x-data="{ showConfirm: false }" x-cloak>
+
+  <div class="flex items-center gap-2 px-4 py-3 bg-[#800505] border-b border-[#a80707]">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white opacity-85" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+    </svg>
+    <h2 class="text-base font-semibold text-white tracking-wide flex-1">Manual Attendance Log</h2>
+    <a href="{% url 'faculty:faculty_attendance_logs' %}" class="p-1.5 rounded-md hover:bg-white/20 transition" title="Back to Attendance Logs">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
+      </svg>
+    </a>
+  </div>
+
+  <form id="manualAttendanceForm"
+        class="px-4 py-6 space-y-8"
+        method="post"
+        autocomplete="off"
+        @submit.prevent="showConfirm = true">
+    {% csrf_token %}
+    {% if message %}
+      <div class="rounded-lg px-4 py-3 mb-4 text-sm {{ message_class }}">
+        {% autoescape off %}{{ message }}{% endautoescape %}
+      </div>
+    {% endif %}
+
+    <div x-data="teachingAssignmentsSelect()" x-init="init()" class="mt-2 border-t pt-6">
+      <h3 class="font-bold text-[#800505] mb-2">Teaching Assignments (Active Semester)</h3>
+      <label class="block text-xs font-semibold text-[#800505] mb-1">
+        Teaching Assignments
+        <span class="text-gray-400 font-normal italic ml-1">(multi-select, same day only)</span>
+      </label>
+      <div class="relative">
+        <button type="button"
+          x-on:click="open = !open"
+          class="w-full flex items-center px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-[#800505] focus:outline-none text-sm transition shadow-sm hover:shadow">
+          <span class="flex-1 flex flex-wrap gap-1 min-h-[1.6em]">
+            <template x-if="selected.length">
+              <template x-for="s in selectedObjects()" :key="s.id">
+                <span class="inline-flex items-center bg-[#f7eded] text-[#800505] text-xs px-2 py-0.5 rounded-full mr-1 mb-1 border border-[#eddada]">
+                  <span x-text="s.subject_code"></span>
+                  <span x-text="' - ' + displayShort(s)" class="ml-1 text-gray-500"></span>
+                  <button type="button" x-on:click.stop="remove(s.id)" class="ml-1 hover:text-red-600 border-none bg-transparent focus:ring-0 focus:outline-none">&times;</button>
+                </span>
+              </template>
+            </template>
+            <template x-if="!selected.length">
+              <span class="text-gray-400">Select assignment(s)...</span>
+            </template>
+          </span>
+          <svg class="w-4 h-4 ml-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l4 4 4-4" />
+          </svg>
+        </button>
+        <template x-for="id in selected" :key="id">
+          <input type="hidden" name="teaching_assignments" :value="id">
+        </template>
+
+        <div x-show="open" x-transition @click.away="open = false"
+          class="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          <div class="p-2 sticky top-0 bg-white z-10">
+            <input type="text" x-model="search" placeholder="Search assignment..."
+              class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-[#800505] text-sm mb-1" />
+          </div>
+          <template x-if="invalidDayMessage">
+            <div class="px-3 py-2 text-xs text-red-700 bg-red-50 border-l-4 border-red-400 mb-1 rounded">
+              <span x-text="invalidDayMessage"></span>
+            </div>
+          </template>
+          <ul>
+            <template x-if="filtered().length === 0">
+              <li class="px-3 py-2 text-gray-400 text-sm">No assignments found.</li>
+            </template>
+            <template x-for="a in filtered()" :key="a.id">
+              <li>
+                <button type="button"
+                  class="w-full flex items-center justify-between px-3 py-2 hover:bg-[#f9ecec] text-left text-sm rounded transition"
+                  :class="{'bg-[#f7eded] border-l-4 border-[#800505]': selected.includes(a.id)}"
+                  @click="toggle(a.id)">
+                  <div>
+                    <span class="font-semibold text-[#800505]" x-text="a.subject_code"></span>
+                    <span class="ml-2 text-gray-700" x-text="a.subject_description || ''"></span>
+                    <div class="text-xs text-gray-500">
+                      <span x-text="displayShort(a)"></span>
+                      <template x-if="a.room">
+                        <span class="ml-2 bg-gray-100 px-2 py-0.5 rounded">Room: <span x-text="a.room"></span></span>
+                      </template>
+                    </div>
+                  </div>
+                  <template x-if="selected.includes(a.id)">
+                    <svg class="w-4 h-4 text-green-600 ml-2" fill="none" stroke="currentColor" stroke-width="2"
+                      viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  </template>
+                </button>
+              </li>
+            </template>
+          </ul>
+        </div>
+      </div>
+      <small class="block text-xs text-gray-500 mt-1">Only assignments with the same day can be multi-selected.</small>
+    </div>
+
+    <div>
+      <label for="date" class="block text-xs font-semibold text-[#800505] mb-1">Date</label>
+      <input type="date" name="date" id="date" min="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}"
+             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800505] text-sm transition bg-gray-100"
+             value="{{ date|date:'Y-m-d' }}" readonly required>
+      <p class="text-xs text-gray-600 mt-1">Faculty manual attendance can only be logged for today.</p>
+    </div>
+
+    <div class="flex gap-2">
+      <div class="flex-1">
+        <label for="time_in" class="block text-xs font-semibold text-[#800505] mb-1">Time In</label>
+        <input type="time" name="time_in" id="time_in"
+               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800505] text-sm transition"
+               value="{{ time_in|default:'' }}" required>
+      </div>
+      <div class="flex-1">
+        <label for="time_out" class="block text-xs font-semibold text-[#800505] mb-1">Time Out</label>
+        <input type="time" name="time_out" id="time_out"
+               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#800505] text-sm transition"
+               value="{{ time_out|default:'' }}" required>
+      </div>
+    </div>
+
+    <div class="text-xs text-gray-600 bg-yellow-50 border-l-4 border-yellow-500 py-3 px-3 mt-2 rounded">
+      <p class="font-semibold text-gray-700 mb-1">Notes:</p>
+      <ul class="list-disc pl-5 space-y-1">
+        <li>Only one attendance log is allowed per day for your account.</li>
+        <li>Logs may be linked to teaching assignments or recorded as custom time.</li>
+        <li>Select one or more teaching assignments to auto-fill time in/out from earliest start to latest end time.</li>
+      </ul>
+    </div>
+
+    <div class="pt-4">
+      <div class="text-xs text-gray-500">
+        <span class="font-bold text-[#800505]">Summary:</span><br>
+        <span id="preview-summary"></span>
+      </div>
+    </div>
+
+    <div class="flex justify-end pt-3">
+      <button type="submit"
+              class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
+        Log Attendance
+      </button>
+    </div>
+  </form>
+
+  <div x-show="showConfirm" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4"
+       aria-modal="true" role="dialog" @keydown.escape.window="showConfirm = false">
+    <div class="fixed inset-0 bg-black/40" @click="showConfirm = false"></div>
+    <div class="relative w-full max-w-lg bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden" tabindex="-1">
+      <div class="px-6 py-5 border-b bg-gray-50 flex items-start justify-between">
+        <h3 class="text-lg font-semibold text-[#800505]">Confirm Attendance Submission</h3>
+        <button type="button" @click="showConfirm = false" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M6 18L18 6"/>
+          </svg>
+          <span class="sr-only">Close</span>
+        </button>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <div class="text-center">
+          <p class="text-[1.15rem] font-semibold text-[#800505] mb-2">Please review and confirm this attendance log.</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
+          <div id="modal-summary" class="mb-2 text-base text-gray-800"></div>
+          <div id="modal-assignment" class="text-sm text-gray-700 font-semibold"></div>
+        </div>
+      </div>
+      <div class="px-6 py-4 bg-gray-50 border-t flex items-center justify-end gap-3">
+        <button type="button" @click="showConfirm = false" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-100">Cancel</button>
+        <button type="button"
+                @click="showConfirm = false; setTimeout(() => { document.getElementById('manualAttendanceForm').submit(); }, 50);"
+                class="px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold">
+          Confirm & Submit
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+{{ teaching_assignments|json_script:"teaching-assignments" }}
+{{ selected_assignments|json_script:"selected-assignments" }}
+
+<script>
+function capitalizeDay(day) {
+  if (!day) return '';
+  return day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+}
+
+function formatTime12(timeStr) {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':');
+  const hourNum = parseInt(h, 10);
+  const ampm = hourNum >= 12 ? 'PM' : 'AM';
+  const hour12 = hourNum % 12 || 12;
+  return `${hour12}:${m} ${ampm}`;
+}
+
+function formatDateMonthName(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+window.autofillTimesFromAssignments = function(selected) {
+  const assignments = JSON.parse(document.getElementById('teaching-assignments').textContent);
+  const timeInInput = document.getElementById('time_in');
+  const timeOutInput = document.getElementById('time_out');
+  const chosen = assignments.filter(a => selected && selected.map(String).includes(String(a.id)));
+
+  if (chosen.length > 0) {
+    let minStart = chosen[0].start_time;
+    let maxEnd = chosen[0].end_time;
+    chosen.forEach(a => {
+      if (a.start_time < minStart) minStart = a.start_time;
+      if (a.end_time > maxEnd) maxEnd = a.end_time;
+    });
+    if (!timeInInput.value) timeInInput.value = minStart;
+    if (!timeOutInput.value) timeOutInput.value = maxEnd;
+  }
+
+  if (typeof updateSummary === 'function') updateSummary();
+}
+
+document.addEventListener('alpine:init', () => {
+  Alpine.data('teachingAssignmentsSelect', () => ({
+    assignments: [],
+    selected: [],
+    search: '',
+    open: false,
+    invalidDayMessage: '',
+    init() {
+      this.assignments = JSON.parse(document.getElementById('teaching-assignments').textContent);
+      this.selected = JSON.parse(document.getElementById('selected-assignments').textContent || '[]').map(v => Number(v));
+      this.$nextTick(() => { window.autofillTimesFromAssignments(this.selected); });
+    },
+    filtered() {
+      return this.assignments.filter(a =>
+        !this.search ||
+        (a.subject_code && a.subject_code.toLowerCase().includes(this.search.toLowerCase())) ||
+        (a.subject_description && a.subject_description.toLowerCase().includes(this.search.toLowerCase()))
+      );
+    },
+    selectedObjects() {
+      return this.assignments.filter(a => this.selected.includes(a.id));
+    },
+    displayShort(a) {
+      let dayStr = a.day_of_week ? capitalizeDay(a.day_of_week) : '';
+      let yearSection = a.year_section ? a.year_section : '';
+      let t1 = a.start_time ? formatTime12(a.start_time) : '';
+      let t2 = a.end_time ? formatTime12(a.end_time) : '';
+      let slot = dayStr && t1 && t2 ? `${dayStr} ${t1} - ${t2}` : `${t1} - ${t2}`;
+      return [yearSection, slot].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+    },
+    toggle(id) {
+      const assignment = this.assignments.find(a => a.id === id);
+      if (!assignment) return;
+      if (!this.selected.includes(id)) {
+        const candidateDay = assignment.day_of_week ? assignment.day_of_week.toLowerCase() : '';
+        if (this.selected.length > 0) {
+          const first = this.assignments.find(a => a.id === this.selected[0]);
+          const firstDay = first && first.day_of_week ? first.day_of_week.toLowerCase() : '';
+          if (candidateDay !== firstDay) {
+            this.invalidDayMessage = 'You can only select assignments for the same day!';
+            setTimeout(() => { this.invalidDayMessage = ''; }, 2800);
+            return;
+          }
+        }
+        this.selected.push(id);
+      } else {
+        this.selected = this.selected.filter(i => i !== id);
+      }
+      this.invalidDayMessage = '';
+      this.open = true;
+      this.$nextTick(() => { window.autofillTimesFromAssignments(this.selected); });
+    },
+    remove(id) {
+      this.selected = this.selected.filter(i => i !== id);
+      this.$nextTick(() => { window.autofillTimesFromAssignments(this.selected); });
+    }
+  }));
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  const assignments = JSON.parse(document.getElementById('teaching-assignments').textContent);
+  const timeInInput = document.getElementById('time_in');
+  const timeOutInput = document.getElementById('time_out');
+  const dateInput = document.getElementById('date');
+
+  window.updateSummary = function() {
+    let selectedAssignments = [];
+    if (window.Alpine && Alpine && Alpine.raw) {
+      let taComponent = Alpine.raw(document.querySelector('[x-data^="teachingAssignmentsSelect"]'));
+      if (taComponent && taComponent.selected) selectedAssignments = taComponent.selected;
+    }
+    const chosen = assignments.filter(a => selectedAssignments && selectedAssignments.map(String).includes(String(a.id)));
+    let assignmentNames = chosen.map(a => a.display).join(', ');
+    let txt = '';
+    if (assignmentNames) txt += '(Log by Assignment) ' + assignmentNames + ' - ';
+    txt += (timeInInput.value ? formatTime12(timeInInput.value) : '[Time In]') + ' - ' + (timeOutInput.value ? formatTime12(timeOutInput.value) : '[Time Out]') + ' - ';
+    txt += (dateInput.value ? formatDateMonthName(dateInput.value) : '[Date]');
+    document.getElementById('preview-summary').textContent = txt;
+  };
+
+  function getAssignmentsDisplay() {
+    let selectedIds = [];
+    if (window.Alpine && Alpine && Alpine.raw) {
+      let taComponent = Alpine.raw(document.querySelector('[x-data^="teachingAssignmentsSelect"]'));
+      if (taComponent && taComponent.selected) selectedIds = taComponent.selected.map(String);
+    }
+    const chosen = assignments.filter(a => selectedIds.includes(String(a.id)));
+    if (!chosen.length) return '';
+    return (
+      `<div class="mb-2"><span class="font-semibold text-[#800505]">Teaching Assignment(s):</span></div>` +
+      `<ul class="modal-assignment-list mb-0 pb-0 pl-0">` +
+      chosen.map(a =>
+        `<li class="mb-1"><div><span class="font-bold">${a.subject_code}</span><span class="text-gray-700">${a.subject_description ? ` - ${a.subject_description}` : ''}</span></div><div class="text-xs text-gray-500 mt-0.5 leading-tight"><span>${a.year_section ? a.year_section + ' · ' : ''}${capitalizeDay(a.day_of_week)}, ${formatTime12(a.start_time)} - ${formatTime12(a.end_time)}</span></div></li>`
+      ).join('') +
+      `</ul>`
+    );
+  }
+
+  function updateModalInfo() {
+    const modalSummary = document.getElementById('modal-summary');
+    const modalAssignment = document.getElementById('modal-assignment');
+    if (modalSummary) modalSummary.innerHTML = (document.getElementById('preview-summary').textContent || '').trim();
+    if (modalAssignment) modalAssignment.innerHTML = getAssignmentsDisplay();
+  }
+
+  timeInInput.addEventListener('input', updateSummary);
+  timeOutInput.addEventListener('input', updateSummary);
+  dateInput.addEventListener('input', updateSummary);
+  document.getElementById('manualAttendanceForm').addEventListener('submit', function() {
+    setTimeout(updateModalInfo, 10);
+  });
+
+  updateSummary();
+});
+</script>
+{% endblock %}
