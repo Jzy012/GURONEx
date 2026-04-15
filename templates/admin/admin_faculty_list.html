@@ -194,11 +194,11 @@
   <div class="responsive-mobile-md space-y-5">
     {% for faculty in page_obj %}
     <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      <div class="px-5 pt-5 pb-4 border-b border-gray-100">
-        <div class="flex justify-between items-start gap-3">
-          <h3 class="text-base sm:text-lg font-semibold text-gray-900 break-words min-w-0 flex-1">{{ faculty.name }}</h3>
+      <div class="px-5 pt-5 pb-4">
+        <div class="flex w-full justify-between items-start gap-3 mb-3 border-b border-gray-300 pb-3">
+          <h3 class="text-base sm:text-lg font-semibold leading-tight text-gray-900 break-words min-w-0 flex-1">{{ faculty.name }}</h3>
           <a href="{% url 'adminhub:faculty_detail' faculty.uuid %}"
-             class="text-[#800505] hover:underline text-sm font-semibold whitespace-nowrap shrink-0">
+             class="text-[#800505] hover:underline text-sm font-semibold whitespace-nowrap shrink-0 self-start">
           View
           </a>
         </div>
