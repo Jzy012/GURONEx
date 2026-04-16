@@ -13,24 +13,28 @@
 </head>
 
 <body class="bg-gray-50 min-h-screen">
-  <div class="max-w-5xl mx-auto space-y-8 py-10 px-4">
+  <div class="max-w-5xl mx-auto space-y-6 sm:space-y-8 py-6 sm:py-10 px-3 sm:px-4">
 
     <!-- Header -->
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900 tracking-tight">My Application</h1>
+        <h1 class="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">My Application</h1>
         <p class="mt-1 text-sm text-gray-500">
           Review your submitted information, documents, and current application status.
         </p>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <span class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700">
+      <div class="flex w-full sm:w-auto flex-wrap items-center gap-2 sm:justify-end">
+        <button type="button"
+                data-copy-id="{{ applicant.applicant_id }}"
+                class="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                title="Click to copy applicant ID"
+                aria-label="Copy applicant ID">
           ID: <span class="ml-1 font-mono">{{ applicant.applicant_id }}</span>
-        </span>
+        </button>
 
-        <a href="{% url 'applicants:logout' %}"
-           class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200">
+          <a href="{% url 'applicants:logout' %}"
+            class="inline-flex w-full sm:w-auto items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200">
           Logout
         </a>
       </div>
@@ -52,9 +56,11 @@
     {% endif %}
 
     <!-- Applicant Overview -->
-    <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
-      <div>
-        <div class="flex flex-wrap items-center gap-2">
+    <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-6">
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
           <h2 class="text-xl font-semibold text-gray-900">
             {{ applicant.first_name }}
             {% if applicant.middle_name %} {{ applicant.middle_name }}{% endif %}
@@ -86,14 +92,16 @@
           ">
             {{ applicant.get_status_display }}
           </span>
-        </div>
+            </div>
 
-        <p class="mt-1 text-sm text-gray-500">
-          Applied on {{ applicant.created_at|date:"Y-m-d H:i" }}
-        </p>
+            <p class="mt-1 text-sm text-gray-500">
+              Applied on {{ applicant.created_at|date:"Y-m-d H:i" }}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 text-sm">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
         <div>
           <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Email</div>
           <div class="mt-1 text-gray-800 break-all font-mono text-xs">{{ applicant.email }}</div>
@@ -108,7 +116,7 @@
         </div>
       </div>
 
-      <dl class="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-3 text-sm pt-2 border-t border-gray-100">
+      <dl class="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 text-sm pt-2 border-t border-gray-100">
         <div>
           <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Birth Date</dt>
           <dd class="mt-1 text-gray-800">{{ applicant.birth_date|date:"Y-m-d"|default:"—" }}</dd>
@@ -133,7 +141,7 @@
 
     <!-- Application Progress (responsive, NO horizontal scroll) -->
     <!-- Application Progress (Option 1: mobile vertical, sm+ one line; no horizontal scroll) -->
-<section class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+<section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5">
   <div class="flex items-center justify-between gap-2 mb-4">
     <h3 class="text-sm font-semibold text-gray-900">Application Progress</h3>
     <p class="text-xs text-gray-500">Track the current step of the hiring process.</p>
@@ -215,7 +223,7 @@
 </section>
 
     <!-- Uploaded Documents -->
-    <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+    <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-4">
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 class="text-sm font-semibold text-gray-900">Uploaded Documents</h3>
@@ -341,11 +349,91 @@
     <!-- Upload button BELOW the documents section -->
     <div class="flex flex-col sm:flex-row gap-2">
       <a href="{% url 'applicants:upload_documents' %}"
-         class="inline-flex items-center justify-center rounded-lg bg-[#800505] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50 w-full sm:w-auto">
+         class="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-[#800505] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
         Upload Documents
       </a>
     </div>
 
   </div>
+
+  <div id="copy-id-toast" class="pointer-events-none fixed bottom-4 right-4 z-50 rounded-lg bg-gray-900 px-3 py-2 text-xs font-medium text-white opacity-0 transition-opacity duration-200" role="status" aria-live="polite"></div>
+
+  <script>
+    let copyIdToastTimer = null;
+
+    function showCopyToast(message) {
+      const toast = document.getElementById('copy-id-toast');
+      if (!toast) return;
+      toast.textContent = message;
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+
+      if (copyIdToastTimer) {
+        clearTimeout(copyIdToastTimer);
+      }
+      copyIdToastTimer = setTimeout(function () {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 1400);
+    }
+
+    function copyApplicantId(value) {
+      if (!value) return;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value)
+          .then(function () { showCopyToast('Applicant ID copied'); })
+          .catch(function () { showCopyToast('Unable to copy ID'); });
+        return;
+      }
+
+      const fallback = document.createElement('textarea');
+      fallback.value = value;
+      fallback.setAttribute('readonly', '');
+      fallback.style.position = 'absolute';
+      fallback.style.left = '-9999px';
+      document.body.appendChild(fallback);
+      fallback.select();
+      try {
+        document.execCommand('copy');
+        showCopyToast('Applicant ID copied');
+      } catch (error) {
+        showCopyToast('Unable to copy ID');
+      }
+      document.body.removeChild(fallback);
+    }
+
+    function bindCopyIdButtons() {
+      document.querySelectorAll('[data-copy-id]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          copyApplicantId(button.dataset.copyId || '');
+        });
+      });
+    }
+
+    function applyResponsiveWrappers() {
+      const isSmUp = window.matchMedia('(min-width: 640px)').matches;
+      const isMdUp = window.matchMedia('(min-width: 768px)').matches;
+
+      document.querySelectorAll('.responsive-desktop-sm').forEach((element) => {
+        element.style.setProperty('display', isSmUp ? 'block' : 'none', 'important');
+      });
+      document.querySelectorAll('.responsive-mobile-sm').forEach((element) => {
+        element.style.setProperty('display', isSmUp ? 'none' : 'block', 'important');
+      });
+      document.querySelectorAll('.responsive-desktop-md').forEach((element) => {
+        element.style.setProperty('display', isMdUp ? 'block' : 'none', 'important');
+      });
+      document.querySelectorAll('.responsive-mobile-md').forEach((element) => {
+        element.style.setProperty('display', isMdUp ? 'none' : 'block', 'important');
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', function () {
+      applyResponsiveWrappers();
+      bindCopyIdButtons();
+    });
+    window.addEventListener('resize', applyResponsiveWrappers);
+  </script>
 </body>
 </html>

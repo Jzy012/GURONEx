@@ -195,10 +195,10 @@
     {% for faculty in page_obj %}
     <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
       <div class="px-5 pt-5 pb-4">
-        <div class="flex w-full justify-between items-start gap-3 mb-3 border-b border-gray-300 pb-3">
-          <h3 class="text-base sm:text-lg font-semibold leading-tight text-gray-900 break-words min-w-0 flex-1">{{ faculty.name }}</h3>
+        <div class="mb-3 border-b border-gray-300 pb-3" style="display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;width:100%;">
+          <h3 class="text-base sm:text-lg font-semibold text-gray-900 break-words" style="margin:0;min-width:0;flex:1;line-height:1.25;">{{ faculty.name }}</h3>
           <a href="{% url 'adminhub:faculty_detail' faculty.uuid %}"
-             class="text-[#800505] hover:underline text-sm font-semibold whitespace-nowrap shrink-0 self-start">
+             class="text-[#800505] hover:underline text-sm font-semibold" style="white-space:nowrap;flex-shrink:0;align-self:flex-start;line-height:1.25;">
           View
           </a>
         </div>
