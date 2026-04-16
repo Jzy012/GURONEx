@@ -6,6 +6,7 @@ from .models import (
     AttendanceFeatureSetting,
     CreatedAccountLog,
     DocumentTemplate,
+    PUPSite,
 )
  
 # Register your models here.
@@ -14,6 +15,7 @@ from .models import (
 admin.site.register(AdminProfile)
 admin.site.register(CreatedAccountLog)
 admin.site.register(DocumentTemplate)
+admin.site.register(PUPSite)
 
 # adminhub/admin.py
 

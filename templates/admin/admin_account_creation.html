@@ -1,106 +1,213 @@
 {% extends "admin/admin_base.html" %}
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-8">
+<div class="max-w-4xl mx-auto space-y-6 sm:space-y-8">
 
-  <div class="flex items-center gap-3 mb-4 justify-between">
-    <h2 class="text-2xl font-bold text-gray-900">Faculty Account Creation</h2>
-    <a href="{% url 'adminhub:applicant_list' %}" class="inline-flex items-center px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-4">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Faculty Account Creation</h2>
+      <p class="mt-1 text-sm text-gray-500">Create faculty accounts for hired applicants and assign one employment status in bulk.</p>
+    </div>
+    <a href="{% url 'adminhub:applicant_list' %}" class="inline-flex w-full sm:w-auto items-center justify-center px-4 py-2.5 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-sm text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
       </svg>
       Back to Applicants
     </a>
   </div>
 
-  <div class="bg-white rounded-lg shadow-md p-7">
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6">
     {% if hired_applicants %}
-    <form method="post">
+    <form method="post" id="accountCreationForm">
       {% csrf_token %}
-      <div class="mb-4 flex gap-4 items-center">
-        <label class="font-semibold text-gray-700">Employment Status for All:</label>
-        <select name="employment_status" class="px-3 py-2 border rounded-lg" required>
-          <option value="">Select status</option>
+      <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:p-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div>
+          <label for="employment_status" class="block text-xs font-semibold uppercase tracking-wide text-gray-600">Employment Status for All Selected</label>
+          <select id="employment_status" name="employment_status" class="mt-1 w-full sm:w-72 px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]/50" required>
+            <option value="">Select status</option>
           {% for status in employment_statuses %}
             <option value="{{ status.pk }}">{{ status.name }}</option>
           {% endfor %}
-        </select>
-        <button type="submit" class="ml-auto px-5 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg font-semibold shadow transition disabled:opacity-50">
+          </select>
+        </div>
+        <button type="submit" class="w-full sm:w-auto sm:ml-auto px-5 py-2.5 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg text-sm font-semibold shadow-sm transition disabled:opacity-50">
           Create Accounts for Selected
         </button>
       </div>
-      <div class="overflow-x-auto">
-        <table class="min-w-full text-sm border">
-          <thead>
-            <tr class="bg-gray-100 text-gray-700 font-semibold">
-              <th class="px-4 py-3 border-b"><input type="checkbox" id="select-all"></th>
-              <th class="px-4 py-3 border-b">Name</th>
-              <th class="px-4 py-3 border-b">Applicant Email</th>
-              <th class="px-4 py-3 border-b">Faculty Email</th>
-              <th class="px-4 py-3 border-b">Password (leave blank to autogenerate)</th>
-              <th class="px-4 py-3 border-b">Department</th>
-              <th class="px-4 py-3 border-b">Contact</th>
-              <th class="px-4 py-3 border-b">Birth Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for applicant in hired_applicants %}
-            <tr class="hover:bg-gray-50 transition">
-              <td class="px-4 py-3 border-b">
-                <input type="checkbox" name="selected" value="{{ applicant.uuid }}" class="select-applicant" data-uuid="{{ applicant.uuid }}">
-              </td>
-              <td class="px-4 py-3 border-b">{{ applicant.first_name }} {{ applicant.last_name }}</td>
-              <td class="px-4 py-3 border-b">{{ applicant.email }}</td>
-              <td class="px-4 py-3 border-b">
-                <input type="email" name="faculty_email_{{ applicant.uuid }}" id="email_{{ applicant.uuid }}" class="border rounded px-2 py-1 w-56 faculty-email">
-              </td>
-              <td class="px-4 py-3 border-b">
-                <input type="text" name="faculty_password_{{ applicant.uuid }}" class="border rounded px-2 py-1 w-44" placeholder="leave blank to auto-generate">
-              </td>
-              <td class="px-4 py-3 border-b">{{ applicant.department }}</td>
-              <td class="px-4 py-3 border-b">{{ applicant.contact_number }}</td>
-              <td class="px-4 py-3 border-b">{{ applicant.birth_date|date:"Y-m-d" }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+
+      <div class="mb-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 flex items-center justify-between gap-3">
+        <p class="text-xs text-gray-500">
+          <span class="font-semibold text-gray-700">Tip:</span> Select applicants, then fill in Faculty Email and Faculty Code.
+        </p>
+        <label for="select-all" class="inline-flex items-center gap-2 whitespace-nowrap text-xs font-semibold text-gray-700">
+          <input type="checkbox" id="select-all" class="h-4 w-4 rounded border-gray-300 text-[#800505] focus:ring-[#800505]/40">
+          Select all
+        </label>
       </div>
+
+      <div class="grid grid-cols-1 gap-4">
+        {% for applicant in hired_applicants %}
+          <div class="w-full max-w-[860px] mx-auto rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition">
+            <div class="flex items-start justify-between gap-3 pb-3 border-b border-gray-100">
+              <div>
+                <p class="text-sm sm:text-base font-semibold text-gray-900 leading-tight">{{ applicant.first_name }} {{ applicant.last_name }}</p>
+                <p class="text-xs text-gray-500 break-all">{{ applicant.email }}</p>
+              </div>
+              <label class="inline-flex items-center gap-2 text-xs font-semibold text-gray-700">
+                <input type="checkbox" name="selected" value="{{ applicant.uuid }}" class="select-applicant h-4 w-4 rounded border-gray-300 text-[#800505] focus:ring-[#800505]/40" data-uuid="{{ applicant.uuid }}" data-applicant-name="{{ applicant.first_name|escape }} {{ applicant.last_name|escape }}">
+                Select
+              </label>
+            </div>
+
+            <div class="mt-4 space-y-3">
+              <div>
+                <label for="email_{{ applicant.uuid }}" class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Faculty Email</label>
+                <input type="email" name="faculty_email_{{ applicant.uuid }}" id="email_{{ applicant.uuid }}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]/40" placeholder="faculty@pup.edu.ph">
+              </div>
+              <div>
+                <label for="faculty_code_{{ applicant.uuid }}" class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Faculty Code</label>
+                <input type="text" name="faculty_code_{{ applicant.uuid }}" id="faculty_code_{{ applicant.uuid }}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]/40" placeholder="e.g. FA0018SP2023">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Password (optional)</label>
+                <input type="text" name="faculty_password_{{ applicant.uuid }}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]/40" placeholder="Leave blank to auto-generate">
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                <div class="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-2 text-xs text-gray-600 break-words">
+                  <span class="font-semibold text-gray-700">Contact:</span>
+                  {{ applicant.contact_number|default:"—" }}
+                </div>
+                <div class="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-2 text-xs text-gray-600">
+                  <span class="font-semibold text-gray-700">Birth Date:</span>
+                  {{ applicant.birth_date|date:"Y-m-d"|default:"—" }}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div id="accountCreateConfirmModal" class="hidden fixed inset-0 z-[70] bg-gray-900/60 items-center justify-center px-4 py-6 sm:p-0">
+        <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-2xl">
+          <div class="px-5 py-4 border-b border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-900">Confirm Account Creation</h3>
+            <p class="mt-1 text-sm text-gray-600">Review details before creating faculty accounts.</p>
+          </div>
+          <div class="px-5 py-4 space-y-3 text-sm text-gray-700">
+            <p><span class="font-semibold">Employment Status:</span> <span id="confirmEmploymentStatus">-</span></p>
+            <p><span class="font-semibold">Selected Applicants:</span> <span id="confirmSelectedCount">0</span></p>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Applicants</p>
+              <p id="confirmSelectedNames" class="mt-1 text-sm text-gray-700">None selected</p>
+            </div>
+          </div>
+          <div class="px-5 py-4 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <button type="button" id="accountConfirmCancel" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100">Cancel</button>
+            <button type="button" id="accountConfirmProceed" class="inline-flex items-center justify-center rounded-lg bg-[#800505] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a80707]">Confirm and Create</button>
+          </div>
+        </div>
+      </div>
+
       <script>
+        var accountCreationForm = document.getElementById('accountCreationForm');
+        var confirmationModal = document.getElementById('accountCreateConfirmModal');
+        var confirmationCancel = document.getElementById('accountConfirmCancel');
+        var confirmationProceed = document.getElementById('accountConfirmProceed');
+        var confirmedSubmit = false;
+
         document.getElementById('select-all').onclick = function() {
           var checkboxes = document.getElementsByClassName('select-applicant');
           for (var checkbox of checkboxes) {
             checkbox.checked = this.checked;
-            toggleEmailRequired(checkbox);
+            toggleRequiredFields(checkbox);
           }
         }
 
-        function toggleEmailRequired(checkbox) {
+        function toggleRequiredFields(checkbox) {
           var uuid = checkbox.getAttribute('data-uuid');
-          var emailInput = document.getElementById('email_' + uuid);
+          var emailInputs = document.querySelectorAll('input[name="faculty_email_' + uuid + '"]');
+          var facultyCodeInputs = document.querySelectorAll('input[name="faculty_code_' + uuid + '"]');
           if (checkbox.checked) {
-            emailInput.setAttribute('required', 'required');
+            emailInputs.forEach(function(input) { input.setAttribute('required', 'required'); });
+            facultyCodeInputs.forEach(function(input) { input.setAttribute('required', 'required'); });
           } else {
-            emailInput.removeAttribute('required');
+            emailInputs.forEach(function(input) { input.removeAttribute('required'); });
+            facultyCodeInputs.forEach(function(input) { input.removeAttribute('required'); });
           }
         }
 
         document.querySelectorAll('.select-applicant').forEach(function(checkbox) {
           checkbox.addEventListener('change', function() {
-            toggleEmailRequired(this);
+            toggleRequiredFields(this);
           });
-          toggleEmailRequired(checkbox);
+          toggleRequiredFields(checkbox);
+        });
+
+        function closeConfirmationModal() {
+          confirmationModal.classList.add('hidden');
+          confirmationModal.classList.remove('flex');
+        }
+
+        function openConfirmationModal() {
+          confirmationModal.classList.remove('hidden');
+          confirmationModal.classList.add('flex');
+        }
+
+        accountCreationForm.addEventListener('submit', function(event) {
+          if (confirmedSubmit) {
+            return;
+          }
+
+          event.preventDefault();
+
+          var selectedBoxes = Array.from(document.querySelectorAll('.select-applicant:checked'));
+          var selectedCount = selectedBoxes.length;
+          var selectedNames = selectedBoxes.map(function(box) {
+            return box.getAttribute('data-applicant-name') || box.value;
+          });
+
+          var employmentSelect = document.getElementById('employment_status');
+          var selectedEmploymentLabel = '-';
+          if (employmentSelect && employmentSelect.options.length > 0) {
+            selectedEmploymentLabel = employmentSelect.options[employmentSelect.selectedIndex].text || '-';
+          }
+
+          document.getElementById('confirmEmploymentStatus').textContent = selectedEmploymentLabel;
+          document.getElementById('confirmSelectedCount').textContent = String(selectedCount);
+          document.getElementById('confirmSelectedNames').textContent = selectedNames.length ? selectedNames.join(', ') : 'None selected';
+
+          openConfirmationModal();
+        });
+
+        confirmationCancel.addEventListener('click', closeConfirmationModal);
+        confirmationProceed.addEventListener('click', function() {
+          confirmedSubmit = true;
+          closeConfirmationModal();
+          accountCreationForm.submit();
+        });
+
+        document.addEventListener('keydown', function(event) {
+          if (event.key === 'Escape' && confirmationModal.classList.contains('flex')) {
+            closeConfirmationModal();
+          }
+        });
+
+        confirmationModal.addEventListener('click', function(event) {
+          if (event.target === confirmationModal) {
+            closeConfirmationModal();
+          }
         });
       </script>
     </form>
     {% else %}
-      <div class="text-gray-500 font-semibold text-center py-10">No hired applicants pending account creation.</div>
+      <div class="rounded-lg border border-gray-200 bg-gray-50 text-gray-600 font-semibold text-center py-10">No hired applicants pending account creation.</div>
     {% endif %}
 
   </div>
-  <div class="flex justify-start -mt-4">
-  <a href="{% url 'adminhub:account_creation_log' %}" 
-     class="px-3 py-2 bg-gray-700 hover:bg-gray-900 text-white rounded text-sm font-semibold">
-     View Created Account Log
-  </a>
-</div>
+  <div class="flex justify-start -mt-2">
+    <a href="{% url 'adminhub:account_creation_log' %}" 
+       class="inline-flex items-center px-4 py-2.5 bg-gray-700 hover:bg-gray-900 text-white rounded-lg text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-500/50">
+       View Created Account Log
+    </a>
+  </div>
 </div>
 {% endblock %}

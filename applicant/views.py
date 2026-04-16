@@ -22,6 +22,7 @@ from services.google_drive_service import CentralGoogleDriveService
 from services.applicant_document_service import process_applicant_documents_sync
 from applicant.tasks import process_applicant_documents_task
 from notifications.services import ROLE_ADMIN_GROUP, log_activity, notify_role
+from adminhub.models import CreatedAccountLog
 
 
 
@@ -235,12 +236,27 @@ def applicant_dashboard(request):
         if is_active:
             found_active = True
 
+    created_account_credentials = None
+    if applicant.status == "hired" and applicant.account_created:
+        latest_log = (
+            CreatedAccountLog.objects
+            .filter(applicant=applicant)
+            .order_by("-created_at")
+            .first()
+        )
+        if latest_log:
+            created_account_credentials = {
+                "faculty_email": latest_log.faculty_email,
+                "password": latest_log.password,
+            }
+
     return render(request, "applicants/applicant_dashboard.html", {
         "applicant": applicant,
         "documents": docs,
         "required_docs": required_docs,
         "timeline": timeline,
         "stepper": stepper,
+        "created_account_credentials": created_account_credentials,
     })
 
 

@@ -2037,7 +2037,7 @@ REQUIRED_STATUS_DATES = {
 
 
 def _get_next_status(current_status: str):
-    if current_status == 'rejected':
+    if current_status in {'hired', 'rejected'}:
         return None
     values = [value for value, _label in STEPPER_STATUSES]
     try:
@@ -2381,12 +2381,19 @@ def account_creation_view(request):
 
         for applicant_uuid in selected_uuids:
             email = request.POST.get(f'faculty_email_{applicant_uuid}', '').strip()
+            faculty_code = request.POST.get(f'faculty_code_{applicant_uuid}', '').strip()
             password = request.POST.get(f'faculty_password_{applicant_uuid}', '').strip()
             if not email:
                 errors.append(f"Applicant {applicant_uuid}: Faculty email is required.")
                 continue
+            if not faculty_code:
+                errors.append(f"Applicant {applicant_uuid}: Faculty code is required.")
+                continue
             if Account.objects.filter(email=email).exists():
                 errors.append(f"{email}: Email already exists.")
+                continue
+            if FacultyProfile.objects.filter(faculty_code__iexact=faculty_code).exists():
+                errors.append(f"{faculty_code}: Faculty code already exists.")
                 continue
             if not password:
                 password = get_random_string(8)
@@ -2400,7 +2407,12 @@ def account_creation_view(request):
                     )
                     faculty = FacultyProfile.objects.create(
                         account=account,
+                        first_name=applicant.first_name,
+                        middle_name=applicant.middle_name,
+                        last_name=applicant.last_name,
+                        suffix=applicant.suffix,
                         name=f"{applicant.first_name} {applicant.last_name}",
+                        faculty_code=faculty_code,
                         department=getattr(applicant, "department", ""),
                         birth_date=applicant.birth_date,
                         contact_number=applicant.contact_number,
