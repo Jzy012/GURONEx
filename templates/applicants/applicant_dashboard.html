@@ -434,22 +434,30 @@
 
   </div>
 
-  <div id="copy-id-toast" class="pointer-events-none fixed bottom-4 right-4 z-50 rounded-lg bg-gray-900 px-3 py-2 text-xs font-medium text-white transition-opacity duration-200" style="opacity:0" role="status" aria-live="polite"></div>
+  <div id="copy-id-toast" style="display:none;opacity:0;pointer-events:none;position:fixed;right:16px;bottom:16px;z-index:9999;background:#111827;color:#ffffff;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:500;line-height:1.2;box-shadow:0 10px 24px rgba(0,0,0,0.2);transition:opacity .2s ease;" role="status" aria-live="polite"></div>
 
   <script>
     let copyIdToastTimer = null;
+    let copyIdToastHideTimer = null;
 
     function showCopyToast(message) {
       const toast = document.getElementById('copy-id-toast');
       if (!toast) return;
       toast.textContent = message;
+      toast.style.display = 'block';
       toast.style.opacity = '1';
 
       if (copyIdToastTimer) {
         clearTimeout(copyIdToastTimer);
       }
+      if (copyIdToastHideTimer) {
+        clearTimeout(copyIdToastHideTimer);
+      }
       copyIdToastTimer = setTimeout(function () {
         toast.style.opacity = '0';
+        copyIdToastHideTimer = setTimeout(function () {
+          toast.style.display = 'none';
+        }, 220);
       }, 1400);
     }
 

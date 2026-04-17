@@ -44,17 +44,15 @@
     <div class="responsive-desktop-sm bg-white rounded-lg shadow-md overflow-x-auto">
       <table class="w-full table-fixed border-collapse text-sm">
         <colgroup>
-          <col style="width: 20%">
           <col style="width: 24%">
-          <col style="width: 20%">
-          <col style="width: 14%">
-          <col style="width: 22%">
+          <col style="width: 30%">
+          <col style="width: 16%">
+          <col style="width: 30%">
         </colgroup>
         <thead class="bg-gray-100 border-t border-gray-200">
           <tr class="text-left font-semibold text-gray-700">
             <th class="px-2 sm:px-4 py-4 border-b">Name</th>
             <th class="px-2 sm:px-4 py-4 border-b">Email</th>
-            <th class="px-2 sm:px-4 py-4 border-b">Department</th>
             <th class="px-2 sm:px-4 py-4 border-b">Status</th>
             <th class="px-2 sm:px-4 py-4 border-b">Actions</th>
           </tr>
@@ -64,7 +62,6 @@
           <tr class="hover:bg-gray-50 transition">
             <td class="px-2 sm:px-4 py-4 border-b break-words truncate max-w-[10rem]">{{ faculty.name }}</td>
             <td class="px-2 sm:px-4 py-4 border-b break-all truncate max-w-[14rem]">{{ faculty.account.email }}</td>
-            <td class="px-2 sm:px-4 py-4 border-b break-words truncate max-w-[10rem]">{{ faculty.department }}</td>
             <td class="px-2 sm:px-4 py-4 border-b">
               {% if faculty.status %}
                 {{ faculty.status }}
@@ -85,7 +82,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="5" class="px-2 sm:px-4 py-10 text-center text-gray-500 font-semibold">
+            <td colspan="4" class="px-2 sm:px-4 py-10 text-center text-gray-500 font-semibold">
               No faculty found.
             </td>
           </tr>
@@ -101,7 +98,6 @@
         <div class="flex flex-col gap-1">
           <div class="font-bold text-base text-gray-900 break-words max-w-full truncate">{{ faculty.name }}</div>
           <div class="text-xs text-gray-600 break-all max-w-full"><span class="font-medium">Email:</span> {{ faculty.account.email }}</div>
-          <div class="text-xs text-gray-600 break-words max-w-full"><span class="font-medium">Department:</span> {{ faculty.department }}</div>
         </div>
         <div class="flex flex-row items-center gap-3 mt-2">
           <div class="text-xs text-gray-500">

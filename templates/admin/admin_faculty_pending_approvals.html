@@ -436,9 +436,16 @@
           ? 'Approving this account will activate login access and send an approval email to the faculty member.'
           : 'Rejecting this account will permanently remove the faculty registration request and cannot be undone.';
         confirmActionBtn.textContent = `${actionLabel}`;
-        confirmActionBtn.className = isApprove
-          ? 'flex-1 rounded-lg bg-green-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-800'
-          : 'flex-1 rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800';
+        // Use inline styles for production reliability (dynamic Tailwind classes may be purged).
+        confirmActionBtn.className = 'flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition';
+        confirmActionBtn.style.color = '#ffffff';
+        confirmActionBtn.style.backgroundColor = isApprove ? '#15803d' : '#b91c1c';
+        confirmActionBtn.onmouseenter = function() {
+          confirmActionBtn.style.backgroundColor = isApprove ? '#166534' : '#991b1b';
+        };
+        confirmActionBtn.onmouseleave = function() {
+          confirmActionBtn.style.backgroundColor = isApprove ? '#15803d' : '#b91c1c';
+        };
 
         actionModal.classList.remove('hidden');
         actionModal.classList.add('flex');
