@@ -29,6 +29,8 @@ urlpatterns = [
 
     path('faculty/deliverables/', views.faculty_deliverables_view, name='faculty_deliverables'),
     path('faculty/deliverables/upload/', views.faculty_deliverable_upload, name='faculty_deliverables_upload'),
+    path('faculty/deliverables/request-clearance/', views.faculty_request_clearance_view, name='faculty_request_clearance'),
+    path('faculty/deliverables/download-clearance/', views.faculty_download_clearance_view, name='faculty_download_clearance'),
 
    
 

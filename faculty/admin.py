@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import FacultyProfile, EmploymentStatus, FileType, DocumentCategory, FacultyDocument, AcademicYear, Semester, Deliverable, DeliverableTemplate, RequestType, FacultyRequest, TeachingAssignment
+from .models import FacultyProfile, EmploymentStatus, FileType, DocumentCategory, FacultyDocument, AcademicYear, Semester, Deliverable, DeliverableTemplate, RequestType, FacultyRequest, TeachingAssignment, FacultyClearanceRequest
 
 # Register your models here.
 
@@ -15,3 +15,4 @@ admin.site.register(DeliverableTemplate)
 admin.site.register(RequestType)
 admin.site.register(FacultyRequest)
 admin.site.register(TeachingAssignment)
+admin.site.register(FacultyClearanceRequest)

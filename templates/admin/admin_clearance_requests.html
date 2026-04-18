@@ -1,0 +1,140 @@
+{% extends 'admin/admin_base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+  <div class="flex items-center justify-between gap-3 flex-wrap">
+    <h2 class="text-2xl font-bold text-gray-900">Faculty Clearance Requests</h2>
+    <a href="{% url 'adminhub:deliverables' %}" class="inline-flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg text-sm font-semibold">
+      Back to Deliverables
+    </a>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-4">
+    <form method="get" class="admin-filter-form">
+      <div class="admin-filter-field admin-filter-field-grow">
+        <label class="block text-sm font-medium text-gray-600 mb-1">Search</label>
+        <input
+          type="text"
+          name="search"
+          value="{{ search }}"
+          placeholder="Faculty name, email, code, or clearance number"
+          class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#800505] focus:outline-none"
+        >
+      </div>
+      <div class="admin-filter-field">
+        <label class="block text-sm font-medium text-gray-600 mb-1">Status</label>
+        <select name="status" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#800505] focus:outline-none">
+          <option value="">All</option>
+          {% for s in status_options %}
+            <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="admin-filter-field">
+        <label class="block text-sm font-medium text-gray-600 mb-1">Semester</label>
+        <select name="semester" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#800505] focus:outline-none">
+          <option value="">All</option>
+          {% for sem in semester_options %}
+            <option value="{{ sem.id }}" {% if semester_filter == sem.id|stringformat:'s' %}selected{% endif %}>
+              {{ sem.get_semester_type_display }} {{ sem.academic_year }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="admin-filter-action">
+        <button type="submit" class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg text-sm font-semibold">
+          Filter
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-100 text-gray-700">
+        <tr>
+          <th class="text-left px-4 py-3">Faculty</th>
+          <th class="text-left px-4 py-3">Semester</th>
+          <th class="text-left px-4 py-3">Clearance Number</th>
+          <th class="text-left px-4 py-3">Status</th>
+          <th class="text-left px-4 py-3">Snapshot</th>
+          <th class="text-left px-4 py-3">Updated</th>
+          <th class="text-left px-4 py-3">Action</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for item in page_obj %}
+          <tr>
+            <td class="px-4 py-3">
+              <div class="font-semibold text-gray-900">{{ item.faculty.name }}</div>
+              <div class="text-xs text-gray-500">{{ item.faculty.account.email }}</div>
+              {% if item.faculty.faculty_code %}
+                <div class="text-xs text-gray-500">{{ item.faculty.faculty_code }}</div>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3">
+              {{ item.semester.get_semester_type_display }} {{ item.semester.academic_year }}
+            </td>
+            <td class="px-4 py-3 font-medium text-[#800505]">
+              {{ item.clearance_number|default:'N/A' }}
+            </td>
+            <td class="px-4 py-3">
+              {% if item.status == 'Approved' %}
+                <span class="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Approved</span>
+              {% elif item.status == 'Rejected' %}
+                <span class="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Rejected</span>
+              {% else %}
+                <span class="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">{{ item.status }}</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-700">
+              {{ item.snapshot_total_approved }} / {{ item.snapshot_total_required }} approved
+              {% if item.snapshot_total_pending %}<div>Pending: {{ item.snapshot_total_pending }}</div>{% endif %}
+              {% if item.snapshot_total_rejected %}<div>Rejected: {{ item.snapshot_total_rejected }}</div>{% endif %}
+              {% if item.snapshot_total_missing %}<div>Missing: {{ item.snapshot_total_missing }}</div>{% endif %}
+              {% if item.snapshot_total_overdue %}<div>Overdue: {{ item.snapshot_total_overdue }}</div>{% endif %}
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-600">{{ item.updated_at|date:'M d, Y h:i A' }}</td>
+            <td class="px-4 py-3">
+              {% if item.status == 'Approved' %}
+                <a
+                  href="{% url 'adminhub:clearance_request_download' item.id %}"
+                  class="text-[#800505] hover:underline font-semibold"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Download
+                </a>
+              {% else %}
+                <span class="text-xs text-gray-400">Not available</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="px-4 py-10 text-center text-gray-500">No clearance requests found.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+    <nav aria-label="pagination" class="flex justify-center gap-2">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&{{ querystring }}" class="px-3 py-1 rounded bg-[#800505] text-white">Prev</a>
+      {% else %}
+        <span class="px-3 py-1 rounded bg-gray-200 text-gray-500">Prev</span>
+      {% endif %}
+
+      <span class="px-3 py-1 rounded bg-gray-100 text-gray-700">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&{{ querystring }}" class="px-3 py-1 rounded bg-[#800505] text-white">Next</a>
+      {% else %}
+        <span class="px-3 py-1 rounded bg-gray-200 text-gray-500">Next</span>
+      {% endif %}
+    </nav>
+  {% endif %}
+</div>
+{% endblock %}

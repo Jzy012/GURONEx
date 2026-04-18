@@ -101,6 +101,7 @@ from faculty.models import (
     Deliverable,
     DeliverableTemplate,
     EmploymentStatus,
+    FacultyClearanceRequest,
     FacultyDocument,
     FacultyProfile,
     FacultyRequest,
@@ -112,6 +113,7 @@ from rfid.models import AttendanceLog, RFIDTag
 from rfid.views import format_log
 from services.dtr_service import DTRCalculator
 from services.deliverable_assignment_service import auto_assign_deliverables_for_semester
+from services.faculty_clearance_service import build_clearance_pdf_response
 from services.google_drive_service import CentralGoogleDriveService, get_google_drive_status
 from notifications.services import log_activity, notify_role, notify_user
 
@@ -717,7 +719,12 @@ def faculty_list_view(request):
     search = request.GET.get('search', '')
     status_id = request.GET.get('status', '')
 
-    faculty_qs = FacultyProfile.objects.all().select_related('status').order_by('name')
+    faculty_qs = (
+        FacultyProfile.objects
+        .select_related('account', 'status')
+        .filter(account__is_active=True)
+        .order_by('name')
+    )
     if search:
         faculty_qs = faculty_qs.filter(name__icontains=search)
     if status_id:
@@ -728,8 +735,12 @@ def faculty_list_view(request):
         pending_documents=Count('documents', filter=Q(documents__status='Pending', documents__is_archived=False))
     )
 
-    total_faculty = FacultyProfile.objects.count()
-    total_pending_docs = FacultyDocument.objects.filter(status='Pending', is_archived=False).count()
+    total_faculty = FacultyProfile.objects.filter(account__is_active=True).count()
+    total_pending_docs = FacultyDocument.objects.filter(
+        status='Pending',
+        is_archived=False,
+        faculty__account__is_active=True,
+    ).count()
     statuses = EmploymentStatus.objects.filter(is_active=True)
 
     # Pagination (same as in documents view)
@@ -1633,6 +1644,72 @@ def deliverables_view(request):
         'semester_date_mismatch': semester_date_mismatch,
     }
     return render(request, 'admin/admin_deliverables.html', context)
+
+
+@admin_required
+def clearance_requests_view(request):
+    search = (request.GET.get("search") or "").strip()
+    status = (request.GET.get("status") or "").strip()
+    semester_id = (request.GET.get("semester") or "").strip()
+
+    requests_qs = FacultyClearanceRequest.objects.select_related(
+        "faculty__account",
+        "semester__academic_year",
+    ).order_by("-updated_at")
+
+    if search:
+        requests_qs = requests_qs.filter(
+            Q(faculty__name__icontains=search)
+            | Q(faculty__account__email__icontains=search)
+            | Q(faculty__faculty_code__icontains=search)
+            | Q(clearance_number__icontains=search)
+        )
+
+    if status:
+        requests_qs = requests_qs.filter(status=status)
+
+    if semester_id.isdigit():
+        requests_qs = requests_qs.filter(semester_id=int(semester_id))
+
+    semesters = (
+        Semester.objects.filter(faculty_clearance_requests__isnull=False)
+        .select_related("academic_year")
+        .distinct()
+        .order_by("-start_date")
+    )
+
+    paginator = Paginator(requests_qs, 15)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    get_params = request.GET.copy()
+    if "page" in get_params:
+        del get_params["page"]
+
+    context = {
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "search": search,
+        "status_filter": status,
+        "semester_filter": semester_id,
+        "semester_options": semesters,
+        "querystring": get_params.urlencode(),
+        "status_options": [
+            FacultyClearanceRequest.STATUS_REQUESTED,
+            FacultyClearanceRequest.STATUS_APPROVED,
+            FacultyClearanceRequest.STATUS_REJECTED,
+        ],
+    }
+    return render(request, "admin/admin_clearance_requests.html", context)
+
+
+@admin_required
+def clearance_request_download_view(request, clearance_id):
+    clearance_request = get_object_or_404(
+        FacultyClearanceRequest.objects.select_related("faculty__account", "semester__academic_year"),
+        pk=clearance_id,
+        status=FacultyClearanceRequest.STATUS_APPROVED,
+    )
+    return build_clearance_pdf_response(clearance_request)
 
 
 @admin_required

@@ -57,6 +57,8 @@ urlpatterns = [
     path('admin/deliverables/deliverable-templates/<int:pk>/edit/',views.edit_deliverable_template_view,name='edit_deliverable_template'),
     path('admin/deliverables/deliverable-templates/<int:pk>/delete/',views.delete_deliverable_template_view,name='delete_deliverable_template'),
     path('admin/deliverables/assign/', views.assign_deliverables_view, name='assign_deliverables'),
+    path('admin/deliverables/clearance-requests/', views.clearance_requests_view, name='clearance_requests'),
+    path('admin/deliverables/clearance-requests/<int:clearance_id>/download/', views.clearance_request_download_view, name='clearance_request_download'),
     path('admin/deliverables/deadline/update/', views.update_deliverable_deadline_universal, name='update_deliverable_deadline_universal'),
     path('admin/faculty/<uuid:faculty_uuid>/deliverables/',views.faculty_deliverables,name='faculty_deliverables',),
 

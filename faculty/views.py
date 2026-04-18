@@ -19,6 +19,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.timezone import localtime
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -42,6 +43,7 @@ from base.utils.faculty_data import get_faculty_data
 from faculty.models import (
     Deliverable,
     DocumentCategory,
+    FacultyClearanceRequest,
     FacultyDocument,
     FacultyProfile,
     FacultyRequest,
@@ -52,6 +54,11 @@ from notifications.services import ROLE_ADMIN_GROUP, log_activity, notify_role
 from rfid.models import AttendanceLog
 from rfid.views import format_log
 from services.dtr_service import DTRCalculator
+from services.faculty_clearance_service import (
+    build_clearance_number,
+    build_clearance_pdf_response,
+    evaluate_faculty_clearance_eligibility,
+)
 from services.google_drive_service import CentralGoogleDriveService
 
 # Create your views here.
@@ -1178,13 +1185,16 @@ def view_announcement_ajax(request, uuid):
 def faculty_deliverables_view(request):
     data = get_faculty_data(request)
     faculty = request.user.faculty_profile
-    today = timezone.now().date()
+    today = timezone.localdate()
 
-    semester = Semester.objects.filter(
-        is_active=True,
-        start_date__lte=today,
-        end_date__gte=today
-    ).select_related('academic_year').first()
+    active_semester = (
+        Semester.objects.filter(is_active=True)
+        .select_related("academic_year")
+        .order_by("-start_date")
+        .first()
+    )
+
+    semester = active_semester
 
     if not semester:
         data.update({
@@ -1194,6 +1204,10 @@ def faculty_deliverables_view(request):
             'assignment_rows': [],
             'total_pending_deliverables': 0,
             'can_request_clearance': False,
+            'clearance_request': None,
+            'clearance_eligibility': {
+                'blocking_reasons': ["No semester with teaching assignments is available."],
+            },
         })
         return render(request, 'faculty/faculty_deliverables.html', data)
 
@@ -1220,6 +1234,7 @@ def faculty_deliverables_view(request):
             semester=semester,
             teaching_assignment=ta,
             deliverable__in=deliverables,
+            is_archived=False,
         ).select_related('deliverable', 'document_category')
 
         approved_count = docs_qs.filter(status='Approved').count()
@@ -1259,6 +1274,11 @@ def faculty_deliverables_view(request):
 
     academic_year_str = str(semester.academic_year)
     semester_str = semester.get_semester_type_display()
+    clearance_eligibility = evaluate_faculty_clearance_eligibility(faculty=faculty, semester=semester)
+    clearance_request = FacultyClearanceRequest.objects.filter(
+        faculty=faculty,
+        semester=semester,
+    ).first()
 
     data.update({
         'semester': semester,
@@ -1266,7 +1286,14 @@ def faculty_deliverables_view(request):
         'semester_str': semester_str,
         'assignment_rows': assignment_rows,
         'total_pending_deliverables': total_pending_deliverables,
-        'can_request_clearance': all_assignments_complete and assignments.exists() and deliverables.exists(),
+        'can_request_clearance': (
+            all_assignments_complete
+            and assignments.exists()
+            and deliverables.exists()
+            and clearance_eligibility['is_eligible']
+        ),
+        'clearance_request': clearance_request,
+        'clearance_eligibility': clearance_eligibility,
         'upload_blocked_due_deadline': pending_slots > 0 and pending_slots == overdue_slots,
     })
 
@@ -1278,6 +1305,74 @@ def faculty_deliverables_view(request):
 
 
 
+
+
+@faculty_required
+@require_POST
+def faculty_request_clearance_view(request):
+    faculty = request.user.faculty_profile
+    semester = (
+        Semester.objects.filter(is_active=True)
+        .select_related("academic_year")
+        .order_by("-start_date")
+        .first()
+    )
+
+    if not semester:
+        messages.error(request, "No active semester is available for clearance request.")
+        return redirect("faculty:faculty_deliverables")
+
+    if not TeachingAssignment.objects.filter(faculty=faculty, semester=semester).exists():
+        messages.error(request, "You have no teaching assignments for the active semester.")
+        return redirect("faculty:faculty_deliverables")
+
+    eligibility = evaluate_faculty_clearance_eligibility(faculty=faculty, semester=semester)
+    if not eligibility["is_eligible"]:
+        reason = " ".join(eligibility["blocking_reasons"]) or "All deliverables must be approved before requesting clearance."
+        messages.error(request, reason)
+        return redirect("faculty:faculty_deliverables")
+
+    clearance_number = build_clearance_number(faculty=faculty, semester=semester)
+    now = timezone.now()
+
+    FacultyClearanceRequest.objects.update_or_create(
+        faculty=faculty,
+        semester=semester,
+        defaults={
+            "status": FacultyClearanceRequest.STATUS_APPROVED,
+            "clearance_number": clearance_number,
+            "approved_at": now,
+            "rejected_at": None,
+            "rejection_reason": "",
+            "snapshot_total_required": eligibility["total_required"],
+            "snapshot_total_approved": eligibility["approved_slots"],
+            "snapshot_total_pending": eligibility["pending_slots"],
+            "snapshot_total_rejected": eligibility["rejected_slots"],
+            "snapshot_total_missing": eligibility["missing_slots"],
+            "snapshot_total_overdue": eligibility["overdue_slots"],
+        },
+    )
+
+    messages.success(request, f"Clearance auto-approved for {semester.get_semester_type_display()} {semester.academic_year}.")
+    return redirect("faculty:faculty_deliverables")
+
+
+@faculty_required
+def faculty_download_clearance_view(request):
+    faculty = request.user.faculty_profile
+    semester_id = request.GET.get("semester", "")
+
+    if not semester_id.isdigit():
+        raise Http404("Semester is required.")
+
+    clearance_request = get_object_or_404(
+        FacultyClearanceRequest.objects.select_related("faculty__account", "semester__academic_year"),
+        faculty=faculty,
+        semester_id=int(semester_id),
+        status=FacultyClearanceRequest.STATUS_APPROVED,
+    )
+
+    return build_clearance_pdf_response(clearance_request)
 
 
 @faculty_required

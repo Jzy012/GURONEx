@@ -211,6 +211,10 @@ class ApplicantDocument(models.Model):
             return self.expiry_date >= timezone.now().date()
         return True
 
+    @property 
+    def document_name(self): 
+        return f"{self.document_category.name} ({self.applicant.applicant_id})"
+
     def archive(self, by_user):
         if self.is_archived:
             return

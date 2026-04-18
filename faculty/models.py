@@ -546,3 +546,53 @@ class TeachingAssignment(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()  # Ensures clean() always runs
         return super().save(*args, **kwargs)
+
+
+class FacultyClearanceRequest(models.Model):
+    STATUS_REQUESTED = "Requested"
+    STATUS_APPROVED = "Approved"
+    STATUS_REJECTED = "Rejected"
+
+    STATUS_CHOICES = [
+        (STATUS_REQUESTED, "Requested"),
+        (STATUS_APPROVED, "Approved"),
+        (STATUS_REJECTED, "Rejected"),
+    ]
+
+    faculty = models.ForeignKey(
+        FacultyProfile,
+        on_delete=models.CASCADE,
+        related_name="clearance_requests",
+    )
+    semester = models.ForeignKey(
+        Semester,
+        on_delete=models.CASCADE,
+        related_name="faculty_clearance_requests",
+    )
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_REQUESTED)
+    clearance_number = models.CharField(max_length=120, blank=True)
+
+    snapshot_total_required = models.PositiveIntegerField(default=0)
+    snapshot_total_approved = models.PositiveIntegerField(default=0)
+    snapshot_total_pending = models.PositiveIntegerField(default=0)
+    snapshot_total_rejected = models.PositiveIntegerField(default=0)
+    snapshot_total_missing = models.PositiveIntegerField(default=0)
+    snapshot_total_overdue = models.PositiveIntegerField(default=0)
+
+    requested_at = models.DateTimeField(auto_now=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["faculty", "semester"], name="unique_faculty_clearance_per_semester"),
+        ]
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"{self.faculty} - {self.semester} ({self.status})"
