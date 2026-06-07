@@ -16,6 +16,8 @@ class Notification(models.Model):
 		("google_storage_changed", "Google Storage Changed"),
 		("deliverable_deadline_reminder", "Deliverable Deadline Reminder"),
 		("missing_deliverables", "Missing Deliverables"),
+		("applicant_reschedule_requested", "Applicant Reschedule Requested"),
+		("applicant_step_document_uploaded", "Applicant Step Document Uploaded"),
 		("system", "System"),
 	]
 

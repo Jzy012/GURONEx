@@ -58,7 +58,10 @@ from adminhub.tasks import (
     publish_scheduled_announcement_task,
     send_announcement_email_task,
 )
-from applicant.models import Applicant, ApplicantDocument, ApplicantRequiredDocument
+from applicant.models import (
+    Applicant, ApplicantDocument, ApplicantRequiredDocument, ApplicantTimeline,
+    ApplicantRescheduleRequest, ApplicantStepDocument, ApplicantSalaryRequirementConfig,
+)
 from base.decorators import admin_required, faculty_required
 from base.forms import (
     AnnouncementForm,
@@ -88,6 +91,12 @@ from base.utils.email import (
     send_applicant_status_email,
     send_applicant_status_rescheduled_email,
     send_html_email,
+    send_interview_step_email,
+    send_reschedule_approved_email,
+    send_psych_test_step_email,
+    send_contract_of_service_email,
+    send_first_salary_requirements_email,
+    send_hired_email,
 )
 from base.utils.teaching_assignment import (
     build_faculty_name_index,
@@ -2086,11 +2095,37 @@ def applicant_list_view(request):
 
 
 
+def _send_advance_email(applicant, new_status, status_date, step_deadline, instructions):
+    """Dispatches the correct step-specific email on status advance."""
+    try:
+        if new_status == 'demo_scheduled':
+            step_label = dict(STEPPER_STATUSES).get(new_status, new_status)
+            send_interview_step_email(applicant, step_label, status_date, instructions)
+        elif new_status == 'psych_test':
+            send_psych_test_step_email(applicant, step_deadline)
+        elif new_status == 'contract_of_service':
+            send_contract_of_service_email(applicant, step_deadline)
+        elif new_status == 'first_salary_requirements':
+            configs = list(
+                ApplicantSalaryRequirementConfig.objects
+                .filter(applicant=applicant)
+                .select_related('document_category')
+            )
+            cat_names = [c.document_category.name for c in configs]
+            send_first_salary_requirements_email(applicant, cat_names, step_deadline)
+        elif new_status == 'hired':
+            send_hired_email(applicant)
+        else:
+            # Fallback for any unlisted step
+            send_applicant_status_email(applicant, new_status, status_date=status_date)
+    except Exception:
+        pass  # Email failure must not roll back the status transition
+
+
 # Statuses in order for the stepper visualization
 STEPPER_STATUSES = [
     ('pending', "Pending"),
-    ('demo_scheduled', "Demo Scheduled"),
-    ('for_interview', "For Interview"),
+    ('demo_scheduled', "Demo & Interview"),
     ('psych_test', "Psych Test"),
     ('contract_of_service', "Contract of Service"),
     ('first_salary_requirements', "First Salary Requirements"),
@@ -2100,7 +2135,6 @@ STEPPER_STATUSES = [
 
 STEPPER_DATE_FIELDS = {
     'demo_scheduled': 'demo_scheduled_date',
-    'for_interview': 'for_interview_date',
     'psych_test': 'psych_test_date',
     'hired': 'hired_date',
     'rejected': 'rejected_date',
@@ -2108,7 +2142,6 @@ STEPPER_DATE_FIELDS = {
 
 REQUIRED_STATUS_DATES = {
     'demo_scheduled',
-    'for_interview',
     'psych_test',
 }
 
@@ -2116,6 +2149,9 @@ REQUIRED_STATUS_DATES = {
 def _get_next_status(current_status: str):
     if current_status in {'hired', 'rejected'}:
         return None
+    # Legacy: for_interview was merged into demo_scheduled
+    if current_status == 'for_interview':
+        return 'psych_test'
     values = [value for value, _label in STEPPER_STATUSES]
     try:
         idx = values.index(current_status)
@@ -2141,14 +2177,14 @@ def _parse_input_date(date_raw: str):
 
 def _get_rejected_reached_status(applicant: Applicant):
     if applicant.rejected_from_status:
-        return applicant.rejected_from_status
+        rs = applicant.rejected_from_status
+        # Legacy: for_interview merged into demo_scheduled
+        return 'demo_scheduled' if rs == 'for_interview' else rs
     if applicant.hired_date:
         return 'hired'
     if applicant.psych_test_date:
         return 'psych_test'
-    if applicant.for_interview_date:
-        return 'for_interview'
-    if applicant.demo_scheduled_date:
+    if applicant.for_interview_date or applicant.demo_scheduled_date:
         return 'demo_scheduled'
     return 'pending'
 
@@ -2157,9 +2193,11 @@ def applicant_detail_view(request, uuid):
     applicant = get_object_or_404(Applicant, uuid=uuid)
     documents = ApplicantDocument.objects.filter(applicant=applicant, is_archived=False)
     status_labels = dict(STEPPER_STATUSES)
-    current_status_label = status_labels.get(applicant.status, applicant.status)
+    # Legacy: for_interview is merged into demo_scheduled display
+    _display_status = 'demo_scheduled' if applicant.status == 'for_interview' else applicant.status
+    current_status_label = status_labels.get(_display_status, applicant.status)
     current_status_date = _get_status_date(applicant, applicant.status)
-    can_reschedule_current_step = bool(STEPPER_DATE_FIELDS.get(applicant.status))
+    can_reschedule_current_step = bool(STEPPER_DATE_FIELDS.get(applicant.status) or applicant.status == 'for_interview')
 
     next_status = _get_next_status(applicant.status)
     can_reject = applicant.status not in {'hired', 'rejected'}
@@ -2238,6 +2276,18 @@ def applicant_detail_view(request, uuid):
                 if new_status in REQUIRED_STATUS_DATES and not status_date:
                     messages.error(request, "A date is required for this step.")
                 else:
+                    # Parse optional step-specific extras from POST
+                    deadline_raw = (request.POST.get("step_deadline") or "").strip()
+                    step_deadline = None
+                    if deadline_raw:
+                        try:
+                            step_deadline = _parse_input_date(deadline_raw)
+                        except ValueError:
+                            messages.error(request, "Invalid deadline format.")
+                            return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+                    instructions = (request.POST.get("interview_instructions") or "").strip()
+
                     with transaction.atomic():
                         update_fields = ['status']
                         applicant.status = new_status
@@ -2247,17 +2297,34 @@ def applicant_detail_view(request, uuid):
                             setattr(applicant, status_date_field, status_date)
                             update_fields.append(status_date_field)
 
+                        # Persist deadline and instructions for relevant steps
+                        if new_status == 'psych_test' and step_deadline:
+                            applicant.psych_test_deadline = step_deadline
+                            update_fields.append('psych_test_deadline')
+                        elif new_status == 'contract_of_service' and step_deadline:
+                            applicant.contract_of_service_deadline = step_deadline
+                            update_fields.append('contract_of_service_deadline')
+                        elif new_status == 'first_salary_requirements' and step_deadline:
+                            applicant.first_salary_deadline = step_deadline
+                            update_fields.append('first_salary_deadline')
+
+                        if new_status == 'demo_scheduled' and instructions:
+                            applicant.interview_instructions = instructions
+                            update_fields.append('interview_instructions')
+
                         applicant.save(update_fields=update_fields)
-                        send_applicant_status_email(applicant, new_status, status_date=status_date)
-                        messages.success(request, "Status updated.")
+
+                        # Send step-specific email
+                        _send_advance_email(applicant, new_status, status_date, step_deadline, instructions)
+
+                        messages.success(request, "Status updated and applicant notified.")
                     return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
     # For stepper: render a truncated path for rejected applicants.
     # This keeps reached steps, then appends Rejected as the terminal step.
     linear_stepper_statuses = [
         ('pending', "Pending"),
-        ('demo_scheduled', "Demo Scheduled"),
-        ('for_interview', "For Interview"),
+        ('demo_scheduled', "Demo & Interview"),
         ('psych_test', "Psych Test"),
         ('contract_of_service', "Contract of Service"),
         ('first_salary_requirements', "First Salary Requirements"),
@@ -2265,7 +2332,10 @@ def applicant_detail_view(request, uuid):
     ]
     status_values = [value for value, _label in linear_stepper_statuses]
 
-    if applicant.status == 'rejected':
+    # Normalise legacy for_interview → demo_scheduled for stepper display
+    display_status = 'demo_scheduled' if applicant.status == 'for_interview' else applicant.status
+
+    if display_status == 'rejected':
         rejected_source_status = _get_rejected_reached_status(applicant)
         try:
             reached_idx = status_values.index(rejected_source_status)
@@ -2276,13 +2346,13 @@ def applicant_detail_view(request, uuid):
     else:
         display_steps = linear_stepper_statuses
         try:
-            current_idx = status_values.index(applicant.status)
+            current_idx = status_values.index(display_status)
         except ValueError:
             current_idx = -1
 
     stepper = []
     for idx, (value, label) in enumerate(display_steps):
-        is_active = applicant.status == value
+        is_active = display_status == value
         step_date = _get_status_date(applicant, value)
         if value == 'pending':
             step_date = applicant.created_at.date()
@@ -2296,6 +2366,55 @@ def applicant_detail_view(request, uuid):
             "requires_date": value in REQUIRED_STATUS_DATES,
         })
 
+    # Step-specific context
+    pending_reschedule_requests = []
+    if applicant.status in ('demo_scheduled', 'for_interview'):
+        pending_reschedule_requests = list(
+            applicant.reschedule_requests.filter(
+                step__in=('demo_scheduled', 'for_interview'),
+                status=ApplicantRescheduleRequest.STATUS_PENDING,
+            ).order_by('-requested_at')
+        )
+
+    psych_docs = []
+    if applicant.status == 'psych_test':
+        psych_docs = list(
+            applicant.step_documents.filter(step_type=ApplicantStepDocument.STEP_PSYCH_TEST)
+            .order_by('-uploaded_at')
+        )
+
+    admin_contract = None
+    signed_contracts = []
+    if applicant.status in ('contract_of_service', 'first_salary_requirements', 'hired'):
+        admin_contract = (
+            applicant.step_documents.filter(step_type=ApplicantStepDocument.STEP_CONTRACT_ADMIN)
+            .order_by('-uploaded_at').first()
+        )
+        signed_contracts = list(
+            applicant.step_documents.filter(step_type=ApplicantStepDocument.STEP_CONTRACT_SIGNED)
+            .order_by('-uploaded_at')
+        )
+
+    salary_configs = []
+    salary_uploads = {}
+    if applicant.status == 'first_salary_requirements':
+        salary_configs = list(
+            ApplicantSalaryRequirementConfig.objects.filter(applicant=applicant)
+            .select_related('document_category')
+        )
+        salary_uploads = {
+            doc.document_category_id: doc
+            for doc in applicant.step_documents.filter(
+                step_type=ApplicantStepDocument.STEP_SALARY_REQUIREMENT
+            ).order_by('-uploaded_at')
+        }
+
+    from faculty.models import DocumentCategory
+    all_doc_categories = DocumentCategory.objects.all().order_by('name')
+
+    next_status_needs_deadline = next_status in ('psych_test', 'contract_of_service', 'first_salary_requirements')
+    next_status_needs_instructions = next_status == 'demo_scheduled'
+
     return render(request, 'admin/admin_applicant_detail.html', {
         'applicant': applicant,
         'documents': documents,
@@ -2307,9 +2426,238 @@ def applicant_detail_view(request, uuid):
         'next_status': next_status,
         'next_status_requires_date': next_status_requires_date,
         'stepper': stepper,
+        # Step-specific
+        'pending_reschedule_requests': pending_reschedule_requests,
+        'psych_docs': psych_docs,
+        'admin_contract': admin_contract,
+        'signed_contracts': signed_contracts,
+        'salary_configs': salary_configs,
+        'salary_uploads': salary_uploads,
+        'all_doc_categories': all_doc_categories,
+        'next_status_needs_deadline': next_status_needs_deadline,
+        'next_status_needs_instructions': next_status_needs_instructions,
     })
 
 
+# ---------------------------------------------------------------------------
+# Admin: Respond to Reschedule Request
+# ---------------------------------------------------------------------------
+
+@admin_required
+def admin_respond_reschedule(request, uuid, pk):
+    applicant = get_object_or_404(Applicant, uuid=uuid)
+    reschedule_req = get_object_or_404(ApplicantRescheduleRequest, pk=pk, applicant=applicant)
+
+    if request.method != 'POST':
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    if reschedule_req.status != ApplicantRescheduleRequest.STATUS_PENDING:
+        messages.warning(request, "This request has already been reviewed.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    decision = request.POST.get('decision', '').strip()
+    admin_note = request.POST.get('admin_note', '').strip()
+    new_date_raw = request.POST.get('new_date', '').strip()
+
+    if decision not in ('approved', 'denied'):
+        messages.error(request, "Invalid decision.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    with transaction.atomic():
+        reschedule_req.status = decision
+        reschedule_req.admin_note = admin_note
+        reschedule_req.reviewed_at = timezone.now()
+        reschedule_req.reviewed_by = request.user
+        reschedule_req.save()
+
+        old_date = None
+        new_date = None
+
+        if decision == 'approved' and new_date_raw:
+            try:
+                new_date = _parse_input_date(new_date_raw)
+            except ValueError:
+                messages.error(request, "Invalid new date format.")
+                return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+            step = reschedule_req.step
+            date_field = STEPPER_DATE_FIELDS.get(step)
+            if date_field:
+                old_date = getattr(applicant, date_field, None)
+                setattr(applicant, date_field, new_date)
+                applicant.save(update_fields=[date_field])
+
+        step_label = dict(STEPPER_STATUSES).get(reschedule_req.step, reschedule_req.step)
+
+        ApplicantTimeline.objects.create(
+            applicant=applicant,
+            action=f"Reschedule request {decision}",
+            note=admin_note[:200] if admin_note else None,
+            admin=request.user,
+        )
+
+        if decision == 'approved':
+            try:
+                send_reschedule_approved_email(applicant, step_label, old_date, new_date, admin_note)
+            except Exception:
+                pass
+            messages.success(request, "Reschedule approved and applicant notified.")
+        else:
+            messages.success(request, "Reschedule request denied.")
+
+    return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+
+# ---------------------------------------------------------------------------
+# Admin: Upload Contract of Service document
+# ---------------------------------------------------------------------------
+
+@admin_required
+def admin_upload_contract(request, uuid):
+    applicant = get_object_or_404(Applicant, uuid=uuid)
+
+    if request.method != 'POST':
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    if applicant.status != 'contract_of_service':
+        messages.error(request, "Contract upload is only allowed at the Contract of Service step.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    file = request.FILES.get('contract_file')
+    if not file:
+        messages.error(request, "Please select a file to upload.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    if file.size > 15 * 1024 * 1024:
+        messages.error(request, "File size must not exceed 15 MB.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    try:
+        drive = CentralGoogleDriveService()
+        media = MediaIoBaseUpload(io.BytesIO(file.read()), mimetype=file.content_type, resumable=False)
+        upload = drive.service.files().create(
+            body={'name': file.name, 'parents': [applicant.google_drive_folder_id]},
+            media_body=media,
+            fields='id,webViewLink',
+        ).execute()
+
+        ApplicantStepDocument.objects.create(
+            applicant=applicant,
+            step_type=ApplicantStepDocument.STEP_CONTRACT_ADMIN,
+            uploaded_by=request.user,
+            file_path=upload['webViewLink'],
+            google_drive_id=upload['id'],
+            file_size=file.size,
+            status=ApplicantStepDocument.STATUS_APPROVED,
+        )
+        ApplicantTimeline.objects.create(
+            applicant=applicant,
+            action="Admin uploaded contract of service",
+            admin=request.user,
+        )
+    except Exception as exc:
+        messages.error(request, f"Upload failed: {exc}")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    messages.success(request, "Contract uploaded. The applicant can now download and sign it.")
+    return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+
+# ---------------------------------------------------------------------------
+# Admin: Review Step Document (psych test, signed contract, salary requirement)
+# ---------------------------------------------------------------------------
+
+@admin_required
+def admin_review_step_document(request, pk):
+    doc = get_object_or_404(ApplicantStepDocument, pk=pk)
+    applicant = doc.applicant
+
+    if request.method != 'POST':
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    new_status = request.POST.get('status', '').strip()
+    remarks = request.POST.get('remarks', '').strip()
+
+    if new_status not in (ApplicantStepDocument.STATUS_APPROVED, ApplicantStepDocument.STATUS_REJECTED):
+        messages.error(request, "Invalid status.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    doc.status = new_status
+    doc.admin_remarks = remarks
+    doc.save(update_fields=['status', 'admin_remarks'])
+
+    ApplicantTimeline.objects.create(
+        applicant=applicant,
+        action=f"Step document {new_status.lower()}: {doc.get_step_type_display()}",
+        note=remarks[:200] if remarks else None,
+        admin=request.user,
+    )
+
+    messages.success(request, f"Document marked as {new_status}.")
+    return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+
+# ---------------------------------------------------------------------------
+# Admin: Configure First Salary Requirements
+# ---------------------------------------------------------------------------
+
+@admin_required
+def admin_configure_salary_requirements(request, uuid):
+    applicant = get_object_or_404(Applicant, uuid=uuid)
+
+    if request.method == 'POST':
+        category_ids = request.POST.getlist('category_ids')
+
+        with transaction.atomic():
+            ApplicantSalaryRequirementConfig.objects.filter(
+                applicant=applicant
+            ).exclude(document_category_id__in=category_ids).delete()
+
+            for cat_id in category_ids:
+                ApplicantSalaryRequirementConfig.objects.get_or_create(
+                    applicant=applicant,
+                    document_category_id=cat_id,
+                    defaults={'is_required': True},
+                )
+
+        ApplicantTimeline.objects.create(
+            applicant=applicant,
+            action="Salary requirements configured",
+            admin=request.user,
+        )
+        messages.success(request, "Salary requirements updated.")
+
+    return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+
+# ---------------------------------------------------------------------------
+# Admin: Archive Applicant
+# ---------------------------------------------------------------------------
+
+@admin_required
+def admin_archive_applicant(request, uuid):
+    applicant = get_object_or_404(Applicant, uuid=uuid)
+
+    if request.method != 'POST':
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    if applicant.is_archived:
+        messages.warning(request, "Applicant is already archived.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    applicant.is_archived = True
+    applicant.archived_at = timezone.now()
+    applicant.archived_by = request.user
+    applicant.save(update_fields=['is_archived', 'archived_at', 'archived_by'])
+
+    ApplicantTimeline.objects.create(
+        applicant=applicant,
+        action="Applicant archived",
+        admin=request.user,
+    )
+
+    messages.success(request, f"Applicant {applicant.applicant_id} has been archived.")
+    return redirect('adminhub:applicant_list')
 
 
 def _stream_drive_media(drive_service: CentralGoogleDriveService, file_id: str, chunk_size: int = 1024 * 256):
@@ -2382,6 +2730,45 @@ def download_applicant_document(request, pk):
     response = StreamingHttpResponse(_stream_drive_media(drive, file_id), content_type=content_type)
     response['Content-Disposition'] = f'attachment; filename="{name_on_drive}"'
     return _finalize_response(response)
+
+
+@admin_required
+def download_applicant_step_document(request, pk):
+    """Streams an ApplicantStepDocument for admin viewing/download."""
+    doc = get_object_or_404(ApplicantStepDocument, pk=pk)
+    file_id = doc.google_drive_id
+
+    drive = CentralGoogleDriveService()
+    want_inline = request.GET.get('inline', '0').lower() in ('1', 'true', 'yes')
+
+    try:
+        meta = drive.service.files().get(fileId=file_id, fields='mimeType, name').execute()
+        mime_type = meta.get('mimeType')
+        name_on_drive = meta.get('name') or f'step_doc_{doc.pk}'
+    except Exception:
+        raise Http404("Could not retrieve file metadata from Google Drive.")
+
+    def _finalize(resp):
+        resp['X-Frame-Options'] = 'SAMEORIGIN'
+        resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return resp
+
+    if mime_type and mime_type.startswith('application/vnd.google-apps.'):
+        try:
+            exported = drive.service.files().export(fileId=file_id, mimeType='application/pdf').execute()
+        except Exception:
+            raise Http404("File could not be exported.")
+        disposition = 'inline' if want_inline else 'attachment'
+        resp = HttpResponse(exported, content_type='application/pdf')
+        resp['Content-Disposition'] = f'{disposition}; filename="{name_on_drive}"'
+        return _finalize(resp)
+
+    content_type = mime_type or mimetypes.guess_type(name_on_drive)[0] or 'application/octet-stream'
+    inline_allowed = (content_type == 'application/pdf') or content_type.startswith('image/')
+    disposition = 'inline' if (want_inline and inline_allowed) else 'attachment'
+    response = StreamingHttpResponse(_stream_drive_media(drive, file_id), content_type=content_type)
+    response['Content-Disposition'] = f'{disposition}; filename="{name_on_drive}"'
+    return _finalize(response)
 
 
 @admin_required

@@ -36,7 +36,7 @@ class Applicant(models.Model):
 
     # Name fields
     first_name = models.CharField(max_length=100)
-    middle_name = models.CharField(max_length=100, blank=True)  # NEW: optional
+    middle_name = models.CharField(max_length=100, blank=True)
     last_name = models.CharField(max_length=100)
     suffix = models.CharField(max_length=20, blank=True)
 
@@ -86,9 +86,25 @@ class Applicant(models.Model):
     emergency_contact_name = models.CharField(max_length=100, null=True, blank=True)
     emergency_contact_number = models.CharField(max_length=15, null=True, blank=True)
 
+    # Step-specific deadlines set by admin on advance
+    psych_test_deadline = models.DateField(null=True, blank=True)
+    contract_of_service_deadline = models.DateField(null=True, blank=True)
+    first_salary_deadline = models.DateField(null=True, blank=True)
+
+    # Optional instructions shown to applicant for interview/demo steps
+    interview_instructions = models.TextField(blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     google_drive_folder_id = models.CharField(max_length=255, null=True, blank=True)
     account_created = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(
+        "base.Account",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="archived_applicants",
+    )
 
     def save(self, *args, **kwargs):
         creating = not self.pk
@@ -250,3 +266,96 @@ class ApplicantRetentionPolicy(models.Model):
 
     def __str__(self):
         return f"Applicant Retention: {self.retention_days} days"
+
+
+class ApplicantRescheduleRequest(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_DENIED = 'denied'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_DENIED, 'Denied'),
+    ]
+
+    applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, related_name='reschedule_requests')
+    step = models.CharField(max_length=30)  # 'demo_scheduled' or 'for_interview'
+    reason = models.TextField()
+    preferred_date = models.DateField(null=True, blank=True)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        "base.Account", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='reviewed_reschedule_requests',
+    )
+    admin_note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+
+    def __str__(self):
+        return f"{self.applicant.applicant_id} reschedule ({self.step}) – {self.status}"
+
+
+class ApplicantStepDocument(models.Model):
+    STEP_PSYCH_TEST = 'psych_test'
+    STEP_CONTRACT_ADMIN = 'contract_admin'
+    STEP_CONTRACT_SIGNED = 'contract_signed'
+    STEP_SALARY_REQUIREMENT = 'salary_requirement'
+    STEP_TYPE_CHOICES = [
+        (STEP_PSYCH_TEST, 'Psych Test'),
+        (STEP_CONTRACT_ADMIN, 'Contract (Admin Uploaded)'),
+        (STEP_CONTRACT_SIGNED, 'Signed Contract (Applicant)'),
+        (STEP_SALARY_REQUIREMENT, 'First Salary Requirement'),
+    ]
+
+    STATUS_PENDING = 'Pending'
+    STATUS_APPROVED = 'Approved'
+    STATUS_REJECTED = 'Rejected'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_REJECTED, 'Rejected'),
+    ]
+
+    applicant = models.ForeignKey(Applicant, on_delete=models.CASCADE, related_name='step_documents')
+    step_type = models.CharField(max_length=30, choices=STEP_TYPE_CHOICES)
+    document_category = models.ForeignKey(
+        DocumentCategory, on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    uploaded_by = models.ForeignKey(
+        "base.Account", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='uploaded_step_documents',
+    )
+    file_path = models.URLField(max_length=500)
+    google_drive_id = models.CharField(max_length=255)
+    file_size = models.PositiveIntegerField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    admin_remarks = models.TextField(blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"{self.applicant.applicant_id} – {self.get_step_type_display()}"
+
+
+class ApplicantSalaryRequirementConfig(models.Model):
+    """Admin-configured per-applicant document checklist for first salary requirements."""
+    applicant = models.ForeignKey(
+        Applicant, on_delete=models.CASCADE,
+        related_name='salary_requirement_configs',
+    )
+    document_category = models.ForeignKey(DocumentCategory, on_delete=models.CASCADE)
+    is_required = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('applicant', 'document_category')
+        ordering = ['document_category__name']
+
+    def __str__(self):
+        flag = 'Required' if self.is_required else 'Optional'
+        return f"{self.applicant.applicant_id} – {self.document_category.name} ({flag})"

@@ -1,0 +1,44 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ subject }}{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    We are pleased to inform you that your application has advanced to the
+    <strong>Contract of Service</strong> stage.
+  </p>
+
+  <p>
+    A Contract of Service document has been uploaded to your applicant dashboard.
+    Please follow the steps below to complete this stage:
+  </p>
+
+  <ol>
+    <li>Log in to your applicant dashboard using the button below.</li>
+    <li>Download the Contract of Service document from the <em>Contract</em> section.</li>
+    <li>Read the contract carefully, sign it, and scan or photograph the signed copy.</li>
+    <li>Upload the signed contract back through your dashboard.</li>
+  </ol>
+
+  {% if deadline %}
+    <p>
+      <strong>Submission Deadline:</strong>
+      <span class="badge">{{ deadline|date:"F j, Y" }}</span>
+    </p>
+    <p>
+      Failure to submit the signed contract by the deadline may be treated as
+      withdrawal from the application process.
+    </p>
+  {% endif %}
+
+  <p>
+    <a href="{{ status_url }}" class="btn">View My Dashboard</a>
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    Questions? Contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+{% endblock %}

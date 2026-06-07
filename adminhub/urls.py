@@ -68,6 +68,7 @@ urlpatterns = [
     path('admin/applicants/', views.applicant_list_view, name='applicant_list'),
     path('admin/applicants/<uuid:uuid>/', views.applicant_detail_view, name='applicant_detail'),
     path('admin/applicants/documents/download/<int:pk>/',views.download_applicant_document,name='download_applicant_document',),
+    path('admin/applicants/step-document/<int:pk>/download/', views.download_applicant_step_document, name='download_applicant_step_document'),
     path('admin/applicants/document/change-status/<int:pk>/',views.change_applicant_document_status,name='change_applicant_document_status',),
     path('admin/applicants/document/archive/<int:pk>/', views.archive_applicant_document, name='archive_applicant_document'),
     path('admin/applicants/document/restore/<int:pk>/', views.restore_applicant_document, name='restore_applicant_document'),
@@ -78,6 +79,13 @@ urlpatterns = [
     path('admin/applicants/required-documents/create/',views.applicant_required_document_create_or_edit_view,name='applicant_required_document_create',),
     path('admin/applicants/required-documents/<int:pk>/edit/',views.applicant_required_document_create_or_edit_view,name='applicant_required_document_edit',),
     path('admin/applicants/required-documents/<int:pk>/delete/',views.applicant_required_document_delete_view,name='applicant_required_document_delete',),
+
+    # Step-specific admin actions
+    path('admin/applicants/<uuid:uuid>/reschedule-respond/<int:pk>/', views.admin_respond_reschedule, name='admin_respond_reschedule'),
+    path('admin/applicants/<uuid:uuid>/upload-contract/', views.admin_upload_contract, name='admin_upload_contract'),
+    path('admin/applicants/step-document/<int:pk>/review/', views.admin_review_step_document, name='admin_review_step_document'),
+    path('admin/applicants/<uuid:uuid>/salary-requirements/', views.admin_configure_salary_requirements, name='admin_configure_salary_requirements'),
+    path('admin/applicants/<uuid:uuid>/archive/', views.admin_archive_applicant, name='admin_archive_applicant'),
 
   
     

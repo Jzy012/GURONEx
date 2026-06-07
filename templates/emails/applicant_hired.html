@@ -1,0 +1,29 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ subject }}{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    We are thrilled to inform you that you have been officially <strong>hired</strong> as part of the LINANG team!
+  </p>
+
+  <p>
+    The admin will create your faculty account shortly. Once your account is ready, you will receive
+    your login credentials directly on your dashboard and via a separate email.
+  </p>
+
+  <p>
+    Please log in to your applicant dashboard to monitor account creation status.
+  </p>
+
+  <p>
+    <a href="{{ status_url }}" class="btn">View My Dashboard</a>
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    Questions? Contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+{% endblock %}

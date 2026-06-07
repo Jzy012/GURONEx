@@ -1,0 +1,52 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ subject }}{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    Congratulations! You have advanced to the <strong>First Salary Requirements</strong> stage of your application.
+  </p>
+
+  <p>
+    You are required to submit the following documents through your applicant dashboard:
+  </p>
+
+  {% if required_categories %}
+    <ul>
+      {% for cat in required_categories %}
+        <li>{{ cat }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Please log in to your dashboard to view the full list of required documents.</p>
+  {% endif %}
+
+  {% if deadline %}
+    <p>
+      <strong>Submission Deadline:</strong>
+      <span class="badge">{{ deadline|date:"F j, Y" }}</span>
+    </p>
+    <p>
+      Please ensure all required documents are submitted before the deadline.
+    </p>
+  {% endif %}
+
+  <p><strong>Submission Instructions:</strong></p>
+  <ol>
+    <li>Log in to your applicant dashboard using the button below.</li>
+    <li>Navigate to the <em>First Salary Requirements</em> section.</li>
+    <li>Upload each required document using the provided upload buttons.</li>
+    <li>Wait for admin verification of each document.</li>
+  </ol>
+
+  <p>
+    <a href="{{ status_url }}" class="btn">Submit Required Documents</a>
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    Questions? Contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+{% endblock %}

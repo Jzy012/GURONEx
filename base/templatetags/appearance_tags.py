@@ -18,6 +18,14 @@ from base.models import LandingAppearance
 register = template.Library()
 
 
+@register.filter
+def get_item(dictionary, key):
+    """Dict lookup by variable key: {{ my_dict|get_item:key }}"""
+    if dictionary is None:
+        return None
+    return dictionary.get(key)
+
+
 @register.simple_tag
 def landing_background_url():
     """

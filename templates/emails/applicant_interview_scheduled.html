@@ -1,0 +1,38 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ subject }}{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    Your application to <strong>LINANG</strong> has been updated.
+    You have been scheduled for your <strong>{{ step_label }}</strong>.
+  </p>
+
+  {% if scheduled_date %}
+    <p>
+      <strong>Scheduled Date:</strong> {{ scheduled_date|date:"F j, Y" }}
+    </p>
+  {% endif %}
+
+  {% if instructions %}
+    <div class="divider"></div>
+    <p><strong>Instructions from Admin:</strong></p>
+    <p>{{ instructions }}</p>
+    <div class="divider"></div>
+  {% endif %}
+
+  <p>
+    If you need to reschedule, you may submit a reschedule request from your applicant dashboard.
+  </p>
+
+  <p>
+    <a href="{{ status_url }}" class="btn">View My Dashboard</a>
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    Questions? Contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+{% endblock %}

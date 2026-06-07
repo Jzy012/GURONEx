@@ -1,0 +1,44 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ subject }}{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    Your reschedule request for your <strong>{{ step_label }}</strong> has been reviewed.
+  </p>
+
+  <table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:14px;">
+    <tr>
+      <td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600;width:40%;">Previous Schedule</td>
+      <td style="padding:8px 12px;border:1px solid #e5e7eb;">
+        {% if old_date %}{{ old_date|date:"F j, Y" }}{% else %}—{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600;">New Schedule</td>
+      <td style="padding:8px 12px;border:1px solid #e5e7eb;">
+        {% if new_date %}<strong>{{ new_date|date:"F j, Y" }}</strong>{% else %}—{% endif %}
+      </td>
+    </tr>
+  </table>
+
+  {% if admin_note %}
+    <p><strong>Note from Admin:</strong></p>
+    <p>{{ admin_note }}</p>
+  {% endif %}
+
+  <p>
+    Please make sure to report on the updated date. Log in to your dashboard for full details.
+  </p>
+
+  <p>
+    <a href="{{ status_url }}" class="btn">View My Dashboard</a>
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    Questions? Contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+{% endblock %}
