@@ -19,7 +19,11 @@ from base.forms import ApplicantLoginForm
 from .forms_upload import ApplicantRequiredOnlyDocumentUploadForm
 
 from base.forms import ApplicantForm, ApplicantDocumentUploadForm
-from base.utils.email import send_applicant_submission_receipt
+from base.utils.email import (
+    send_applicant_submission_receipt,
+    send_availability_confirmed_email,
+    send_application_withdrawn_email,
+)
 
 from faculty.models import DocumentCategory
 from services.google_drive_service import CentralGoogleDriveService
@@ -447,10 +451,11 @@ def applicant_download_document(request, pk):
 
 def _get_dashboard_step_context(applicant: Applicant) -> dict:
     """Builds the step-specific context injected into the applicant dashboard."""
+    from datetime import timedelta
     ctx: dict = {}
     status = applicant.status
 
-    # Demo & Interview – show latest pending reschedule request
+    # Demo & Interview – show latest pending reschedule request + availability actions
     if status in ('demo_scheduled', 'for_interview'):
         pending_reschedule = (
             applicant.reschedule_requests
@@ -458,6 +463,21 @@ def _get_dashboard_step_context(applicant: Applicant) -> dict:
             .first()
         )
         ctx['pending_reschedule'] = pending_reschedule
+
+        event_date = applicant.demo_scheduled_date or applicant.for_interview_date
+        ctx['event_date'] = event_date
+
+        today = timezone.localdate()
+        if event_date:
+            days_until = (event_date - today).days
+            ctx['days_until_event'] = days_until
+            # Cancel is disabled within 3 days of the event (today >= event_date - 3 days)
+            ctx['can_cancel'] = today < (event_date - timedelta(days=3))
+        else:
+            ctx['days_until_event'] = None
+            ctx['can_cancel'] = True  # no date set yet, allow cancel
+
+        ctx['can_confirm'] = not applicant.confirmed_by_applicant
 
     # Psych test – show uploaded doc + deadline
     if status == 'psych_test':
@@ -881,4 +901,141 @@ def applicant_upload_salary_requirement(request):
         pass
 
     messages.success(request, f"'{config.document_category.name}' uploaded successfully.")
+    return redirect('applicants:dashboard')
+
+
+# ---------------------------------------------------------------------------
+# Confirm Availability (Demo / Interview step)
+# ---------------------------------------------------------------------------
+
+@applicant_login_required
+def applicant_confirm_availability(request):
+    if request.method != 'POST':
+        return redirect('applicants:dashboard')
+
+    applicant = get_object_or_404(Applicant, pk=request.session['applicant_pk'])
+
+    CONFIRMABLE_STEPS = ('demo_scheduled', 'for_interview')
+    if applicant.status not in CONFIRMABLE_STEPS:
+        messages.error(request, "Availability confirmation is not available at your current step.")
+        return redirect('applicants:dashboard')
+
+    if applicant.confirmed_by_applicant:
+        messages.info(request, "You have already confirmed your availability.")
+        return redirect('applicants:dashboard')
+
+    event_date = applicant.demo_scheduled_date or applicant.for_interview_date
+    if not event_date:
+        messages.error(request, "No scheduled date found. Please contact the administrator.")
+        return redirect('applicants:dashboard')
+
+    applicant.confirmed_by_applicant = True
+    applicant.confirmed_at = timezone.now()
+    applicant.save(update_fields=['confirmed_by_applicant', 'confirmed_at'])
+
+    ApplicantTimeline.objects.create(
+        applicant=applicant,
+        action="Confirmed availability",
+        note=f"Applicant confirmed attendance for scheduled event on {event_date}.",
+    )
+
+    step_label = "Demo & Interview"
+
+    try:
+        send_availability_confirmed_email(applicant, step_label, event_date)
+    except Exception:
+        pass
+
+    try:
+        notify_role(
+            roles=ROLE_ADMIN_GROUP,
+            notification_type='applicant_availability_confirmed',
+            title='Applicant confirmed availability',
+            message=(
+                f"{applicant.first_name} {applicant.last_name} confirmed availability "
+                f"for {step_label} on {event_date}."
+            ),
+            url=reverse('adminhub:applicant_detail', kwargs={'uuid': applicant.uuid}),
+            related_type='Applicant',
+            related_id=str(applicant.uuid),
+            aggregate_key=f"applicant_confirm:{applicant.uuid}",
+        )
+    except Exception:
+        pass
+
+    messages.success(request, "Your availability has been confirmed. The admin has been notified.")
+    return redirect('applicants:dashboard')
+
+
+# ---------------------------------------------------------------------------
+# Cancel Application (Voluntary withdrawal)
+# ---------------------------------------------------------------------------
+
+@applicant_login_required
+def applicant_cancel_application(request):
+    if request.method != 'POST':
+        return redirect('applicants:dashboard')
+
+    applicant = get_object_or_404(Applicant, pk=request.session['applicant_pk'])
+
+    TERMINAL_STATUSES = ('hired', 'rejected', 'withdrawn')
+    if applicant.status in TERMINAL_STATUSES:
+        messages.error(request, "Your application cannot be cancelled at this stage.")
+        return redirect('applicants:dashboard')
+
+    # Enforce 3-day restriction for scheduled steps
+    SCHEDULED_STEPS = ('demo_scheduled', 'for_interview')
+    if applicant.status in SCHEDULED_STEPS:
+        from datetime import timedelta
+        event_date = applicant.demo_scheduled_date or applicant.for_interview_date
+        if event_date and timezone.localdate() >= (event_date - timedelta(days=3)):
+            messages.error(
+                request,
+                "Application cancellation is no longer available within 3 days of the scheduled event. "
+                "Please contact the administrator if you have concerns regarding your attendance.",
+            )
+            return redirect('applicants:dashboard')
+
+    cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+
+    with transaction.atomic():
+        applicant.withdrawn_from_status = applicant.status
+        applicant.status = 'withdrawn'
+        applicant.cancelled_by_applicant = True
+        applicant.cancelled_at = timezone.now()
+        applicant.cancellation_reason = cancellation_reason
+        applicant.save(update_fields=[
+            'status', 'withdrawn_from_status',
+            'cancelled_by_applicant', 'cancelled_at', 'cancellation_reason',
+        ])
+
+        ApplicantTimeline.objects.create(
+            applicant=applicant,
+            action="Withdrew application",
+            note=f"Reason: {cancellation_reason[:200]}" if cancellation_reason else "No reason provided.",
+        )
+
+    try:
+        send_application_withdrawn_email(applicant, cancellation_reason)
+    except Exception:
+        pass
+
+    try:
+        notify_role(
+            roles=ROLE_ADMIN_GROUP,
+            notification_type='applicant_application_withdrawn',
+            title='Applicant withdrew application',
+            message=(
+                f"{applicant.first_name} {applicant.last_name} withdrew their application."
+                + (f" Reason: {cancellation_reason[:100]}" if cancellation_reason else "")
+            ),
+            url=reverse('adminhub:applicant_detail', kwargs={'uuid': applicant.uuid}),
+            related_type='Applicant',
+            related_id=str(applicant.uuid),
+            aggregate_key=f"applicant_withdraw:{applicant.uuid}",
+        )
+    except Exception:
+        pass
+
+    messages.success(request, "Your application has been withdrawn. A confirmation email has been sent.")
     return redirect('applicants:dashboard')

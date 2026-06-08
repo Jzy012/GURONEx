@@ -1,0 +1,33 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Application Status Update{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    Thank you for your interest in joining our institution and for taking the time to apply.
+    After careful review of your application, we regret to inform you that we will not be
+    proceeding with your application at this time.
+  </p>
+
+  {% if rejection_message %}
+  <div style="background:#fef2f2;border-left:4px solid #ef4444;padding:12px 16px;margin:16px 0;border-radius:4px;">
+    <p style="margin:0 0 6px;font-weight:600;color:#b91c1c;">Reason:</p>
+    <p style="margin:0;color:#7f1d1d;">{{ rejection_message }}</p>
+  </div>
+  {% endif %}
+
+  <p>
+    We appreciate your interest in the institution and wish you the best in your future endeavors.
+  </p>
+
+  <p>
+    <a href="{{ status_url }}" class="btn">View My Application</a>
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    Questions? Contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+{% endblock %}

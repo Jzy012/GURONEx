@@ -28,7 +28,7 @@ from faculty.models import (
     name_part_validator,
 )
 
-from applicant.models import Applicant, ApplicantDocument, ApplicantRequiredDocument
+from applicant.models import Applicant, ApplicantDocument, ApplicantRequiredDocument, AreaOfSpecialization
 
 from rfid.models import AttendanceLog
 
@@ -1085,24 +1085,45 @@ class ApplicantLoginForm(forms.Form):
     email = forms.EmailField()
 
 class ApplicantForm(forms.ModelForm):
+    area_of_specialization = forms.ModelChoiceField(
+        queryset=AreaOfSpecialization.objects.filter(is_active=True).order_by('name'),
+        required=True,
+        label="Area of Specialization",
+        empty_label="Select your area of specialization",
+    )
+
     class Meta:
         model = Applicant
         fields = [
             # Basic info
             "first_name",
-            "middle_name",              
+            "middle_name",
             "last_name",
             "suffix",
             "email",
             "contact_number",
-            "department",
+            "area_of_specialization",
             "birth_date",
-
             "emergency_contact_name",
             "emergency_contact_number",
+            # Educational background
+            "college_degree",
+            "college_institution",
+            "masters_degree",
+            "masters_institution",
+            "doctorate_degree",
+            "doctorate_institution",
         ]
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+        labels = {
+            'college_degree': "College Degree",
+            'college_institution': "College Educational Institution",
+            'masters_degree': "Master's Degree",
+            'masters_institution': "Master's Educational Institution",
+            'doctorate_degree': "Doctorate Degree",
+            'doctorate_institution': "Doctorate Educational Institution",
         }
 
     def __init__(self, *args, **kwargs):
@@ -1118,6 +1139,10 @@ class ApplicantForm(forms.ModelForm):
         self.fields['contact_number'].widget.attrs["placeholder"] = "e.g. 09XXXXXXXXX"
         self.fields['middle_name'].required = False
         self.fields['suffix'].required = False
+        # Educational background fields are optional
+        for fname in ('college_degree', 'college_institution', 'masters_degree',
+                      'masters_institution', 'doctorate_degree', 'doctorate_institution'):
+            self.fields[fname].required = False
 
   
 

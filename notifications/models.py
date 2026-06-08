@@ -18,6 +18,8 @@ class Notification(models.Model):
 		("missing_deliverables", "Missing Deliverables"),
 		("applicant_reschedule_requested", "Applicant Reschedule Requested"),
 		("applicant_step_document_uploaded", "Applicant Step Document Uploaded"),
+		("applicant_availability_confirmed", "Applicant Availability Confirmed"),
+		("applicant_application_withdrawn", "Applicant Application Withdrawn"),
 		("system", "System"),
 	]
 

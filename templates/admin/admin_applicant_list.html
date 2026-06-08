@@ -147,6 +147,8 @@
               <span class="inline-block bg-green-200 text-green-800 px-2 py-1 rounded text-xs font-semibold">Hired</span>
             {% elif applicant.status == 'rejected' %}
               <span class="inline-block bg-red-200 text-red-800 px-2 py-1 rounded text-xs font-semibold">Rejected</span>
+            {% elif applicant.status == 'withdrawn' %}
+              <span class="inline-block bg-gray-200 text-gray-600 px-2 py-1 rounded text-xs font-semibold">Withdrawn</span>
             {% else %}
               <span class="inline-block bg-gray-200 text-gray-800 px-2 py-1 rounded text-xs font-semibold">{{ applicant.status }}</span>
             {% endif %}
@@ -194,6 +196,7 @@
             {% elif applicant.status == 'first_salary_requirements' %}First Salary Requirements
             {% elif applicant.status == 'hired' %}Hired
             {% elif applicant.status == 'rejected' %}Rejected
+            {% elif applicant.status == 'withdrawn' %}Withdrawn
             {% else %}{{ applicant.status }}{% endif %}
           </p>
         </div>

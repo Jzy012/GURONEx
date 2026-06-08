@@ -260,3 +260,58 @@ def send_hired_email(applicant: Applicant) -> None:
         template_name="emails/applicant_hired.html",
         context=ctx,
     )
+
+
+# ---------------------------------------------------------------------------
+# Rejection with custom message
+# ---------------------------------------------------------------------------
+
+def send_rejection_email(applicant: Applicant, rejection_message: str = "") -> None:
+    ctx = _base_context(applicant)
+    ctx["rejection_message"] = rejection_message
+    send_html_email(
+        subject="[LINANG] Application Status Update",
+        to_emails=applicant.email,
+        template_name="emails/applicant_rejected.html",
+        context=ctx,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Availability confirmed (applicant confirms attendance)
+# ---------------------------------------------------------------------------
+
+def send_availability_confirmed_email(
+    applicant: Applicant,
+    step_label: str,
+    event_date,
+) -> None:
+    ctx = _base_context(applicant)
+    ctx.update({
+        "step_label": step_label,
+        "event_date": event_date,
+    })
+    send_html_email(
+        subject=f"[LINANG] Availability Confirmed: {step_label}",
+        to_emails=applicant.email,
+        template_name="emails/applicant_availability_confirmed.html",
+        context=ctx,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Application withdrawn (applicant cancels)
+# ---------------------------------------------------------------------------
+
+def send_application_withdrawn_email(
+    applicant: Applicant,
+    cancellation_reason: str = "",
+) -> None:
+    ctx = _base_context(applicant)
+    ctx["cancellation_reason"] = cancellation_reason
+    send_html_email(
+        subject="[LINANG] Application Withdrawn",
+        to_emails=applicant.email,
+        template_name="emails/applicant_application_withdrawn.html",
+        context=ctx,
+    )

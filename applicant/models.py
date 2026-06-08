@@ -9,6 +9,21 @@ import uuid
 
 from django.utils import timezone
 
+
+class AreaOfSpecialization(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Area of Specialization'
+        verbose_name_plural = 'Areas of Specialization'
+
+    def __str__(self):
+        return self.name
+
+
 def generate_applicant_id():
     current_year = timezone.now().year
     prefix = f"APL-{current_year}-"   # e.g. "APL-2026-"
@@ -43,9 +58,22 @@ class Applicant(models.Model):
     # Contact / basic info
     email = models.EmailField()
     contact_number = models.CharField(max_length=15, null=True, blank=True)
-    department = models.CharField(max_length=100)
+    area_of_specialization = models.ForeignKey(
+        AreaOfSpecialization,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='applicants',
+    )
     birth_date = models.DateField(null=True, blank=True)
 
+    # Educational Background
+    college_degree = models.CharField(max_length=200, blank=True)
+    college_institution = models.CharField(max_length=200, blank=True)
+    masters_degree = models.CharField(max_length=200, blank=True)
+    masters_institution = models.CharField(max_length=200, blank=True)
+    doctorate_degree = models.CharField(max_length=200, blank=True)
+    doctorate_institution = models.CharField(max_length=200, blank=True)
 
     status = models.CharField(
         max_length=30,
@@ -58,6 +86,7 @@ class Applicant(models.Model):
             ('first_salary_requirements', 'First Salary Requirements'),
             ('hired', 'Hired'),
             ('rejected', 'Rejected'),
+            ('withdrawn', 'Withdrawn'),
         ],
         default='pending'
     )
@@ -81,6 +110,26 @@ class Applicant(models.Model):
         null=True,
         blank=True,
     )
+
+    # Rejection audit trail
+    rejected_by = models.ForeignKey(
+        "base.Account",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rejected_applicants",
+    )
+    rejection_message = models.TextField(blank=True)
+
+    # Availability confirmation (demo/interview step)
+    confirmed_by_applicant = models.BooleanField(default=False)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    # Voluntary withdrawal
+    cancelled_by_applicant = models.BooleanField(default=False)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.TextField(blank=True)
+    withdrawn_from_status = models.CharField(max_length=40, null=True, blank=True)
 
     # Emergency contact
     emergency_contact_name = models.CharField(max_length=100, null=True, blank=True)

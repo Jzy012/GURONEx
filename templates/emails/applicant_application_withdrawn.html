@@ -1,0 +1,29 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Application Withdrawn{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    We have received your withdrawal request. Your application (ID: <strong>{{ applicant.applicant_id }}</strong>)
+    has been marked as <strong>Withdrawn</strong>.
+  </p>
+
+  {% if cancellation_reason %}
+  <div style="background:#f9fafb;border-left:4px solid #9ca3af;padding:12px 16px;margin:16px 0;border-radius:4px;">
+    <p style="margin:0 0 6px;font-weight:600;color:#374151;">Reason provided:</p>
+    <p style="margin:0;color:#4b5563;">{{ cancellation_reason }}</p>
+  </div>
+  {% endif %}
+
+  <p>
+    Thank you for your interest in our institution. We wish you the best in your future endeavors.
+    Should you wish to apply again in the future, you are welcome to submit a new application.
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    Questions? Contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+{% endblock %}

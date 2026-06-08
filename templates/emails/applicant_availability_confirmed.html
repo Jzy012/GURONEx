@@ -1,0 +1,27 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Availability Confirmed: {{ step_label }}{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    This email confirms that you have successfully confirmed your availability for the
+    <strong>{{ step_label }}</strong> scheduled on
+    <strong>{{ event_date|date:"F j, Y" }}</strong>.
+  </p>
+
+  <p>
+    Please make sure to be available and prepared on the scheduled date. If any concerns arise
+    regarding your attendance, please contact us as soon as possible.
+  </p>
+
+  <p>
+    <a href="{{ status_url }}" class="btn">View My Dashboard</a>
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    Questions? Contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+{% endblock %}

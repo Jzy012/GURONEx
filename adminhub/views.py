@@ -97,6 +97,7 @@ from base.utils.email import (
     send_contract_of_service_email,
     send_first_salary_requirements_email,
     send_hired_email,
+    send_rejection_email,
 )
 from base.utils.teaching_assignment import (
     build_faculty_name_index,
@@ -2147,7 +2148,7 @@ REQUIRED_STATUS_DATES = {
 
 
 def _get_next_status(current_status: str):
-    if current_status in {'hired', 'rejected'}:
+    if current_status in {'hired', 'rejected', 'withdrawn'}:
         return None
     # Legacy: for_interview was merged into demo_scheduled
     if current_status == 'for_interview':
@@ -2200,7 +2201,7 @@ def applicant_detail_view(request, uuid):
     can_reschedule_current_step = bool(STEPPER_DATE_FIELDS.get(applicant.status) or applicant.status == 'for_interview')
 
     next_status = _get_next_status(applicant.status)
-    can_reject = applicant.status not in {'hired', 'rejected'}
+    can_reject = applicant.status not in {'hired', 'rejected', 'withdrawn'}
     transition_choices = []
     if next_status:
         transition_choices.append((next_status, status_labels.get(next_status, next_status)))
@@ -2240,16 +2241,24 @@ def applicant_detail_view(request, uuid):
                 messages.warning(request, "This applicant cannot be rejected at the current step.")
                 return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
+            rejection_message = (request.POST.get("rejection_message") or "").strip()
+
+            if not rejection_message:
+                messages.error(request, "A rejection reason is required.")
+                return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
             with transaction.atomic():
                 applicant.rejected_from_status = applicant.status
                 applicant.status = 'rejected'
+                applicant.rejection_message = rejection_message
+                applicant.rejected_by = request.user
+                update_fields = ['status', 'rejected_from_status', 'rejection_message', 'rejected_by']
                 if not applicant.rejected_date:
                     applicant.rejected_date = timezone.localdate()
-                    applicant.save(update_fields=['status', 'rejected_date', 'rejected_from_status'])
-                else:
-                    applicant.save(update_fields=['status', 'rejected_from_status'])
+                    update_fields.append('rejected_date')
+                applicant.save(update_fields=update_fields)
 
-                send_applicant_status_email(applicant, 'rejected', status_date=applicant.rejected_date)
+                send_rejection_email(applicant, rejection_message)
                 messages.success(request, "Applicant has been rejected.")
 
             return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
@@ -2343,6 +2352,16 @@ def applicant_detail_view(request, uuid):
             reached_idx = 0
         display_steps = linear_stepper_statuses[:reached_idx + 1] + [('rejected', 'Rejected')]
         current_idx = len(display_steps) - 1
+    elif display_status == 'withdrawn':
+        withdrawn_source = applicant.withdrawn_from_status or 'pending'
+        if withdrawn_source == 'for_interview':
+            withdrawn_source = 'demo_scheduled'
+        try:
+            reached_idx = status_values.index(withdrawn_source)
+        except ValueError:
+            reached_idx = 0
+        display_steps = linear_stepper_statuses[:reached_idx + 1] + [('withdrawn', 'Withdrawn')]
+        current_idx = len(display_steps) - 1
     else:
         display_steps = linear_stepper_statuses
         try:
@@ -2433,6 +2452,8 @@ def applicant_detail_view(request, uuid):
         'signed_contracts': signed_contracts,
         'salary_configs': salary_configs,
         'salary_uploads': salary_uploads,
+        'confirmed_by_applicant': applicant.confirmed_by_applicant,
+        'confirmed_at': applicant.confirmed_at,
         'all_doc_categories': all_doc_categories,
         'next_status_needs_deadline': next_status_needs_deadline,
         'next_status_needs_instructions': next_status_needs_instructions,

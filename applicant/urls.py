@@ -22,6 +22,8 @@ urlpatterns = [
     path("applicant/dashboard/contract/upload-signed/", views.applicant_upload_signed_contract, name="upload_signed_contract"),
     path("applicant/step-document/<int:pk>/download/", views.applicant_download_step_document, name="download_step_document"),
     path("applicant/dashboard/salary-requirements/upload/", views.applicant_upload_salary_requirement, name="upload_salary_requirement"),
+    path("applicant/dashboard/confirm-availability/", views.applicant_confirm_availability, name="confirm_availability"),
+    path("applicant/dashboard/cancel-application/", views.applicant_cancel_application, name="cancel_application"),
 ]
 
 
