@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from faculty.models import DocumentCategory
+from faculty.models import DocumentCategory, phone_validator
 import uuid
 
 
@@ -57,7 +57,10 @@ class Applicant(models.Model):
 
     # Contact / basic info
     email = models.EmailField()
-    contact_number = models.CharField(max_length=15, null=True, blank=True)
+    contact_number = models.CharField(
+        max_length=11, null=True, blank=True,
+        validators=[phone_validator],
+    )
     area_of_specialization = models.ForeignKey(
         AreaOfSpecialization,
         on_delete=models.PROTECT,
@@ -78,9 +81,10 @@ class Applicant(models.Model):
     status = models.CharField(
         max_length=30,
         choices=[
-            ('pending', 'Pending'),
+            ('pending', 'Initial Review'),
             ('demo_scheduled', 'Demo Scheduled'),
             ('for_interview', 'For Interview'),
+            ('evaluation', 'Evaluation'),
             ('psych_test', 'Psych Test'),
             ('contract_of_service', 'Contract of Service'),
             ('first_salary_requirements', 'First Salary Requirements'),
@@ -93,15 +97,18 @@ class Applicant(models.Model):
 
     demo_scheduled_date = models.DateField(null=True, blank=True)
     for_interview_date = models.DateField(null=True, blank=True)
+    evaluation_date = models.DateField(null=True, blank=True)
+    evaluation_deadline = models.DateField(null=True, blank=True)
     psych_test_date = models.DateField(null=True, blank=True)
     hired_date = models.DateField(null=True, blank=True)
     rejected_date = models.DateField(null=True, blank=True)
     rejected_from_status = models.CharField(
         max_length=40,
         choices=[
-            ('pending', 'Pending'),
+            ('pending', 'Initial Review'),
             ('demo_scheduled', 'Demo Scheduled'),
             ('for_interview', 'For Interview'),
+            ('evaluation', 'Evaluation'),
             ('psych_test', 'Psych Test'),
             ('contract_of_service', 'Contract of Service'),
             ('first_salary_requirements', 'First Salary Requirements'),
@@ -168,16 +175,18 @@ class Applicant(models.Model):
             self.google_drive_folder_id = folder_id
             super().save(update_fields=['google_drive_folder_id'])
 
-    def __str__(self):
-        # Include middle name if present
-        name_parts = [self.first_name]
+    @property
+    def full_name(self) -> str:
+        parts = [self.first_name]
         if self.middle_name:
-            name_parts.append(self.middle_name)
-        name_parts.append(self.last_name)
+            parts.append(self.middle_name)
+        parts.append(self.last_name)
         if self.suffix:
-            name_parts.append(self.suffix)
-        full_name = " ".join(name_parts)
-        return f"{self.applicant_id} - {full_name}"
+            parts.append(self.suffix)
+        return " ".join(parts)
+
+    def __str__(self):
+        return f"{self.applicant_id} - {self.full_name}"
 
 
 class ApplicantRequiredDocument(models.Model):
@@ -408,3 +417,125 @@ class ApplicantSalaryRequirementConfig(models.Model):
     def __str__(self):
         flag = 'Required' if self.is_required else 'Optional'
         return f"{self.applicant.applicant_id} – {self.document_category.name} ({flag})"
+
+
+# ---------------------------------------------------------------------------
+# Evaluation Models
+# ---------------------------------------------------------------------------
+
+class EvaluationCriteria(models.Model):
+    label = models.CharField(max_length=255)
+    order = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['order', 'label']
+        verbose_name = 'Evaluation Criteria'
+        verbose_name_plural = 'Evaluation Criteria'
+
+    def __str__(self):
+        return self.label
+
+
+EVALUATION_TOKEN_VALIDITY_DAYS = 14
+
+RATING_CHOICES = [
+    (1, '1 – Poor'),
+    (2, '2 – Needs Improvement'),
+    (3, '3 – Satisfactory'),
+    (4, '4 – Very Good'),
+    (5, '5 – Excellent'),
+]
+
+
+class EvaluationAssignment(models.Model):
+    applicant = models.ForeignKey(
+        Applicant, on_delete=models.CASCADE, related_name='evaluation_assignments',
+    )
+    evaluator = models.ForeignKey(
+        'base.Account', on_delete=models.CASCADE, related_name='evaluation_assignments',
+    )
+    assigned_by = models.ForeignKey(
+        'base.Account', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_evaluation_assignments',
+    )
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    token_expires_at = models.DateTimeField()
+    submission_deadline = models.DateTimeField(null=True, blank=True)
+
+    is_submitted = models.BooleanField(default=False)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['assigned_at']
+        unique_together = ('applicant', 'evaluator')
+
+    def __str__(self):
+        return f"{self.applicant.applicant_id} – evaluator: {self.evaluator.email}"
+
+    @property
+    def evaluator_display_name(self) -> str:
+        acc = self.evaluator
+        if getattr(acc, 'role', None) == 'faculty':
+            try:
+                return acc.faculty_profile.name or acc.email
+            except Exception:
+                pass
+        return acc.get_full_name() or acc.email
+
+    @property
+    def evaluator_role_label(self) -> str:
+        labels = {'system_admin': 'System Admin', 'admin': 'Admin', 'faculty': 'Faculty'}
+        return labels.get(getattr(self.evaluator, 'role', ''), 'User')
+
+    @property
+    def is_deadline_passed(self):
+        return bool(self.submission_deadline and timezone.now() > self.submission_deadline)
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.token_expires_at or self.is_deadline_passed
+
+    @property
+    def is_usable(self):
+        return not self.is_submitted and not self.is_expired
+
+
+class EvaluationSubmission(models.Model):
+    assignment = models.OneToOneField(
+        EvaluationAssignment, on_delete=models.CASCADE, related_name='submission',
+    )
+    summary = models.TextField(blank=True)
+    justification = models.TextField(blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Submission for {self.assignment}"
+
+    @property
+    def total_score(self):
+        return sum(s.rating for s in self.scores.all())
+
+    @property
+    def max_score(self):
+        return self.scores.count() * 5
+
+
+class EvaluationScore(models.Model):
+    submission = models.ForeignKey(
+        EvaluationSubmission, on_delete=models.CASCADE, related_name='scores',
+    )
+    criteria = models.ForeignKey(
+        EvaluationCriteria, on_delete=models.PROTECT, related_name='scores',
+    )
+    rating = models.PositiveSmallIntegerField(choices=RATING_CHOICES)
+    comments = models.TextField(blank=True)
+
+    class Meta:
+        unique_together = ('submission', 'criteria')
+        ordering = ['criteria__order']
+
+    def __str__(self):
+        return f"{self.submission} – {self.criteria}: {self.rating}"

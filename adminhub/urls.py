@@ -85,6 +85,7 @@ urlpatterns = [
     path('admin/applicants/<uuid:uuid>/upload-contract/', views.admin_upload_contract, name='admin_upload_contract'),
     path('admin/applicants/step-document/<int:pk>/review/', views.admin_review_step_document, name='admin_review_step_document'),
     path('admin/applicants/<uuid:uuid>/salary-requirements/', views.admin_configure_salary_requirements, name='admin_configure_salary_requirements'),
+    path('admin/applicants/<uuid:uuid>/assign-evaluators/', views.admin_assign_evaluators, name='admin_assign_evaluators'),
     path('admin/applicants/<uuid:uuid>/archive/', views.admin_archive_applicant, name='admin_archive_applicant'),
 
   

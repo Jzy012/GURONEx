@@ -24,6 +24,9 @@ urlpatterns = [
     path("applicant/dashboard/salary-requirements/upload/", views.applicant_upload_salary_requirement, name="upload_salary_requirement"),
     path("applicant/dashboard/confirm-availability/", views.applicant_confirm_availability, name="confirm_availability"),
     path("applicant/dashboard/cancel-application/", views.applicant_cancel_application, name="cancel_application"),
+
+    # Public token-based evaluation form (no authentication required)
+    path("evaluate/<str:token>/", views.evaluate_form, name="evaluate_form"),
 ]
 
 

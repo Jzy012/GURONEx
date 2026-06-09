@@ -1,6 +1,10 @@
 import io
+import logging
 import mimetypes
 
+logger = logging.getLogger(__name__)
+
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.forms import formset_factory, BaseFormSet
@@ -13,6 +17,7 @@ from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 from .models import (
     Applicant, ApplicantDocument, ApplicantRequiredDocument, ApplicantTimeline,
     ApplicantRescheduleRequest, ApplicantStepDocument, ApplicantSalaryRequirementConfig,
+    EvaluationAssignment, EvaluationSubmission, EvaluationScore, EvaluationCriteria,
 )
 from .decorators import applicant_login_required
 from base.forms import ApplicantLoginForm
@@ -23,12 +28,14 @@ from base.utils.email import (
     send_applicant_submission_receipt,
     send_availability_confirmed_email,
     send_application_withdrawn_email,
+    send_evaluation_submitted_email_to_admin,
+    send_evaluation_complete_email_to_applicant,
 )
+from base.models import Account
 
 from faculty.models import DocumentCategory
 from services.google_drive_service import CentralGoogleDriveService
 from services.applicant_document_service import process_applicant_documents_sync
-from applicant.tasks import process_applicant_documents_task
 from notifications.services import ROLE_ADMIN_GROUP, log_activity, notify_role
 from adminhub.models import CreatedAccountLog
 
@@ -57,38 +64,50 @@ def applicant_apply(request):
         ]
         valid = all(form.is_valid() for form in forms) and basic_form.is_valid()
         if valid:
-            with transaction.atomic():
-                applicant = basic_form.save()
-
-                docs_payload = []
-                for form, category in zip(forms, doc_categories):
-                    file = form.cleaned_data["file"]
-                    expiry = form.cleaned_data.get("expiry_date")
-                    remarks = form.cleaned_data.get("remarks", "")
-
-                    if file:
-                        docs_payload.append(
-                            {
-                                "name": file.name,
-                                "content": file.read(),          # bytes
-                                "content_type": file.content_type,
-                                "size": file.size,
-                                "document_category_id": category.id,
-                                "expiry_date": expiry,
-                                "remarks": remarks,
-                            }
-                        )
-
-                ApplicantTimeline.objects.create(
-                    applicant=applicant,
-                    action="Submitted application",
-                    note="Initial application and document upload.",
-                )
+            # Read file bytes before entering the transaction so InMemoryUploadedFile
+            # objects are consumed while still in scope.
+            docs_payload = []
+            for form, category in zip(forms, doc_categories):
+                file = form.cleaned_data["file"]
+                if file:
+                    docs_payload.append({
+                        "name": file.name,
+                        "content": file.read(),
+                        "content_type": file.content_type,
+                        "size": file.size,
+                        "document_category_id": category.id,
+                        "expiry_date": form.cleaned_data.get("expiry_date"),
+                        "remarks": form.cleaned_data.get("remarks", ""),
+                    })
 
             try:
-                process_applicant_documents_task.delay(applicant.id, docs_payload)
+                with transaction.atomic():
+                    applicant = basic_form.save()
+
+                    # Upload each document synchronously. Any Drive error raises here,
+                    # rolling back the transaction so no orphaned records are created.
+                    process_applicant_documents_sync(applicant.id, docs_payload)
+
+                    ApplicantTimeline.objects.create(
+                        applicant=applicant,
+                        action="Submitted application",
+                        note="Initial application and document upload.",
+                    )
             except Exception:
-                process_applicant_documents_sync(applicant.id, docs_payload)
+                logger.exception(
+                    "Registration failed during document upload for form data: "
+                    "%s", basic_form.cleaned_data.get("email", "<unknown>")
+                )
+                context = {
+                    "basic_form": basic_form,
+                    "forms": forms,
+                    "required_docs": required_docs,
+                    "upload_error": (
+                        "One or more documents could not be uploaded. "
+                        "Please try again or contact support if the issue persists."
+                    ),
+                }
+                return render(request, "applicants/applicant_apply.html", context)
 
             try:
                 notify_role(
@@ -191,6 +210,7 @@ def applicant_dashboard(request):
 
     step_date_fields = {
         "demo_scheduled": "demo_scheduled_date",
+        "evaluation": "evaluation_date",
         "psych_test": "psych_test_date",
         "hired": "hired_date",
         "rejected": "rejected_date",
@@ -202,8 +222,9 @@ def applicant_dashboard(request):
     }
 
     STEPPER_STATUSES = [
-        ("pending", "Pending"),
+        ("pending", "Initial Review"),
         ("demo_scheduled", "Demo & Interview"),
+        ("evaluation", "Evaluation"),
         ("psych_test", "Psych Test"),
         ("contract_of_service", "Contract of Service"),
         ("first_salary_requirements", "First Salary Requirements"),
@@ -286,7 +307,7 @@ class IndexedFormSet(BaseFormSet):
 def applicant_upload_documents(request):
     applicant = get_object_or_404(Applicant, pk=request.session["applicant_pk"])
 
-    if applicant.status in ["hired", "rejected"]:
+    if applicant.status in ["hired", "rejected", "withdrawn"]:
         messages.error(request, "Cannot upload documents at this stage.")
         return redirect("applicants:dashboard")
 
@@ -471,13 +492,60 @@ def _get_dashboard_step_context(applicant: Applicant) -> dict:
         if event_date:
             days_until = (event_date - today).days
             ctx['days_until_event'] = days_until
-            # Cancel is disabled within 3 days of the event (today >= event_date - 3 days)
-            ctx['can_cancel'] = today < (event_date - timedelta(days=3))
+            # Cancel is disabled within 2 days of the event (today >= event_date - 2 days)
+            ctx['can_cancel'] = today < (event_date - timedelta(days=2))
         else:
             ctx['days_until_event'] = None
             ctx['can_cancel'] = True  # no date set yet, allow cancel
 
         ctx['can_confirm'] = not applicant.confirmed_by_applicant
+
+    # Evaluation – show assignment/submission counts and aggregate score
+    if status == 'evaluation':
+        import random as _random
+        assignments = list(
+            applicant.evaluation_assignments
+            .prefetch_related('submission__scores__criteria')
+            .select_related('submission')
+        )
+        total_assigned = len(assignments)
+        submitted_assignments = [a for a in assignments if a.is_submitted and hasattr(a, 'submission')]
+        total_submitted = len(submitted_assignments)
+        aggregate_score = sum(a.submission.total_score for a in submitted_assignments) if submitted_assignments else 0
+        max_possible = sum(a.submission.max_score for a in submitted_assignments) if submitted_assignments else 0
+
+        # Anonymized per-submission results — no evaluator identity, no comments
+        anon_results = []
+        for a in submitted_assignments:
+            sub = a.submission
+            anon_results.append({
+                'total_score': sub.total_score,
+                'max_score': sub.max_score,
+                'percentage': round(sub.total_score / sub.max_score * 100) if sub.max_score else 0,
+                'criteria_scores': [
+                    {'label': score.criteria.label, 'rating': score.rating}
+                    for score in sub.scores.order_by('criteria__order')
+                ],
+            })
+        # Shuffle with deterministic seed so ordering can't be used to infer evaluator identity
+        rng = _random.Random(applicant.pk)
+        rng.shuffle(anon_results)
+        for i, r in enumerate(anon_results):
+            r['index'] = i + 1
+
+        # Show earliest pending deadline to the applicant
+        earliest_deadline = min(
+            (a.submission_deadline for a in assignments
+             if a.submission_deadline and not a.is_submitted),
+            default=None,
+        )
+
+        ctx['eval_total_assigned'] = total_assigned
+        ctx['eval_total_submitted'] = total_submitted
+        ctx['eval_aggregate_score'] = aggregate_score
+        ctx['eval_max_possible'] = max_possible
+        ctx['eval_anonymous_results'] = anon_results
+        ctx['evaluation_deadline'] = earliest_deadline
 
     # Psych test – show uploaded doc + deadline
     if status == 'psych_test':
@@ -983,15 +1051,15 @@ def applicant_cancel_application(request):
         messages.error(request, "Your application cannot be cancelled at this stage.")
         return redirect('applicants:dashboard')
 
-    # Enforce 3-day restriction for scheduled steps
+    # Enforce 2-day restriction for scheduled steps
     SCHEDULED_STEPS = ('demo_scheduled', 'for_interview')
     if applicant.status in SCHEDULED_STEPS:
         from datetime import timedelta
         event_date = applicant.demo_scheduled_date or applicant.for_interview_date
-        if event_date and timezone.localdate() >= (event_date - timedelta(days=3)):
+        if event_date and timezone.localdate() >= (event_date - timedelta(days=2)):
             messages.error(
                 request,
-                "Application cancellation is no longer available within 3 days of the scheduled event. "
+                "Application cancellation is no longer available within 2 days of the scheduled event. "
                 "Please contact the administrator if you have concerns regarding your attendance.",
             )
             return redirect('applicants:dashboard')
@@ -1039,3 +1107,155 @@ def applicant_cancel_application(request):
 
     messages.success(request, "Your application has been withdrawn. A confirmation email has been sent.")
     return redirect('applicants:dashboard')
+
+
+# ---------------------------------------------------------------------------
+# Public: Evaluator form (token-based, no authentication required)
+# ---------------------------------------------------------------------------
+
+def evaluate_form(request, token):
+    assignment = get_object_or_404(EvaluationAssignment, token=token)
+
+    if assignment.is_submitted:
+        return render(request, 'evaluation/evaluate_form.html', {
+            'done': True,
+            'reason': 'already_submitted',
+            'applicant': assignment.applicant,
+            'evaluator_name': assignment.evaluator_display_name,
+        })
+
+    if assignment.is_expired:
+        reason = 'deadline_passed' if assignment.is_deadline_passed else 'expired'
+        return render(request, 'evaluation/evaluate_form.html', {
+            'done': True,
+            'reason': reason,
+            'applicant': assignment.applicant,
+            'evaluator_name': assignment.evaluator_display_name,
+            'assignment': assignment,
+        })
+
+    applicant = assignment.applicant
+    criteria = EvaluationCriteria.objects.filter(is_active=True).order_by('order', 'label')
+
+    if request.method == 'POST':
+        scores = {}
+        rating_errors = []
+        for criterion in criteria:
+            rating_str = request.POST.get(f'rating_{criterion.pk}', '').strip()
+            if not rating_str:
+                rating_errors.append(criterion.label)
+                continue
+            try:
+                rating = int(rating_str)
+                if rating not in range(1, 6):
+                    rating_errors.append(criterion.label)
+                else:
+                    scores[criterion.pk] = {
+                        'rating': rating,
+                        'comments': request.POST.get(f'comments_{criterion.pk}', '').strip(),
+                    }
+            except ValueError:
+                rating_errors.append(criterion.label)
+
+        if rating_errors:
+            return render(request, 'evaluation/evaluate_form.html', {
+                'assignment': assignment,
+                'applicant': applicant,
+                'criteria': criteria,
+                'post': request.POST,
+                'form_errors': [f"Please rate all criteria. Missing or invalid: {', '.join(rating_errors)}."],
+            })
+
+        with transaction.atomic():
+            submission = EvaluationSubmission.objects.create(
+                assignment=assignment,
+                summary=request.POST.get('summary', '').strip(),
+                justification=request.POST.get('justification', '').strip(),
+            )
+            for criterion_pk, data in scores.items():
+                EvaluationScore.objects.create(
+                    submission=submission,
+                    criteria_id=criterion_pk,
+                    rating=data['rating'],
+                    comments=data['comments'],
+                )
+            assignment.is_submitted = True
+            assignment.submitted_at = timezone.now()
+            assignment.save(update_fields=['is_submitted', 'submitted_at'])
+
+            ApplicantTimeline.objects.create(
+                applicant=applicant,
+                action=f"Evaluation submitted by {assignment.evaluator_display_name}",
+            )
+
+        evaluator_name = assignment.evaluator_display_name
+
+        try:
+            base_url = getattr(settings, 'SITE_BASE_URL', '').rstrip('/')
+            admin_path = reverse('adminhub:applicant_detail', kwargs={'uuid': str(applicant.uuid)})
+            admin_url = f"{base_url}{admin_path}" if base_url else request.build_absolute_uri(admin_path)
+            admin_emails = list(
+                Account.objects.filter(role__in=['admin', 'system_admin'], is_active=True)
+                .values_list('email', flat=True)
+            )
+            send_evaluation_submitted_email_to_admin(admin_emails, evaluator_name, applicant, admin_url)
+        except Exception:
+            pass
+
+        try:
+            notify_role(
+                roles=ROLE_ADMIN_GROUP,
+                notification_type='evaluation_submitted',
+                title=f"Evaluation submitted: {applicant.full_name}",
+                message=f"{evaluator_name} submitted their evaluation for {applicant.full_name}.",
+                url=reverse('adminhub:applicant_detail', kwargs={'uuid': str(applicant.uuid)}),
+                related_type='EvaluationAssignment',
+                related_id=str(assignment.pk),
+            )
+        except Exception:
+            pass
+
+        # Check if this was the last pending submission.
+        # "Complete" = no assignment is still active (not submitted + not expired).
+        _all_assignments = list(applicant.evaluation_assignments.all())
+        _still_pending = [
+            a for a in _all_assignments
+            if not a.is_submitted and not a.is_expired
+        ]
+        _any_submitted = any(a.is_submitted for a in _all_assignments)
+        if not _still_pending and _any_submitted:
+            try:
+                send_evaluation_complete_email_to_applicant(applicant)
+            except Exception:
+                logger.exception(
+                    "Failed to send evaluation complete email to applicant %s",
+                    applicant.applicant_id,
+                )
+            try:
+                notify_role(
+                    roles=ROLE_ADMIN_GROUP,
+                    notification_type='evaluation_submitted',
+                    title=f"Evaluation complete: {applicant.full_name}",
+                    message=(
+                        f"All evaluations for {applicant.full_name} have been submitted. "
+                        "The applicant is ready to advance."
+                    ),
+                    url=reverse('adminhub:applicant_detail', kwargs={'uuid': str(applicant.uuid)}),
+                    related_type='Applicant',
+                    related_id=str(applicant.pk),
+                )
+            except Exception:
+                pass
+
+        return render(request, 'evaluation/evaluate_form.html', {
+            'done': True,
+            'reason': 'submitted_now',
+            'applicant': applicant,
+            'evaluator_name': evaluator_name,
+        })
+
+    return render(request, 'evaluation/evaluate_form.html', {
+        'assignment': assignment,
+        'applicant': applicant,
+        'criteria': criteria,
+    })

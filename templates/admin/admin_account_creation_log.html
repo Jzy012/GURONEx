@@ -22,7 +22,7 @@
       <tbody>
         {% for entry in logs %}
         <tr>
-          <td class="px-4 py-3 border-b">{{ entry.created_at|date:"Y-m-d H:i" }}</td>
+          <td class="px-4 py-3 border-b">{{ entry.created_at|date:"F j, Y" }}</td>
           <td class="px-4 py-3 border-b">{{ entry.faculty_email }}</td>
           <td class="px-4 py-3 border-b">
             {% if entry.applicant %}

@@ -1,0 +1,32 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Application Update: Evaluation Stage{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    Congratulations on progressing to the <strong>Evaluation</strong> stage of your application to LINANG.
+  </p>
+
+  <p>
+    Faculty evaluators have been assigned to review your application. You will be notified once
+    the evaluation is complete and your results are available on your dashboard.
+  </p>
+
+  {% if deadline %}
+    <p>
+      <strong>Evaluation Deadline:</strong>
+      <span class="badge">{{ deadline|date:"F j, Y" }}</span>
+    </p>
+  {% endif %}
+
+  <p>
+    <a href="{{ status_url }}" class="btn">View Application Status</a>
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    Questions? Contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+{% endblock %}

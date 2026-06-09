@@ -1,4 +1,5 @@
 import os
+import re
 import secrets
 import datetime
 
@@ -1091,6 +1092,13 @@ class ApplicantForm(forms.ModelForm):
         label="Area of Specialization",
         empty_label="Select your area of specialization",
     )
+    contact_number = forms.CharField(
+        max_length=15,  # accommodate "0917-123-4567" (13 chars) before normalization
+        required=False,
+        label="Contact Number",
+        # no field-level validator — normalization happens in clean_contact_number()
+        # which must run before the regex is applied
+    )
 
     class Meta:
         model = Applicant
@@ -1136,7 +1144,11 @@ class ApplicantForm(forms.ModelForm):
             field.widget.attrs["class"] = field_class
             field.widget.attrs["placeholder"] = field.label
 
-        self.fields['contact_number'].widget.attrs["placeholder"] = "e.g. 09XXXXXXXXX"
+        self.fields['contact_number'].widget.attrs.update({
+            "placeholder": "e.g. 09171234567 or 0917-123-4567",
+            "maxlength": "15",
+            "inputmode": "tel",  # tel keyboard on mobile shows digits + hyphen/space
+        })
         self.fields['middle_name'].required = False
         self.fields['suffix'].required = False
         # Educational background fields are optional
@@ -1144,7 +1156,32 @@ class ApplicantForm(forms.ModelForm):
                       'masters_institution', 'doctorate_degree', 'doctorate_institution'):
             self.fields[fname].required = False
 
-  
+    def clean_contact_number(self):
+        value = (self.cleaned_data.get("contact_number") or "").strip()
+        if not value:
+            return ""
+
+        # Allow only digits, spaces, and hyphens before normalization.
+        # Anything else (letters, @, +, /, etc.) is rejected immediately.
+        if re.search(r"[^\d\s\-]", value):
+            raise forms.ValidationError(
+                "Only digits, spaces, and hyphens are allowed "
+                "(e.g. 09171234567 or 0917-123-4567)."
+            )
+
+        # Normalize: remove spaces and hyphens.
+        normalized = re.sub(r"[\s\-]", "", value)
+
+        # After normalization, apply full PH mobile number rules.
+        if not re.match(r"^09\d{9}$", normalized):
+            raise forms.ValidationError(
+                "Please enter a valid Philippine mobile number containing exactly "
+                "11 digits starting with 09 (e.g. 09171234567)."
+            )
+
+        return normalized
+
+
 
 
 

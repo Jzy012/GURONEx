@@ -72,7 +72,7 @@
     <!-- Pending -->
     <div class="flex justify-between items-center p-6 bg-white shadow rounded-lg">
       <div>
-        <h2 class="text-sm text-gray-500">Pending</h2>
+        <h2 class="text-sm text-gray-500">Initial Review</h2>
         <p class="text-2xl font-semibold">{{ total_pending }}</p>
       </div>
       <div class="p-3 bg-yellow-100 rounded-xl">
@@ -134,9 +134,11 @@
           <td class="px-5 py-4 border-b">{{ applicant.email }}</td>
           <td class="px-5 py-4 border-b">
             {% if applicant.status == 'pending' %}
-              <span class="inline-block bg-yellow-200 text-yellow-800 px-2 py-1 rounded text-xs font-semibold">Pending</span>
+              <span class="inline-block bg-yellow-200 text-yellow-800 px-2 py-1 rounded text-xs font-semibold">Initial Review</span>
             {% elif applicant.status == 'demo_scheduled' or applicant.status == 'for_interview' %}
               <span class="inline-block bg-blue-200 text-blue-800 px-2 py-1 rounded text-xs font-semibold">Demo &amp; Interview</span>
+            {% elif applicant.status == 'evaluation' %}
+              <span class="inline-block bg-amber-200 text-amber-800 px-2 py-1 rounded text-xs font-semibold">Evaluation</span>
             {% elif applicant.status == 'psych_test' %}
               <span class="inline-block bg-purple-200 text-purple-800 px-2 py-1 rounded text-xs font-semibold">Psych Test</span>
             {% elif applicant.status == 'contract_of_service' %}
@@ -153,7 +155,7 @@
               <span class="inline-block bg-gray-200 text-gray-800 px-2 py-1 rounded text-xs font-semibold">{{ applicant.status }}</span>
             {% endif %}
           </td>
-          <td class="px-5 py-4 border-b">{{ applicant.created_at|date:"Y-m-d H:i" }}</td>
+          <td class="px-5 py-4 border-b">{{ applicant.created_at|date:"F j, Y" }}</td>
           <td class="px-5 py-4 border-b">
             <a href="{% url 'adminhub:applicant_detail' uuid=applicant.uuid %}"
                class="text-[#800505] hover:underline font-medium">View</a>
@@ -189,8 +191,9 @@
         <div>
           <p class="font-semibold">Status</p>
           <p>
-            {% if applicant.status == 'pending' %}Pending
+            {% if applicant.status == 'pending' %}Initial Review
             {% elif applicant.status == 'demo_scheduled' or applicant.status == 'for_interview' %}Demo &amp; Interview
+            {% elif applicant.status == 'evaluation' %}Evaluation
             {% elif applicant.status == 'psych_test' %}Psych Test
             {% elif applicant.status == 'contract_of_service' %}Contract of Service
             {% elif applicant.status == 'first_salary_requirements' %}First Salary Requirements

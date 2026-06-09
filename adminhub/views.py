@@ -61,6 +61,7 @@ from adminhub.tasks import (
 from applicant.models import (
     Applicant, ApplicantDocument, ApplicantRequiredDocument, ApplicantTimeline,
     ApplicantRescheduleRequest, ApplicantStepDocument, ApplicantSalaryRequirementConfig,
+    EvaluationAssignment, EvaluationCriteria, EVALUATION_TOKEN_VALIDITY_DAYS,
 )
 from base.decorators import admin_required, faculty_required
 from base.forms import (
@@ -98,6 +99,9 @@ from base.utils.email import (
     send_first_salary_requirements_email,
     send_hired_email,
     send_rejection_email,
+    send_evaluation_step_email,
+    send_evaluation_invite_email,
+    send_evaluation_submitted_email_to_admin,
 )
 from base.utils.teaching_assignment import (
     build_faculty_name_index,
@@ -125,7 +129,7 @@ from services.dtr_service import DTRCalculator
 from services.deliverable_assignment_service import auto_assign_deliverables_for_semester
 from services.faculty_clearance_service import build_clearance_pdf_response
 from services.google_drive_service import CentralGoogleDriveService, get_google_drive_status
-from notifications.services import log_activity, notify_role, notify_user
+from notifications.services import log_activity, notify_role, notify_user, ROLE_ADMIN_GROUP
 
 # Logger Setup
 logger = logging.getLogger(__name__)
@@ -2114,6 +2118,8 @@ def _send_advance_email(applicant, new_status, status_date, step_deadline, instr
             )
             cat_names = [c.document_category.name for c in configs]
             send_first_salary_requirements_email(applicant, cat_names, step_deadline)
+        elif new_status == 'evaluation':
+            send_evaluation_step_email(applicant)
         elif new_status == 'hired':
             send_hired_email(applicant)
         else:
@@ -2125,8 +2131,9 @@ def _send_advance_email(applicant, new_status, status_date, step_deadline, instr
 
 # Statuses in order for the stepper visualization
 STEPPER_STATUSES = [
-    ('pending', "Pending"),
+    ('pending', "Initial Review"),
     ('demo_scheduled', "Demo & Interview"),
+    ('evaluation', "Evaluation"),
     ('psych_test', "Psych Test"),
     ('contract_of_service', "Contract of Service"),
     ('first_salary_requirements', "First Salary Requirements"),
@@ -2136,6 +2143,7 @@ STEPPER_STATUSES = [
 
 STEPPER_DATE_FIELDS = {
     'demo_scheduled': 'demo_scheduled_date',
+    'evaluation': 'evaluation_date',
     'psych_test': 'psych_test_date',
     'hired': 'hired_date',
     'rejected': 'rejected_date',
@@ -2152,7 +2160,7 @@ def _get_next_status(current_status: str):
         return None
     # Legacy: for_interview was merged into demo_scheduled
     if current_status == 'for_interview':
-        return 'psych_test'
+        return 'evaluation'
     values = [value for value, _label in STEPPER_STATUSES]
     try:
         idx = values.index(current_status)
@@ -2282,8 +2290,38 @@ def applicant_detail_view(request, uuid):
                         messages.error(request, "Invalid date format. Please use YYYY-MM-DD.")
                         return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
+                _eval_block_msg = ""
+                if applicant.status == 'evaluation':
+                    _now = timezone.now()
+                    _ea_qs = applicant.evaluation_assignments
+                    if not _ea_qs.exists():
+                        _eval_block_msg = "No evaluators have been assigned for this evaluation step."
+                    else:
+                        from django.db.models import Q as _Q
+                        _pending = _ea_qs.filter(
+                            is_submitted=False,
+                            token_expires_at__gt=_now,
+                        ).filter(
+                            _Q(submission_deadline__isnull=True) | _Q(submission_deadline__gt=_now)
+                        )
+                        _any_submitted = _ea_qs.filter(is_submitted=True).exists()
+                        if _pending.exists():
+                            _total = _ea_qs.count()
+                            _done = _ea_qs.filter(is_submitted=True).count()
+                            _eval_block_msg = (
+                                f"Evaluation not yet complete — {_done}/{_total} evaluators have submitted. "
+                                "All evaluators must submit or their deadline must pass before advancing."
+                            )
+                        elif not _any_submitted:
+                            _eval_block_msg = (
+                                "No evaluations have been submitted yet. "
+                                "At least one evaluator must submit before advancing."
+                            )
+
                 if new_status in REQUIRED_STATUS_DATES and not status_date:
                     messages.error(request, "A date is required for this step.")
+                elif _eval_block_msg:
+                    messages.error(request, _eval_block_msg)
                 else:
                     # Parse optional step-specific extras from POST
                     deadline_raw = (request.POST.get("step_deadline") or "").strip()
@@ -2332,8 +2370,9 @@ def applicant_detail_view(request, uuid):
     # For stepper: render a truncated path for rejected applicants.
     # This keeps reached steps, then appends Rejected as the terminal step.
     linear_stepper_statuses = [
-        ('pending', "Pending"),
+        ('pending', "Initial Review"),
         ('demo_scheduled', "Demo & Interview"),
+        ('evaluation', "Evaluation"),
         ('psych_test', "Psych Test"),
         ('contract_of_service', "Contract of Service"),
         ('first_salary_requirements', "First Salary Requirements"),
@@ -2431,8 +2470,74 @@ def applicant_detail_view(request, uuid):
     from faculty.models import DocumentCategory
     all_doc_categories = DocumentCategory.objects.all().order_by('name')
 
+    # Evaluation step context
+    evaluation_assignments = []
+    all_eligible_evaluators = []
+    eval_total = 0
+    eval_submitted = 0
+    eval_pending_active = 0
+    eval_complete = False
+    if applicant.status == 'evaluation':
+        evaluation_assignments = list(
+            applicant.evaluation_assignments.select_related(
+                'evaluator', 'submission'
+            ).prefetch_related('submission__scores__criteria')
+        )
+        eval_total = len(evaluation_assignments)
+        eval_submitted = sum(1 for a in evaluation_assignments if a.is_submitted)
+        eval_pending_active = sum(
+            1 for a in evaluation_assignments if not a.is_submitted and not a.is_expired
+        )
+        eval_complete = (
+            eval_total > 0
+            and eval_pending_active == 0
+            and eval_submitted > 0
+        )
+
+        # Only show the assignment form if no evaluators have been assigned yet.
+        if not evaluation_assignments:
+            assigned_ids = set()
+            eligible_accounts = (
+                Account.objects.filter(is_active=True, role__in=['faculty', 'admin', 'system_admin'])
+                .exclude(pk__in=assigned_ids)
+                .select_related('faculty_profile')
+                .order_by('email')
+            )
+            for acc in eligible_accounts:
+                if acc.role == 'faculty':
+                    try:
+                        display_name = acc.faculty_profile.name or acc.email
+                        faculty_code = acc.faculty_profile.faculty_code or ''
+                        department = acc.faculty_profile.department or ''
+                    except Exception:
+                        display_name = acc.get_full_name() or acc.email
+                        faculty_code = ''
+                        department = ''
+                else:
+                    display_name = acc.get_full_name() or acc.email
+                    faculty_code = ''
+                    department = ''
+                all_eligible_evaluators.append({
+                    'pk': acc.pk,
+                    'display_name': display_name,
+                    'email': acc.email,
+                    'role': acc.role,
+                    'role_label': acc.get_role_display(),
+                    'faculty_code': faculty_code,
+                    'department': department,
+                })
+
     next_status_needs_deadline = next_status in ('psych_test', 'contract_of_service', 'first_salary_requirements')
     next_status_needs_instructions = next_status == 'demo_scheduled'
+
+    _step_advance_hints = {
+        'evaluation':                "Evaluators will need to be assigned after advancing.",
+        'demo_scheduled':            "A date and interview instructions should be set when advancing.",
+        'contract_of_service':       "A Contract of Service document must be uploaded after advancing.",
+        'first_salary_requirements': "Required document categories must be selected for this applicant.",
+    }
+    next_status_hint = _step_advance_hints.get(next_status, "")
+    next_status_label = dict(STEPPER_STATUSES).get(next_status, next_status) if next_status else ""
 
     return render(request, 'admin/admin_applicant_detail.html', {
         'applicant': applicant,
@@ -2444,6 +2549,8 @@ def applicant_detail_view(request, uuid):
         'can_reject': can_reject,
         'next_status': next_status,
         'next_status_requires_date': next_status_requires_date,
+        'next_status_label': next_status_label,
+        'next_status_hint': next_status_hint,
         'stepper': stepper,
         # Step-specific
         'pending_reschedule_requests': pending_reschedule_requests,
@@ -2457,6 +2564,12 @@ def applicant_detail_view(request, uuid):
         'all_doc_categories': all_doc_categories,
         'next_status_needs_deadline': next_status_needs_deadline,
         'next_status_needs_instructions': next_status_needs_instructions,
+        'evaluation_assignments': evaluation_assignments,
+        'all_eligible_evaluators': all_eligible_evaluators,
+        'eval_total': eval_total,
+        'eval_submitted': eval_submitted,
+        'eval_pending_active': eval_pending_active,
+        'eval_complete': eval_complete,
     })
 
 
@@ -2647,6 +2760,106 @@ def admin_configure_salary_requirements(request, uuid):
             admin=request.user,
         )
         messages.success(request, "Salary requirements updated.")
+
+    return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+
+# ---------------------------------------------------------------------------
+# Admin: Assign Evaluators for Evaluation Step
+# ---------------------------------------------------------------------------
+
+@admin_required
+@require_POST
+def admin_assign_evaluators(request, uuid):
+    applicant = get_object_or_404(Applicant, uuid=uuid)
+
+    if applicant.status != 'evaluation':
+        messages.error(request, "Evaluators can only be assigned during the Evaluation step.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    evaluator_ids = request.POST.getlist('evaluator_ids')
+    if not evaluator_ids:
+        messages.error(request, "Please select at least one evaluator.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    deadline_raw = (request.POST.get('submission_deadline') or '').strip()
+    if not deadline_raw:
+        messages.error(request, "A submission deadline is required when assigning evaluators.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    try:
+        from django.utils.dateparse import parse_datetime
+        submission_deadline = parse_datetime(deadline_raw)
+        if submission_deadline is None:
+            raise ValueError("unparseable")
+        if timezone.is_naive(submission_deadline):
+            submission_deadline = timezone.make_aware(submission_deadline)
+    except (ValueError, TypeError):
+        messages.error(request, "Invalid deadline format. Please use the date-time picker.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    if submission_deadline <= timezone.now():
+        messages.error(request, "Submission deadline must be in the future.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    evaluators = list(
+        Account.objects.filter(
+            pk__in=evaluator_ids, is_active=True,
+            role__in=['faculty', 'admin', 'system_admin'],
+        ).select_related('faculty_profile')
+    )
+    if not evaluators:
+        messages.error(request, "No valid evaluators found.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    base_url = getattr(settings, 'SITE_BASE_URL', '').rstrip('/')
+    assigned_count = 0
+    skipped_count = 0
+
+    with transaction.atomic():
+        for evaluator in evaluators:
+            if EvaluationAssignment.objects.filter(applicant=applicant, evaluator=evaluator).exists():
+                skipped_count += 1
+                continue
+
+            token = get_random_string(64)
+            expires_at = timezone.now() + timedelta(days=EVALUATION_TOKEN_VALIDITY_DAYS)
+
+            assignment = EvaluationAssignment.objects.create(
+                applicant=applicant,
+                evaluator=evaluator,
+                assigned_by=request.user,
+                token=token,
+                token_expires_at=expires_at,
+                submission_deadline=submission_deadline,
+            )
+            assigned_count += 1
+
+            eval_path = reverse('applicants:evaluate_form', kwargs={'token': token})
+            eval_url = f"{base_url}{eval_path}" if base_url else request.build_absolute_uri(eval_path)
+
+            evaluator_name = assignment.evaluator_display_name
+            try:
+                send_evaluation_invite_email(
+                    evaluator_name, evaluator.email, applicant, eval_url,
+                    expires_at, submission_deadline=submission_deadline,
+                )
+            except Exception:
+                logger.exception("Failed to send evaluation invite email to %s", evaluator.email)
+
+        if assigned_count:
+            ApplicantTimeline.objects.create(
+                applicant=applicant,
+                action=f"Evaluators assigned: {assigned_count} new · Deadline: {submission_deadline.strftime('%b %d, %Y %I:%M %p')}",
+                admin=request.user,
+            )
+
+    if assigned_count:
+        messages.success(request, f"{assigned_count} evaluator(s) assigned and notified by email.")
+    if skipped_count:
+        messages.info(request, f"{skipped_count} evaluator(s) skipped (already assigned).")
+    if not assigned_count and not skipped_count:
+        messages.warning(request, "No evaluators were processed.")
 
     return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 

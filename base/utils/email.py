@@ -315,3 +315,66 @@ def send_application_withdrawn_email(
         template_name="emails/applicant_application_withdrawn.html",
         context=ctx,
     )
+
+
+# ---------------------------------------------------------------------------
+# Evaluation step emails
+# ---------------------------------------------------------------------------
+
+def send_evaluation_step_email(applicant: Applicant, deadline=None) -> None:
+    """Notify the applicant that they have entered the Evaluation step."""
+    ctx = _base_context(applicant)
+    ctx["deadline"] = deadline
+    send_html_email(
+        subject="[LINANG] Application Status Update: Evaluation",
+        to_emails=applicant.email,
+        template_name="emails/applicant_evaluation_step.html",
+        context=ctx,
+    )
+
+
+def send_evaluation_invite_email(evaluator_name: str, evaluator_email: str,
+                                  applicant: Applicant, evaluation_url: str,
+                                  expires_at, submission_deadline=None) -> None:
+    """Send the tokenized evaluation link to a faculty evaluator."""
+    send_html_email(
+        subject=f"[LINANG] Evaluation Request: {applicant.full_name}",
+        to_emails=evaluator_email,
+        template_name="emails/evaluation_invite.html",
+        context={
+            "evaluator_name": evaluator_name,
+            "applicant": applicant,
+            "applicant_name": applicant.full_name,
+            "evaluation_url": evaluation_url,
+            "expires_at": expires_at,
+            "submission_deadline": submission_deadline,
+        },
+    )
+
+
+def send_evaluation_submitted_email_to_admin(admin_emails, evaluator_name: str,
+                                              applicant: Applicant,
+                                              admin_url: str) -> None:
+    """Notify admins that an evaluator has submitted their evaluation form."""
+    send_html_email(
+        subject=f"[LINANG] Evaluation Submitted: {applicant.full_name}",
+        to_emails=admin_emails,
+        template_name="emails/evaluation_submitted_admin.html",
+        context={
+            "evaluator_name": evaluator_name,
+            "applicant": applicant,
+            "applicant_name": applicant.full_name,
+            "admin_url": admin_url,
+        },
+    )
+
+
+def send_evaluation_complete_email_to_applicant(applicant: Applicant) -> None:
+    """Notify the applicant that all evaluations have been submitted."""
+    ctx = _base_context(applicant)
+    send_html_email(
+        subject="[LINANG] Application Update: Evaluation Phase Complete",
+        to_emails=applicant.email,
+        template_name="emails/evaluation_complete_applicant.html",
+        context=ctx,
+    )

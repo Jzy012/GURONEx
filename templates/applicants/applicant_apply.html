@@ -62,6 +62,16 @@
         Please fill out the form and upload the required documents to complete your application.
       </p>
 
+      <!-- Upload error banner (shown when Drive upload fails after form validation passes) -->
+      {% if upload_error %}
+      <div class="mb-6 bg-red-50 border border-red-300 text-red-800 rounded-lg px-4 py-3 text-sm flex items-start gap-3">
+        <svg class="w-5 h-5 mt-0.5 shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"/>
+        </svg>
+        <p>{{ upload_error }}</p>
+      </div>
+      {% endif %}
+
       <!-- Form -->
       <form id="applicant-form" method="post" enctype="multipart/form-data" class="space-y-8">
         {% csrf_token %}
@@ -125,7 +135,7 @@
               <div>
                 {{ basic_form.contact_number.label_tag }}
                 {{ basic_form.contact_number }}
-                <p class="text-xs text-gray-500 mt-1">e.g. 09XXXXXXXXX</p>
+                <p class="text-xs text-gray-500 mt-1">Accepted: 09171234567 &nbsp;·&nbsp; 0917-123-4567 &nbsp;·&nbsp; 0917 123 4567</p>
                 {% if basic_form.contact_number.errors %}
                   <p class="text-red-600 text-xs mt-1">{{ basic_form.contact_number.errors.0 }}</p>
                 {% endif %}

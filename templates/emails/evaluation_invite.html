@@ -1,0 +1,50 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Evaluation Request: {{ applicant_name }}{% endblock %}
+
+{% block content %}
+  <p>Hi {{ evaluator_name }},</p>
+
+  <p>
+    You have been assigned to evaluate a faculty applicant for <strong>LINANG</strong>.
+    Please review the applicant's qualifications and complete the evaluation form using the secure link below.
+  </p>
+
+  <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0;">
+    <p style="margin:0 0 4px;font-weight:600;color:#111827;">Applicant Information</p>
+    <p style="margin:0;color:#374151;">Name: <strong>{{ applicant_name }}</strong></p>
+    <p style="margin:4px 0 0;color:#374151;">ID: <strong>{{ applicant.applicant_id }}</strong></p>
+    {% if applicant.area_of_specialization %}
+      <p style="margin:4px 0 0;color:#374151;">Area of Specialization: <strong>{{ applicant.area_of_specialization }}</strong></p>
+    {% endif %}
+  </div>
+
+  {% if submission_deadline %}
+    <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:16px 0;">
+      <p style="margin:0 0 4px;font-weight:600;color:#92400e;">Submission Deadline</p>
+      <p style="margin:0;color:#78350f;font-size:16px;">
+        <strong>{{ submission_deadline|date:"F j, Y" }}</strong>
+        at <strong>{{ submission_deadline|date:"g:i A" }}</strong>
+      </p>
+      <p style="margin:8px 0 0;color:#92400e;font-size:13px;">
+        Please complete your evaluation before this deadline. Submissions will not be accepted after this time.
+      </p>
+    </div>
+  {% endif %}
+
+  <p>
+    Your evaluation link is unique to you{% if not submission_deadline %} and expires on
+    <strong>{{ expires_at|date:"F j, Y" }}</strong>{% endif %}.
+    Please do not share this link with others.
+  </p>
+
+  <p>
+    <a href="{{ evaluation_url }}" class="btn">Complete Evaluation Form</a>
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    This link is single-use and will become invalid after submission.
+    If you have any questions, please contact the LINANG administration.
+  </p>
+{% endblock %}

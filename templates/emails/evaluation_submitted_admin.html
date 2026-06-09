@@ -1,0 +1,31 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Evaluation Submitted: {{ applicant_name }}{% endblock %}
+
+{% block content %}
+  <p>Hi,</p>
+
+  <p>
+    An evaluator has submitted their evaluation for applicant
+    <strong>{{ applicant_name }}</strong> ({{ applicant.applicant_id }}).
+  </p>
+
+  <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0;">
+    <p style="margin:0 0 4px;font-weight:600;color:#111827;">Submission Details</p>
+    <p style="margin:0;color:#374151;">Applicant: <strong>{{ applicant_name }}</strong></p>
+    <p style="margin:4px 0 0;color:#374151;">Evaluator: <strong>{{ evaluator_name }}</strong></p>
+  </div>
+
+  <p>
+    Log in to the admin panel to view the full evaluation results, including scores and comments.
+  </p>
+
+  <p>
+    <a href="{{ admin_url }}" class="btn">View Evaluation Results</a>
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    This is an automated notification from the LINANG system.
+  </p>
+{% endblock %}

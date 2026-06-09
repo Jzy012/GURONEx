@@ -20,6 +20,7 @@ class Notification(models.Model):
 		("applicant_step_document_uploaded", "Applicant Step Document Uploaded"),
 		("applicant_availability_confirmed", "Applicant Availability Confirmed"),
 		("applicant_application_withdrawn", "Applicant Application Withdrawn"),
+		("evaluation_submitted", "Evaluation Submitted"),
 		("system", "System"),
 	]
 

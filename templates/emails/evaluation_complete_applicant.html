@@ -1,0 +1,30 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}Application Update: Evaluation Phase Complete{% endblock %}
+
+{% block content %}
+  <p>Hi {{ full_name }},</p>
+
+  <p>
+    We are pleased to inform you that the <strong>Evaluation</strong> phase of your application
+    to LINANG has been completed.
+  </p>
+
+  <p>
+    All assigned evaluators have submitted their assessments. Your application will now continue
+    through the next stage of the recruitment process.
+  </p>
+
+  <p>
+    You can check your current application status at any time through your dashboard.
+  </p>
+
+  <p>
+    <a href="{{ status_url }}" class="btn">View Application Status</a>
+  </p>
+
+  <div class="divider"></div>
+  <p class="muted">
+    Questions? Contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+  </p>
+{% endblock %}
