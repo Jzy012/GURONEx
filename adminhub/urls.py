@@ -66,6 +66,7 @@ urlpatterns = [
  
 
     path('admin/applicants/', views.applicant_list_view, name='applicant_list'),
+    path('admin/applicants/archived/', views.archived_applicants_list_view, name='archived_applicants'),
     path('admin/applicants/<uuid:uuid>/', views.applicant_detail_view, name='applicant_detail'),
     path('admin/applicants/documents/download/<int:pk>/',views.download_applicant_document,name='download_applicant_document',),
     path('admin/applicants/step-document/<int:pk>/download/', views.download_applicant_step_document, name='download_applicant_step_document'),
@@ -87,9 +88,12 @@ urlpatterns = [
     path('admin/applicants/<uuid:uuid>/salary-requirements/', views.admin_configure_salary_requirements, name='admin_configure_salary_requirements'),
     path('admin/applicants/<uuid:uuid>/assign-evaluators/', views.admin_assign_evaluators, name='admin_assign_evaluators'),
     path('admin/applicants/<uuid:uuid>/archive/', views.admin_archive_applicant, name='admin_archive_applicant'),
+    path('admin/applicants/<uuid:uuid>/restore/', views.admin_restore_applicant, name='admin_restore_applicant'),
+    path('admin/applicants/<uuid:uuid>/evaluation-export/', views.admin_export_evaluation, name='admin_export_evaluation'),
+    path('admin/applicants/<uuid:uuid>/edit-education/', views.admin_edit_applicant_education, name='admin_edit_applicant_education'),
 
-  
-    
+
+
 
 
     path('admin/attendance-logs/',views.attendance_logs_view, name='attendance_logs'),

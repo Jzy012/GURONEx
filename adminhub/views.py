@@ -67,6 +67,7 @@ from base.decorators import admin_required, faculty_required
 from base.forms import (
     AnnouncementForm,
     AcademicYearForm,
+    ApplicantEducationForm,
     ApplicantRequiredDocumentForm,
     AssignDeliverablesForm,
     BackgroundUploadForm,
@@ -127,6 +128,7 @@ from rfid.models import AttendanceLog, RFIDTag
 from rfid.views import format_log
 from services.dtr_service import DTRCalculator
 from services.deliverable_assignment_service import auto_assign_deliverables_for_semester
+from services.evaluation_export_service import build_evaluation_pdf_response
 from services.faculty_clearance_service import build_clearance_pdf_response
 from services.google_drive_service import CentralGoogleDriveService, get_google_drive_status
 from notifications.services import log_activity, notify_role, notify_user, ROLE_ADMIN_GROUP
@@ -2048,8 +2050,8 @@ def applicant_list_view(request):
     search = request.GET.get('search', '')
     status = request.GET.get('status', '')
 
-    # 1. Queryset: Applicant list, filtered by search and status
-    applicant_qs = Applicant.objects.all().order_by('-created_at')
+    # 1. Queryset: active (non-archived) applicants only
+    applicant_qs = Applicant.objects.filter(is_archived=False).order_by('-created_at')
     if search:
         applicant_qs = applicant_qs.filter(
             Q(first_name__icontains=search) |
@@ -2059,16 +2061,13 @@ def applicant_list_view(request):
     if status:
         applicant_qs = applicant_qs.filter(status=status)
 
-    # 2. Annotate pending/missing documents (optional, if you want it in list)
-    # applicant_qs = applicant_qs.annotate(
-    #     pending_documents=Count('documents', filter=Q(documents__status='Pending'))
-    # )
-
-    # 3. Stats for dashboard cards
-    total_applicants = Applicant.objects.count()
-    total_hired = Applicant.objects.filter(status='hired').count()
-    total_rejected = Applicant.objects.filter(status='rejected').count()
-    total_pending = Applicant.objects.filter(status='pending').count()
+    # 2. Stats scoped to active applicants
+    active_qs = Applicant.objects.filter(is_archived=False)
+    total_applicants = active_qs.count()
+    total_hired = active_qs.filter(status='hired').count()
+    total_rejected = active_qs.filter(status='rejected').count()
+    total_pending = active_qs.filter(status='pending').count()
+    total_archived = Applicant.objects.filter(is_archived=True).count()
 
     # 4. Pagination
     paginator = Paginator(applicant_qs, 10)
@@ -2092,6 +2091,7 @@ def applicant_list_view(request):
         'total_hired': total_hired,
         'total_rejected': total_rejected,
         'total_pending': total_pending,
+        'total_archived': total_archived,
         'search': search,
         'status': status,
         'querystring': querystring,
@@ -2470,62 +2470,66 @@ def applicant_detail_view(request, uuid):
     from faculty.models import DocumentCategory
     all_doc_categories = DocumentCategory.objects.all().order_by('name')
 
-    # Evaluation step context
-    evaluation_assignments = []
-    all_eligible_evaluators = []
-    eval_total = 0
-    eval_submitted = 0
-    eval_pending_active = 0
-    eval_complete = False
-    if applicant.status == 'evaluation':
-        evaluation_assignments = list(
-            applicant.evaluation_assignments.select_related(
-                'evaluator', 'submission'
-            ).prefetch_related('submission__scores__criteria')
-        )
-        eval_total = len(evaluation_assignments)
-        eval_submitted = sum(1 for a in evaluation_assignments if a.is_submitted)
-        eval_pending_active = sum(
-            1 for a in evaluation_assignments if not a.is_submitted and not a.is_expired
-        )
-        eval_complete = (
-            eval_total > 0
-            and eval_pending_active == 0
-            and eval_submitted > 0
-        )
+    # Evaluation context — always loaded so the persistent section works on any step
+    evaluation_assignments = list(
+        applicant.evaluation_assignments.select_related(
+            'evaluator', 'submission'
+        ).prefetch_related('submission__scores__criteria')
+    )
+    eval_total = len(evaluation_assignments)
+    eval_submitted = sum(1 for a in evaluation_assignments if a.is_submitted)
+    eval_pending_active = sum(
+        1 for a in evaluation_assignments if not a.is_submitted and not a.is_expired
+    )
+    eval_complete = (
+        eval_total > 0
+        and eval_pending_active == 0
+        and eval_submitted > 0
+    )
 
-        # Only show the assignment form if no evaluators have been assigned yet.
-        if not evaluation_assignments:
-            assigned_ids = set()
-            eligible_accounts = (
-                Account.objects.filter(is_active=True, role__in=['faculty', 'admin', 'system_admin'])
-                .exclude(pk__in=assigned_ids)
-                .select_related('faculty_profile')
-                .order_by('email')
-            )
-            for acc in eligible_accounts:
-                if acc.role == 'faculty':
-                    try:
-                        display_name = acc.faculty_profile.name or acc.email
-                        faculty_code = acc.faculty_profile.faculty_code or ''
-                        department = acc.faculty_profile.department or ''
-                    except Exception:
-                        display_name = acc.get_full_name() or acc.email
-                        faculty_code = ''
-                        department = ''
-                else:
+    # Eligible evaluators list — only needed when admin can still assign (status == 'evaluation' and none assigned)
+    all_eligible_evaluators = []
+    if applicant.status == 'evaluation' and not evaluation_assignments:
+        eligible_accounts = (
+            Account.objects.filter(is_active=True, role__in=['faculty', 'admin', 'system_admin'])
+            .select_related('faculty_profile', 'admin_profile')
+            .order_by('email')
+        )
+        for acc in eligible_accounts:
+            if acc.role == 'faculty':
+                try:
+                    display_name = acc.faculty_profile.name or acc.email
+                    faculty_code = acc.faculty_profile.faculty_code or ''
+                    department = acc.faculty_profile.department or ''
+                except Exception:
                     display_name = acc.get_full_name() or acc.email
                     faculty_code = ''
                     department = ''
-                all_eligible_evaluators.append({
-                    'pk': acc.pk,
-                    'display_name': display_name,
-                    'email': acc.email,
-                    'role': acc.role,
-                    'role_label': acc.get_role_display(),
-                    'faculty_code': faculty_code,
-                    'department': department,
-                })
+            else:
+                display_name = None
+                if acc.role in ('admin', 'system_admin'):
+                    try:
+                        display_name = acc.admin_profile.name or None
+                    except Exception:
+                        pass
+                if not display_name:
+                    full = acc.get_full_name().strip()
+                    if full:
+                        display_name = full
+                    else:
+                        local = acc.email.split('@')[0]
+                        display_name = local.replace('.', ' ').replace('_', ' ').replace('-', ' ').title() or acc.email
+                faculty_code = ''
+                department = ''
+            all_eligible_evaluators.append({
+                'pk': acc.pk,
+                'display_name': display_name,
+                'email': acc.email,
+                'role': acc.role,
+                'role_label': acc.get_role_display(),
+                'faculty_code': faculty_code,
+                'department': department,
+            })
 
     next_status_needs_deadline = next_status in ('psych_test', 'contract_of_service', 'first_salary_requirements')
     next_status_needs_instructions = next_status == 'demo_scheduled'
@@ -2570,6 +2574,7 @@ def applicant_detail_view(request, uuid):
         'eval_submitted': eval_submitted,
         'eval_pending_active': eval_pending_active,
         'eval_complete': eval_complete,
+        'has_eval_submissions': applicant.evaluation_assignments.filter(is_submitted=True).exists(),
     })
 
 
@@ -2879,6 +2884,10 @@ def admin_archive_applicant(request, uuid):
         messages.warning(request, "Applicant is already archived.")
         return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
+    if applicant.status != 'hired' or not applicant.account_created:
+        messages.error(request, "Only hired applicants with a created faculty account can be archived.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
     applicant.is_archived = True
     applicant.archived_at = timezone.now()
     applicant.archived_by = request.user
@@ -2892,6 +2901,120 @@ def admin_archive_applicant(request, uuid):
 
     messages.success(request, f"Applicant {applicant.applicant_id} has been archived.")
     return redirect('adminhub:applicant_list')
+
+
+# ---------------------------------------------------------------------------
+# Admin: Restore Archived Applicant
+# ---------------------------------------------------------------------------
+
+@admin_required
+@require_POST
+def admin_restore_applicant(request, uuid):
+    applicant = get_object_or_404(Applicant, uuid=uuid, is_archived=True)
+
+    applicant.is_archived = False
+    applicant.archived_at = None
+    applicant.archived_by = None
+    applicant.save(update_fields=['is_archived', 'archived_at', 'archived_by'])
+
+    ApplicantTimeline.objects.create(
+        applicant=applicant,
+        action="Applicant restored from archive",
+        admin=request.user,
+    )
+    log_activity(
+        actor=request.user,
+        action='applicant_restored',
+        target_type='Applicant',
+        target_id=str(applicant.uuid),
+        details={'applicant_id': applicant.applicant_id, 'name': applicant.full_name},
+    )
+
+    messages.success(request, f"{applicant.applicant_id} has been restored.")
+    return redirect('adminhub:archived_applicants')
+
+
+# ---------------------------------------------------------------------------
+# Admin: Archived Applicants List
+# ---------------------------------------------------------------------------
+
+@admin_required
+def archived_applicants_list_view(request):
+    search = request.GET.get('search', '')
+    applicant_qs = Applicant.objects.filter(is_archived=True).order_by('-archived_at')
+    if search:
+        applicant_qs = applicant_qs.filter(
+            Q(first_name__icontains=search) |
+            Q(last_name__icontains=search) |
+            Q(email__icontains=search)
+        )
+
+    paginator = Paginator(applicant_qs, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    get_params = request.GET.copy()
+    if 'page' in get_params:
+        del get_params['page']
+    querystring = get_params.urlencode()
+
+    return render(request, 'admin/admin_archived_applicants.html', {
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'search': search,
+        'querystring': querystring,
+        'total_archived': applicant_qs.count(),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Admin: Export Evaluation PDF
+# ---------------------------------------------------------------------------
+
+@admin_required
+def admin_export_evaluation(request, uuid):
+    applicant = get_object_or_404(Applicant, uuid=uuid)
+    if not applicant.evaluation_assignments.filter(is_submitted=True).exists():
+        messages.error(request, "No submitted evaluations to export.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+    return build_evaluation_pdf_response(applicant)
+
+
+# ---------------------------------------------------------------------------
+# Admin: Edit Applicant Educational Background
+# ---------------------------------------------------------------------------
+
+@admin_required
+@require_POST
+def admin_edit_applicant_education(request, uuid):
+    applicant = get_object_or_404(Applicant, uuid=uuid)
+    form = ApplicantEducationForm(request.POST, instance=applicant)
+    if form.is_valid():
+        changed = form.changed_data
+        old_values = {f: getattr(applicant, f) for f in changed}
+        form.save()
+        new_values = {f: getattr(applicant, f) for f in changed}
+        ApplicantTimeline.objects.create(
+            applicant=applicant,
+            action="Educational background updated by admin",
+            admin=request.user,
+        )
+        log_activity(
+            actor=request.user,
+            action='applicant_education_updated',
+            target_type='Applicant',
+            target_id=str(applicant.uuid),
+            details={
+                'applicant_id': applicant.applicant_id,
+                'changed_fields': changed,
+                'old': old_values,
+                'new': new_values,
+            },
+        )
+        messages.success(request, "Educational background updated.")
+    else:
+        messages.error(request, "Could not save educational background — please check the fields.")
+    return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
 
 def _stream_drive_media(drive_service: CentralGoogleDriveService, file_id: str, chunk_size: int = 1024 * 256):

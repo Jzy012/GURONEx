@@ -1187,7 +1187,35 @@ class ApplicantForm(forms.ModelForm):
 
 
 
-MAX_FILE_SIZE = 15 * 1024 * 1024  
+class ApplicantEducationForm(forms.ModelForm):
+    class Meta:
+        model = Applicant
+        fields = [
+            'college_degree', 'college_institution',
+            'masters_degree', 'masters_institution',
+            'doctorate_degree', 'doctorate_institution',
+        ]
+        labels = {
+            'college_degree': 'College Degree',
+            'college_institution': 'College Institution',
+            'masters_degree': "Master's Degree",
+            'masters_institution': "Master's Institution",
+            'doctorate_degree': 'Doctorate Degree',
+            'doctorate_institution': 'Doctorate Institution',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field_class = (
+            "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm "
+            "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+        )
+        for field in self.fields.values():
+            field.required = False
+            field.widget.attrs['class'] = field_class
+
+
+MAX_FILE_SIZE = 15 * 1024 * 1024
 ALLOWED_CONTENT_TYPES = [
     "application/pdf",
     "image/jpeg",

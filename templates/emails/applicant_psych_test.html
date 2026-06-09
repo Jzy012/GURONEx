@@ -10,26 +10,35 @@
   </p>
 
   <p>
-    You are required to upload your <strong>Psych Test result or evaluation document</strong> through your applicant dashboard.
+    You are now required to submit your <strong>Psychological Test result document</strong> through your applicant dashboard.
   </p>
 
   {% if deadline %}
     <p>
-      <strong>Upload Deadline:</strong>
+      <strong>Submission Deadline:</strong>
       <span class="badge">{{ deadline|date:"F j, Y" }}</span>
     </p>
     <p>
-      Please ensure your document is submitted before the deadline.
-      Failure to submit on time may affect your application status.
+      Please ensure your document is uploaded on or before this date.
+      <strong>Failure to submit before the deadline may affect the status of your application.</strong>
+    </p>
+  {% else %}
+    <p>
+      No deadline has been set at this time. Please submit your document as soon as possible.
     </p>
   {% endif %}
 
-  <p><strong>Instructions:</strong></p>
+  <p><strong>What to upload:</strong></p>
+  <ul>
+    <li>The official result document issued to you by the testing center or institution that administered your psychological examination.</li>
+    <li>Accepted file formats: PDF, JPG, or PNG (max 15 MB).</li>
+  </ul>
+
+  <p><strong>How to submit:</strong></p>
   <ul>
     <li>Log in to your applicant dashboard using the button below.</li>
-    <li>Navigate to the <em>Psych Test</em> section.</li>
-    <li>Upload your psych test result document (PDF, JPG, or PNG, max 15 MB).</li>
-    <li>Wait for admin review and approval.</li>
+    <li>Find the <em>Psych Test Document</em> section.</li>
+    <li>Upload your document and wait for admin review and approval.</li>
   </ul>
 
   <p>

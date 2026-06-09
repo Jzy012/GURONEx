@@ -141,9 +141,18 @@
     </dl>
 
     <!-- Educational Background -->
-    {% if applicant.college_degree or applicant.masters_degree or applicant.doctorate_degree %}
-      <div class="pt-4 border-t border-gray-100 space-y-2">
+    <div class="pt-4 border-t border-gray-100 space-y-2">
+      <div class="flex items-center justify-between gap-2">
         <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Educational Background</p>
+        <button type="button" onclick="openEditEducationModal()"
+                class="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 focus:outline-none">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+          </svg>
+          Edit
+        </button>
+      </div>
+      {% if applicant.college_degree or applicant.college_institution or applicant.masters_degree or applicant.masters_institution or applicant.doctorate_degree or applicant.doctorate_institution %}
         <dl class="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-3 text-sm">
           {% if applicant.college_degree or applicant.college_institution %}
             <div>
@@ -167,8 +176,10 @@
             </div>
           {% endif %}
         </dl>
-      </div>
-    {% endif %}
+      {% else %}
+        <p class="text-sm text-gray-400 italic">No educational background on record. Click Edit to add.</p>
+      {% endif %}
+    </div>
 
     <!-- Rejection / Withdrawal audit info -->
     {% if applicant.status == 'rejected' and applicant.rejection_message %}
@@ -366,352 +377,366 @@
     {% endif %}
   {% endif %}
 
-  <!-- Evaluation – Assign Evaluators + View Results -->
-  {% if applicant.status == 'evaluation' %}
-    <section class="bg-white rounded-xl border border-amber-100 shadow-sm p-4 sm:p-6 space-y-5">
-      <div class="flex items-start justify-between gap-3 flex-wrap">
-        <h3 class="text-sm font-semibold text-gray-900">Evaluation Step</h3>
-        {% if eval_total %}
-          {% if eval_complete %}
-            <span class="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-              Complete — Ready to Advance
-            </span>
-          {% else %}
-            <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">In Progress</span>
-          {% endif %}
-        {% endif %}
-      </div>
+  <!-- Evaluation Information (persistent collapsible) -->
+  {% if eval_total > 0 or applicant.status == 'evaluation' %}
+    <section class="bg-white rounded-xl border border-amber-100 shadow-sm p-4 sm:p-6">
 
-      <!-- Submission summary bar -->
-      {% if eval_total %}
-        <div class="flex items-center gap-4 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-700">
-          <span><span class="font-semibold text-gray-900">Evaluators Assigned:</span> {{ eval_total }}</span>
-          <span class="text-gray-300">|</span>
-          <span><span class="font-semibold text-gray-900">Submitted:</span> {{ eval_submitted }} / {{ eval_total }}</span>
-          {% if eval_pending_active %}
-            <span class="text-gray-300">|</span>
-            <span class="text-amber-700 font-medium">{{ eval_pending_active }} still pending</span>
+      <!-- Section header: toggle + status badge + export -->
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <button type="button" id="eval-section-toggle" onclick="toggleEvalSection()"
+                class="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:text-[#800505] transition-colors">
+          <svg id="eval-chevron" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m19 9-7 7-7-7" />
+          </svg>
+          Evaluation Information
+        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          {% if eval_total %}
+            {% if eval_complete %}
+              <span class="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                Complete — Ready to Advance
+              </span>
+            {% else %}
+              <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">In Progress</span>
+            {% endif %}
+          {% endif %}
+          {% if has_eval_submissions %}
+            <a href="{% url 'adminhub:admin_export_evaluation' applicant.uuid %}"
+               class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-[#800505]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Export PDF
+            </a>
           {% endif %}
         </div>
-      {% endif %}
+      </div>
 
-      <!-- Evaluator list -->
-      {% if evaluation_assignments %}
-        <div class="space-y-3">
-          <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Assigned Evaluators</p>
-          {% for ea in evaluation_assignments %}
-            <div class="rounded-lg border p-3 space-y-2
-              {% if ea.is_submitted %}border-green-200 bg-green-50
-              {% elif ea.is_expired %}border-red-200 bg-red-50
-              {% else %}border-gray-200{% endif %}">
-              <div class="flex items-center justify-between gap-3 flex-wrap gap-y-1">
-                <div class="min-w-0">
-                  <p class="text-sm font-semibold text-gray-800 truncate">
-                    {{ ea.evaluator_display_name }}
-                    <span class="ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium
-                      {% if ea.evaluator.role == 'faculty' %}bg-blue-50 text-blue-700
-                      {% elif ea.evaluator.role == 'admin' %}bg-purple-50 text-purple-700
-                      {% else %}bg-gray-100 text-gray-600{% endif %}">
-                      {{ ea.evaluator_role_label }}
-                    </span>
-                  </p>
-                  <p class="text-xs text-gray-500 mt-0.5">
-                    Assigned {{ ea.assigned_at|date:"F j, Y" }}
-                    {% if ea.submission_deadline %}
-                      · <span class="font-medium">Deadline: {{ ea.submission_deadline|date:"F j, Y" }} at {{ ea.submission_deadline|date:"g:i A" }}</span>
-                    {% endif %}
-                    · {% if ea.is_submitted %}
-                      <span class="text-green-700 font-semibold">Submitted {{ ea.submitted_at|date:"F j, Y" }}</span>
-                    {% elif ea.is_deadline_passed %}
-                      <span class="text-red-700 font-semibold">Deadline passed</span>
-                    {% elif ea.is_expired %}
-                      <span class="text-red-700 font-semibold">Link expired</span>
-                    {% else %}
-                      <span class="text-amber-700">Pending</span>
-                    {% endif %}
-                  </p>
+      <!-- Collapsible body (expanded by default) -->
+      <div id="eval-section-body" class="space-y-5 mt-5">
+
+        <!-- Submission summary bar -->
+        {% if eval_total %}
+          <div class="flex flex-wrap items-center gap-4 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-700">
+            <span><span class="font-semibold text-gray-900">Evaluators Assigned:</span> {{ eval_total }}</span>
+            <span class="text-gray-300">|</span>
+            <span><span class="font-semibold text-gray-900">Submitted:</span> {{ eval_submitted }} / {{ eval_total }}</span>
+            {% if eval_pending_active %}
+              <span class="text-gray-300">|</span>
+              <span class="text-amber-700 font-medium">{{ eval_pending_active }} still pending</span>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        <!-- Evaluator list -->
+        {% if evaluation_assignments %}
+          <div class="space-y-3">
+            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Assigned Evaluators</p>
+            {% for ea in evaluation_assignments %}
+              <div class="rounded-lg border p-3 space-y-2
+                {% if ea.is_submitted %}border-green-200 bg-green-50
+                {% elif ea.is_expired %}border-red-200 bg-red-50
+                {% else %}border-gray-200{% endif %}">
+                <div class="flex items-center justify-between gap-3 flex-wrap gap-y-1">
+                  <div class="min-w-0">
+                    <p class="text-sm font-semibold text-gray-800 truncate">
+                      {{ ea.evaluator_display_name }}
+                      <span class="ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium
+                        {% if ea.evaluator.role == 'faculty' %}bg-blue-50 text-blue-700
+                        {% elif ea.evaluator.role == 'admin' %}bg-purple-50 text-purple-700
+                        {% else %}bg-gray-100 text-gray-600{% endif %}">
+                        {{ ea.evaluator_role_label }}
+                      </span>
+                    </p>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                      Assigned {{ ea.assigned_at|date:"F j, Y" }}
+                      {% if ea.submission_deadline %}
+                        · <span class="font-medium">Deadline: {{ ea.submission_deadline|date:"F j, Y" }} at {{ ea.submission_deadline|date:"g:i A" }}</span>
+                      {% endif %}
+                      · {% if ea.is_submitted %}
+                        <span class="text-green-700 font-semibold">Submitted {{ ea.submitted_at|date:"F j, Y" }}</span>
+                      {% elif ea.is_deadline_passed %}
+                        <span class="text-red-700 font-semibold">Deadline passed</span>
+                      {% elif ea.is_expired %}
+                        <span class="text-red-700 font-semibold">Link expired</span>
+                      {% else %}
+                        <span class="text-amber-700">Pending</span>
+                      {% endif %}
+                    </p>
+                  </div>
+                  {% if ea.is_submitted %}
+                    <span class="shrink-0 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">Submitted</span>
+                  {% elif ea.is_deadline_passed %}
+                    <span class="shrink-0 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">Deadline Passed</span>
+                  {% elif ea.is_expired %}
+                    <span class="shrink-0 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">Expired</span>
+                  {% else %}
+                    <span class="shrink-0 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">Pending</span>
+                  {% endif %}
                 </div>
-                {% if ea.is_submitted %}
-                  <span class="shrink-0 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">Submitted</span>
-                {% elif ea.is_deadline_passed %}
-                  <span class="shrink-0 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">Deadline Passed</span>
-                {% elif ea.is_expired %}
-                  <span class="shrink-0 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">Expired</span>
-                {% else %}
-                  <span class="shrink-0 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">Pending</span>
+
+                <!-- Full evaluation details if submitted -->
+                {% if ea.is_submitted and ea.submission %}
+                  <div class="border-t border-gray-200 pt-3 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-semibold text-gray-600">Overall Score</span>
+                      <span class="text-sm font-bold text-gray-900">
+                        {{ ea.submission.total_score }} / {{ ea.submission.max_score }}
+                      </span>
+                    </div>
+
+                    <div class="space-y-1.5">
+                      {% for score in ea.submission.scores.all %}
+                        <div class="text-xs">
+                          <div class="flex items-center gap-2">
+                            <span class="text-gray-600 flex-1 truncate">{{ score.criteria.label }}</span>
+                            <span class="font-semibold text-gray-800 shrink-0">{{ score.rating }}/5</span>
+                          </div>
+                          {% if score.comments %}
+                            <p class="mt-0.5 pl-3 text-gray-400 italic">{{ score.comments }}</p>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+
+                    {% if ea.submission.summary %}
+                      <div class="border-t border-gray-100 pt-2">
+                        <p class="text-xs font-semibold text-gray-600 mb-1">Summary</p>
+                        <p class="text-xs text-gray-700 whitespace-pre-line">{{ ea.submission.summary }}</p>
+                      </div>
+                    {% endif %}
+
+                    {% if ea.submission.justification %}
+                      <div class="border-t border-gray-100 pt-2">
+                        <p class="text-xs font-semibold text-gray-600 mb-1">Justification / Recommendation</p>
+                        <p class="text-xs text-gray-700 whitespace-pre-line">{{ ea.submission.justification }}</p>
+                      </div>
+                    {% endif %}
+
+                    <p class="text-xs text-gray-400 border-t border-gray-100 pt-2">
+                      Submitted {{ ea.submission.submitted_at|date:"F j, Y" }} at {{ ea.submission.submitted_at|date:"g:i A" }}
+                    </p>
+                  </div>
                 {% endif %}
               </div>
+            {% endfor %}
+          </div>
 
-              <!-- Full evaluation details if submitted — Task 6 -->
-              {% if ea.is_submitted and ea.submission %}
-                <div class="border-t border-gray-200 pt-3 space-y-3">
-                  <!-- Overall score -->
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-600">Overall Score</span>
-                    <span class="text-sm font-bold text-gray-900">
-                      {{ ea.submission.total_score }} / {{ ea.submission.max_score }}
-                      {% if ea.submission.max_score %}
-                        <span class="ml-1 text-xs font-normal text-gray-500">({{ ea.submission.total_score|floatformat:0 }}/{{ ea.submission.max_score }})</span>
-                      {% endif %}
-                    </span>
+        {% elif applicant.status == 'evaluation' %}
+          <p class="text-sm text-gray-500">No evaluators have been assigned yet.</p>
+        {% endif %}
+
+        <!-- Assignment form: only when in evaluation step and no evaluators assigned -->
+        {% if applicant.status == 'evaluation' and not evaluation_assignments %}
+          {% if all_eligible_evaluators %}
+            <div class="border-t border-gray-100 pt-4 space-y-4">
+              <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Assign Evaluators</p>
+              <form method="post" action="{% url 'adminhub:admin_assign_evaluators' applicant.uuid %}" class="space-y-4" id="assign-evaluators-form">
+                {% csrf_token %}
+
+                <div>
+                  <label for="eval-deadline" class="block text-xs font-semibold text-gray-700 mb-1.5">
+                    Submission Deadline
+                    <span class="ml-1 text-red-500 font-normal">Required</span>
+                  </label>
+                  <input type="datetime-local" name="submission_deadline" id="eval-deadline" required
+                         class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
+                  <p class="text-xs text-gray-500 mt-1">All selected evaluators will share this deadline.</p>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+                    Select Evaluators
+                    <span class="ml-1 text-red-500 font-normal">Required</span>
+                  </label>
+                  <div class="relative mb-2">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-gray-400">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                      </svg>
+                    </div>
+                    <input type="text" id="evaluator-search"
+                           placeholder="Search by name, email, role, or department…"
+                           class="block w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
                   </div>
-
-                  <!-- Per-criterion scores -->
-                  <div class="space-y-1.5">
-                    {% for score in ea.submission.scores.all %}
-                      <div class="text-xs">
-                        <div class="flex items-center gap-2">
-                          <span class="text-gray-600 flex-1 truncate">{{ score.criteria.label }}</span>
-                          <span class="font-semibold text-gray-800 shrink-0">{{ score.rating }}/5</span>
+                  <div id="selected-evaluators" class="hidden flex-wrap gap-2 mb-2"></div>
+                  <div id="evaluator-list" class="max-h-56 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                    {% for ev in all_eligible_evaluators %}
+                      <label class="evaluator-item flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition"
+                             data-name="{{ ev.display_name|lower }}"
+                             data-email="{{ ev.email|lower }}"
+                             data-code="{{ ev.faculty_code|lower }}"
+                             data-dept="{{ ev.department|lower }}"
+                             data-role="{{ ev.role_label|lower }}">
+                        <input type="checkbox" name="evaluator_ids" value="{{ ev.pk }}"
+                               class="evaluator-checkbox rounded border-gray-300 text-[#800505] focus:ring-[#800505]"
+                               data-label="{{ ev.display_name }}" />
+                        <div class="min-w-0 flex-1">
+                          <p class="text-sm font-medium text-gray-800 truncate">
+                            {{ ev.display_name }}
+                            <span class="ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium
+                              {% if ev.role == 'faculty' %}bg-blue-50 text-blue-700
+                              {% elif ev.role == 'admin' %}bg-purple-50 text-purple-700
+                              {% else %}bg-gray-100 text-gray-600{% endif %}">
+                              {{ ev.role_label }}
+                            </span>
+                          </p>
+                          <p class="text-xs text-gray-500 truncate">
+                            {% if ev.display_name != ev.email %}{{ ev.email }}{% endif %}
+                            {% if ev.faculty_code %}{% if ev.display_name != ev.email %} · {% endif %}{{ ev.faculty_code }}{% endif %}
+                            {% if ev.department %} · {{ ev.department }}{% endif %}
+                          </p>
                         </div>
-                        {% if score.comments %}
-                          <p class="mt-0.5 pl-3 text-gray-400 italic">{{ score.comments }}</p>
-                        {% endif %}
-                      </div>
+                      </label>
                     {% endfor %}
                   </div>
-
-                  <!-- Summary (omit section if empty) -->
-                  {% if ea.submission.summary %}
-                    <div class="border-t border-gray-100 pt-2">
-                      <p class="text-xs font-semibold text-gray-600 mb-1">Summary</p>
-                      <p class="text-xs text-gray-700 whitespace-pre-line">{{ ea.submission.summary }}</p>
-                    </div>
-                  {% endif %}
-
-                  <!-- Justification / Recommendation (omit if empty) -->
-                  {% if ea.submission.justification %}
-                    <div class="border-t border-gray-100 pt-2">
-                      <p class="text-xs font-semibold text-gray-600 mb-1">Justification / Recommendation</p>
-                      <p class="text-xs text-gray-700 whitespace-pre-line">{{ ea.submission.justification }}</p>
-                    </div>
-                  {% endif %}
-
-                  <p class="text-xs text-gray-400 border-t border-gray-100 pt-2">
-                    Submitted {{ ea.submission.submitted_at|date:"F j, Y" }} at {{ ea.submission.submitted_at|date:"g:i A" }}
-                  </p>
-                </div>
-              {% endif %}
-            </div>
-          {% endfor %}
-        </div>
-
-      {% else %}
-        <!-- No assignments yet — show assignment form (Task 3: locked once assigned) -->
-        <p class="text-sm text-gray-500">No evaluators have been assigned yet.</p>
-      {% endif %}
-
-      <!-- Task 3: only show assignment form when NO evaluators have been assigned yet -->
-      {% if not evaluation_assignments %}
-        {% if all_eligible_evaluators %}
-          <div class="border-t border-gray-100 pt-4 space-y-4">
-            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Assign Evaluators</p>
-            <form method="post" action="{% url 'adminhub:admin_assign_evaluators' applicant.uuid %}" class="space-y-4" id="assign-evaluators-form">
-              {% csrf_token %}
-
-              <!-- Submission deadline -->
-              <div>
-                <label for="eval-deadline" class="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Submission Deadline
-                  <span class="ml-1 text-red-500 font-normal">Required</span>
-                </label>
-                <input type="datetime-local" name="submission_deadline" id="eval-deadline" required
-                       class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
-                <p class="text-xs text-gray-500 mt-1">All selected evaluators will share this deadline.</p>
-              </div>
-
-              <!-- Searchable evaluator selector -->
-              <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Select Evaluators
-                  <span class="ml-1 text-red-500 font-normal">Required</span>
-                </label>
-
-                <!-- Search input -->
-                <div class="relative mb-2">
-                  <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-gray-400">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                    </svg>
-                  </div>
-                  <input type="text" id="evaluator-search"
-                         placeholder="Search by name, email, role, or department…"
-                         class="block w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
+                  <p id="evaluator-no-results" class="hidden text-xs text-gray-400 text-center py-3">No accounts match your search.</p>
+                  <p class="text-xs text-gray-500 mt-1.5"><span id="selected-count">0</span> evaluator(s) selected.</p>
                 </div>
 
-                <!-- Selected evaluators chips -->
-                <div id="selected-evaluators" class="hidden flex-wrap gap-2 mb-2"></div>
+                <button type="button" id="assign-evaluators-btn"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-[#800505] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                  </svg>
+                  Assign &amp; Send Invite Links
+                </button>
+              </form>
 
-                <!-- Evaluator list — Task 5: show email on secondary line only when different from display_name -->
-                <div id="evaluator-list" class="max-h-56 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
-                  {% for ev in all_eligible_evaluators %}
-                    <label class="evaluator-item flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition"
-                           data-name="{{ ev.display_name|lower }}"
-                           data-email="{{ ev.email|lower }}"
-                           data-code="{{ ev.faculty_code|lower }}"
-                           data-dept="{{ ev.department|lower }}"
-                           data-role="{{ ev.role_label|lower }}">
-                      <input type="checkbox" name="evaluator_ids" value="{{ ev.pk }}"
-                             class="evaluator-checkbox rounded border-gray-300 text-[#800505] focus:ring-[#800505]"
-                             data-label="{{ ev.display_name }}" />
-                      <div class="min-w-0 flex-1">
-                        <p class="text-sm font-medium text-gray-800 truncate">
-                          {{ ev.display_name }}
-                          <span class="ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium
-                            {% if ev.role == 'faculty' %}bg-blue-50 text-blue-700
-                            {% elif ev.role == 'admin' %}bg-purple-50 text-purple-700
-                            {% else %}bg-gray-100 text-gray-600{% endif %}">
-                            {{ ev.role_label }}
-                          </span>
-                        </p>
-                        <p class="text-xs text-gray-500 truncate">
-                          {% if ev.display_name != ev.email %}{{ ev.email }}{% endif %}
-                          {% if ev.faculty_code %}{% if ev.display_name != ev.email %} · {% endif %}{{ ev.faculty_code }}{% endif %}
-                          {% if ev.department %} · {{ ev.department }}{% endif %}
-                        </p>
-                      </div>
-                    </label>
-                  {% endfor %}
-                </div>
-                <p id="evaluator-no-results" class="hidden text-xs text-gray-400 text-center py-3">No accounts match your search.</p>
-                <p class="text-xs text-gray-500 mt-1.5"><span id="selected-count">0</span> evaluator(s) selected.</p>
-              </div>
+              <script>
+              (function () {
+                var searchInput = document.getElementById('evaluator-search');
+                var items = document.querySelectorAll('.evaluator-item');
+                var noResults = document.getElementById('evaluator-no-results');
+                var selectedContainer = document.getElementById('selected-evaluators');
+                var countEl = document.getElementById('selected-count');
 
-              <!-- Task 4: trigger confirmation modal instead of direct submit -->
-              <button type="button" id="assign-evaluators-btn"
-                      class="inline-flex items-center gap-1.5 rounded-lg bg-[#800505] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-                </svg>
-                Assign &amp; Send Invite Links
-              </button>
-            </form>
-
-            <script>
-            (function () {
-              var searchInput = document.getElementById('evaluator-search');
-              var items = document.querySelectorAll('.evaluator-item');
-              var noResults = document.getElementById('evaluator-no-results');
-              var selectedContainer = document.getElementById('selected-evaluators');
-              var countEl = document.getElementById('selected-count');
-
-              function updateChips() {
-                var checked = document.querySelectorAll('.evaluator-checkbox:checked');
-                selectedContainer.innerHTML = '';
-                checked.forEach(function (cb) {
-                  var chip = document.createElement('span');
-                  chip.className = 'inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5';
-                  chip.innerHTML = cb.dataset.label +
-                    '<button type="button" class="ml-1 text-amber-600 hover:text-amber-900" aria-label="Remove">' +
-                    '<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>' +
-                    '</button>';
-                  chip.querySelector('button').addEventListener('click', function () {
-                    cb.checked = false;
-                    updateChips();
+                function updateChips() {
+                  var checked = document.querySelectorAll('.evaluator-checkbox:checked');
+                  selectedContainer.innerHTML = '';
+                  checked.forEach(function (cb) {
+                    var chip = document.createElement('span');
+                    chip.className = 'inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5';
+                    chip.innerHTML = cb.dataset.label +
+                      '<button type="button" class="ml-1 text-amber-600 hover:text-amber-900" aria-label="Remove">' +
+                      '<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>' +
+                      '</button>';
+                    chip.querySelector('button').addEventListener('click', function () {
+                      cb.checked = false;
+                      updateChips();
+                    });
+                    selectedContainer.appendChild(chip);
                   });
-                  selectedContainer.appendChild(chip);
-                });
-                selectedContainer.classList.toggle('hidden', checked.length === 0);
-                selectedContainer.classList.toggle('flex', checked.length > 0);
-                countEl.textContent = checked.length;
-              }
-
-              document.querySelectorAll('.evaluator-checkbox').forEach(function (cb) {
-                cb.addEventListener('change', updateChips);
-              });
-
-              searchInput.addEventListener('input', function () {
-                var q = searchInput.value.toLowerCase().trim();
-                var visible = 0;
-                items.forEach(function (item) {
-                  var match = !q ||
-                    item.dataset.name.includes(q) ||
-                    item.dataset.email.includes(q) ||
-                    item.dataset.code.includes(q) ||
-                    item.dataset.dept.includes(q) ||
-                    item.dataset.role.includes(q);
-                  item.classList.toggle('hidden', !match);
-                  if (match) visible++;
-                });
-                noResults.classList.toggle('hidden', visible > 0);
-              });
-
-              // Task 4: open confirmation modal on button click
-              document.getElementById('assign-evaluators-btn').addEventListener('click', function () {
-                var checked = document.querySelectorAll('.evaluator-checkbox:checked');
-                if (checked.length === 0) {
-                  alert('Please select at least one evaluator.');
-                  return;
-                }
-                var deadlineInput = document.getElementById('eval-deadline');
-                if (!deadlineInput.value) {
-                  alert('Please set a submission deadline first.');
-                  return;
+                  selectedContainer.classList.toggle('hidden', checked.length === 0);
+                  selectedContainer.classList.toggle('flex', checked.length > 0);
+                  countEl.textContent = checked.length;
                 }
 
-                // Populate modal
-                var deadlineDate = new Date(deadlineInput.value);
-                var deadlineStr = deadlineDate.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
-                               + ' at ' + deadlineDate.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
-                document.getElementById('assign-modal-deadline').textContent = deadlineStr;
-                document.getElementById('assign-modal-count').textContent = checked.length + ' evaluator' + (checked.length > 1 ? 's' : '');
-
-                var list = document.getElementById('assign-modal-evaluator-list');
-                list.innerHTML = '';
-                checked.forEach(function (cb) {
-                  var li = document.createElement('li');
-                  li.textContent = cb.dataset.label;
-                  list.appendChild(li);
+                document.querySelectorAll('.evaluator-checkbox').forEach(function (cb) {
+                  cb.addEventListener('change', updateChips);
                 });
 
-                var modal = document.getElementById('assignEvaluatorsModal');
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-              });
-            })();
-            </script>
-          </div>
-        {% else %}
-          <p class="text-xs text-gray-400 border-t border-gray-100 pt-3">No active accounts are available to assign as evaluators.</p>
+                searchInput.addEventListener('input', function () {
+                  var q = searchInput.value.toLowerCase().trim();
+                  var visible = 0;
+                  items.forEach(function (item) {
+                    var match = !q ||
+                      item.dataset.name.includes(q) ||
+                      item.dataset.email.includes(q) ||
+                      item.dataset.code.includes(q) ||
+                      item.dataset.dept.includes(q) ||
+                      item.dataset.role.includes(q);
+                    item.classList.toggle('hidden', !match);
+                    if (match) visible++;
+                  });
+                  noResults.classList.toggle('hidden', visible > 0);
+                });
+
+                document.getElementById('assign-evaluators-btn').addEventListener('click', function () {
+                  var checked = document.querySelectorAll('.evaluator-checkbox:checked');
+                  if (checked.length === 0) {
+                    alert('Please select at least one evaluator.');
+                    return;
+                  }
+                  var deadlineInput = document.getElementById('eval-deadline');
+                  if (!deadlineInput.value) {
+                    alert('Please set a submission deadline first.');
+                    return;
+                  }
+                  var deadlineDate = new Date(deadlineInput.value);
+                  var deadlineStr = deadlineDate.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+                                 + ' at ' + deadlineDate.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+                  document.getElementById('assign-modal-deadline').textContent = deadlineStr;
+                  document.getElementById('assign-modal-count').textContent = checked.length + ' evaluator' + (checked.length > 1 ? 's' : '');
+                  var list = document.getElementById('assign-modal-evaluator-list');
+                  list.innerHTML = '';
+                  checked.forEach(function (cb) {
+                    var li = document.createElement('li');
+                    li.textContent = cb.dataset.label;
+                    list.appendChild(li);
+                  });
+                  var modal = document.getElementById('assignEvaluatorsModal');
+                  modal.classList.remove('hidden');
+                  modal.classList.add('flex');
+                });
+              })();
+              </script>
+            </div>
+          {% else %}
+            <p class="text-xs text-gray-400 border-t border-gray-100 pt-3">No active accounts are available to assign as evaluators.</p>
+          {% endif %}
         {% endif %}
-      {% endif %}
+
+      </div><!-- /#eval-section-body -->
     </section>
 
-    <!-- Task 4: Evaluator assignment confirmation modal -->
-    <div id="assignEvaluatorsModal" class="hidden fixed inset-0 z-[65] bg-gray-950/70 backdrop-blur-sm items-center justify-center px-4">
-      <div class="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
-        <div class="bg-[#800505] px-5 py-4 text-white">
-          <h3 class="text-base font-semibold">Confirm Evaluator Assignment</h3>
-          <p class="text-xs text-red-100 mt-0.5">Review before sending invite links.</p>
-        </div>
-        <div class="px-5 py-5 space-y-4 text-sm text-gray-700">
-          <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 space-y-2">
-            <p><span class="font-semibold text-gray-900">Applicant:</span> {{ applicant.full_name }}</p>
-            <p><span class="font-semibold text-gray-900">Count:</span> <span id="assign-modal-count"></span></p>
-            <p><span class="font-semibold text-gray-900">Deadline:</span> <span id="assign-modal-deadline"></span></p>
+    <script>
+    function toggleEvalSection() {
+      var body = document.getElementById('eval-section-body');
+      var chevron = document.getElementById('eval-chevron');
+      var hidden = body.style.display === 'none';
+      body.style.display = hidden ? '' : 'none';
+      chevron.style.transform = hidden ? '' : 'rotate(-90deg)';
+    }
+    </script>
+
+    <!-- Evaluator assignment confirmation modal -->
+    {% if applicant.status == 'evaluation' and not evaluation_assignments %}
+      <div id="assignEvaluatorsModal" class="hidden fixed inset-0 z-[65] bg-gray-950/70 backdrop-blur-sm items-center justify-center px-4">
+        <div class="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+          <div class="bg-[#800505] px-5 py-4 text-white">
+            <h3 class="text-base font-semibold">Confirm Evaluator Assignment</h3>
+            <p class="text-xs text-red-100 mt-0.5">Review before sending invite links.</p>
           </div>
-          <div>
-            <p class="text-xs font-semibold text-gray-600 mb-1.5">Evaluators</p>
-            <ul id="assign-modal-evaluator-list" class="list-disc pl-5 space-y-0.5 text-xs text-gray-800"></ul>
+          <div class="px-5 py-5 space-y-4 text-sm text-gray-700">
+            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 space-y-2">
+              <p><span class="font-semibold text-gray-900">Applicant:</span> {{ applicant.full_name }}</p>
+              <p><span class="font-semibold text-gray-900">Count:</span> <span id="assign-modal-count"></span></p>
+              <p><span class="font-semibold text-gray-900">Deadline:</span> <span id="assign-modal-deadline"></span></p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-gray-600 mb-1.5">Evaluators</p>
+              <ul id="assign-modal-evaluator-list" class="list-disc pl-5 space-y-0.5 text-xs text-gray-800"></ul>
+            </div>
+            <p class="text-xs text-gray-500">Each evaluator will receive a secure, single-use email link. This action cannot be undone.</p>
           </div>
-          <p class="text-xs text-gray-500">Each evaluator will receive a secure, single-use email link. This action cannot be undone.</p>
-        </div>
-        <div class="border-t border-gray-100 bg-gray-50 px-5 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button type="button" onclick="document.getElementById('assignEvaluatorsModal').classList.add('hidden');document.getElementById('assignEvaluatorsModal').classList.remove('flex');"
-                  class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition">
-            Cancel
-          </button>
-          <button type="button" onclick="document.getElementById('assignEvaluatorsModal').classList.add('hidden');document.getElementById('assignEvaluatorsModal').classList.remove('flex');document.getElementById('assign-evaluators-form').submit();"
-                  class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#800505] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a80707] transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-            </svg>
-            Assign &amp; Send Invites
-          </button>
+          <div class="border-t border-gray-100 bg-gray-50 px-5 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button type="button" onclick="document.getElementById('assignEvaluatorsModal').classList.add('hidden');document.getElementById('assignEvaluatorsModal').classList.remove('flex');"
+                    class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition">
+              Cancel
+            </button>
+            <button type="button" onclick="document.getElementById('assignEvaluatorsModal').classList.add('hidden');document.getElementById('assignEvaluatorsModal').classList.remove('flex');document.getElementById('assign-evaluators-form').submit();"
+                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#800505] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a80707] transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+              </svg>
+              Assign &amp; Send Invites
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    {% endif %}
   {% endif %}
 
   <!-- Psych Test – Review Uploaded Documents -->
@@ -949,7 +974,7 @@
         {% elif next_status == 'psych_test' %}
           <p class="text-xs text-gray-500 mb-4 flex items-start gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-blue-500"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
-            The applicant will be asked to take a psychological test and upload their result document. Set a deadline optionally.
+            Set the submission deadline for the applicant to upload their psych test result document. The applicant will be notified by email with the deadline and upload instructions.
           </p>
         {% elif next_status == 'contract_of_service' %}
           <p class="text-xs text-gray-500 mb-4 flex items-start gap-1.5">
@@ -1007,7 +1032,7 @@
             {% if next_status_requires_date %}
               <div>
                 <label for="status_date" class="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Scheduled Date
+                  {% if next_status == 'psych_test' %}Submission Deadline{% else %}Scheduled Date{% endif %}
                   <span class="ml-1 text-red-500 font-normal">Required</span>
                 </label>
                 <div class="relative">
@@ -1543,6 +1568,90 @@
   </div>
 {% endfor %}
 
+<!-- Education Edit Modal -->
+<div id="editEducationModal" class="hidden fixed inset-0 z-[65] bg-gray-950/70 backdrop-blur-sm items-center justify-center px-4 py-6">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h3 class="text-base font-semibold text-gray-900">Edit Educational Background</h3>
+      <button type="button" onclick="closeEditEducationModal()"
+              class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+    <form method="post" action="{% url 'adminhub:admin_edit_applicant_education' applicant.uuid %}">
+      {% csrf_token %}
+      <div class="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+        <!-- College -->
+        <div class="space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-100 pb-1">College</p>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Degree</label>
+              <input type="text" name="college_degree" value="{{ applicant.college_degree }}"
+                     placeholder="e.g. BS Computer Science"
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Institution</label>
+              <input type="text" name="college_institution" value="{{ applicant.college_institution }}"
+                     placeholder="e.g. PUP Manila"
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition" />
+            </div>
+          </div>
+        </div>
+        <!-- Master's -->
+        <div class="space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-100 pb-1">Master's</p>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Degree</label>
+              <input type="text" name="masters_degree" value="{{ applicant.masters_degree }}"
+                     placeholder="e.g. MS Information Technology"
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Institution</label>
+              <input type="text" name="masters_institution" value="{{ applicant.masters_institution }}"
+                     placeholder="e.g. PUP Manila"
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition" />
+            </div>
+          </div>
+        </div>
+        <!-- Doctorate -->
+        <div class="space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-100 pb-1">Doctorate</p>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Degree</label>
+              <input type="text" name="doctorate_degree" value="{{ applicant.doctorate_degree }}"
+                     placeholder="e.g. PhD in Education"
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Institution</label>
+              <input type="text" name="doctorate_institution" value="{{ applicant.doctorate_institution }}"
+                     placeholder="e.g. PUP Manila"
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+        <button type="button" onclick="closeEditEducationModal()"
+                class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+          Cancel
+        </button>
+        <button type="submit"
+                class="rounded-lg bg-[#800505] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a80707] focus:outline-none focus:ring-2 focus:ring-[#800505]/50">
+          Save Changes
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="actionConfirmModal" class="hidden fixed inset-0 z-[60] bg-gray-900/60 items-center justify-center px-4 py-6 sm:p-0">
   <div class="w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-200">
     <div class="px-5 py-4 border-b border-gray-100">
@@ -1779,7 +1888,7 @@
     // Fix 1: validate required date field before opening modal
     const dateInput = document.getElementById('status_date');
     if (dateInput && !dateInput.value) {
-      dateInput.setCustomValidity('A scheduled date is required before advancing.');
+      dateInput.setCustomValidity('{% if next_status == "psych_test" %}A submission deadline is required before advancing.{% else %}A scheduled date is required before advancing.{% endif %}');
       dateInput.reportValidity();
       return;
     }
@@ -1840,6 +1949,10 @@
       const rejectModal = document.getElementById('rejectConfirmModal');
       if (rejectModal && rejectModal.classList.contains('flex')) {
         closeRejectConfirm();
+      }
+      const eduModal = document.getElementById('editEducationModal');
+      if (eduModal && eduModal.classList.contains('flex')) {
+        closeEditEducationModal();
       }
       document.querySelectorAll('[id^="modal-"]').forEach(function (modal) {
         if (modal.classList.contains('flex')) {
@@ -1914,6 +2027,20 @@
       .catch(() => {
         errorBox.textContent = 'Error saving status.';
       });
+  }
+
+  function openEditEducationModal() {
+    const modal = document.getElementById('editEducationModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function closeEditEducationModal() {
+    const modal = document.getElementById('editEducationModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
   }
 
   document.addEventListener('DOMContentLoaded', function () {

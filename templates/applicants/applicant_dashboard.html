@@ -572,7 +572,7 @@
           <h3 class="text-sm font-semibold text-gray-900">Psych Test Document</h3>
           {% if psych_test_deadline %}
             <span class="ml-auto text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2.5 py-0.5">
-              Deadline: {{ psych_test_deadline|date:"F j, Y" }}
+              Submission Deadline: {{ psych_test_deadline|date:"F j, Y" }}
             </span>
           {% endif %}
         </div>
@@ -607,7 +607,26 @@
             </form>
           {% endif %}
         {% else %}
-          <p class="text-sm text-gray-600">Please upload your psych test result or evaluation document below.</p>
+          <!-- Instructions -->
+          <div class="rounded-lg border border-purple-100 bg-purple-50 px-4 py-3 space-y-2 text-sm text-purple-900">
+            <p class="font-semibold">What to upload</p>
+            <ul class="list-disc pl-4 space-y-1 text-xs text-purple-800">
+              <li>Upload the official result document from your psychological examination.</li>
+              <li>This is the result issued to you by the testing center or institution that administered your psych test.</li>
+              <li>Accepted formats: PDF, JPG, or PNG (max 15 MB).</li>
+            </ul>
+            {% if psych_test_deadline %}
+              <p class="text-xs text-red-700 font-semibold pt-1 border-t border-purple-200 mt-1">
+                Your document must be submitted on or before <span class="underline">{{ psych_test_deadline|date:"F j, Y" }}</span>.
+                Failure to submit before the deadline may affect the status of your application.
+              </p>
+            {% else %}
+              <p class="text-xs text-purple-700 pt-1 border-t border-purple-200 mt-1">
+                Submit your document as soon as possible. No deadline has been set yet, but late submissions may affect your application.
+              </p>
+            {% endif %}
+          </div>
+
           <form method="post" action="{% url 'applicants:upload_psych_test' %}" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-2 items-start">
             {% csrf_token %}
             <input type="file" name="psych_test_file" accept=".pdf,.jpg,.jpeg,.png" required
@@ -617,7 +636,6 @@
               Upload
             </button>
           </form>
-          <p class="text-xs text-gray-400">Accepted: PDF, JPG, PNG — max 15 MB</p>
         {% endif %}
       </section>
     {% endif %}

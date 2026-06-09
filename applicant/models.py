@@ -478,12 +478,27 @@ class EvaluationAssignment(models.Model):
     @property
     def evaluator_display_name(self) -> str:
         acc = self.evaluator
-        if getattr(acc, 'role', None) == 'faculty':
+        role = getattr(acc, 'role', None)
+        if role == 'faculty':
             try:
-                return acc.faculty_profile.name or acc.email
+                name = acc.faculty_profile.name
+                if name:
+                    return name
             except Exception:
                 pass
-        return acc.get_full_name() or acc.email
+        elif role in ('admin', 'system_admin'):
+            try:
+                name = acc.admin_profile.name
+                if name:
+                    return name
+            except Exception:
+                pass
+        full = acc.get_full_name().strip()
+        if full:
+            return full
+        local = acc.email.split('@')[0]
+        readable = local.replace('.', ' ').replace('_', ' ').replace('-', ' ').title()
+        return readable or acc.email
 
     @property
     def evaluator_role_label(self) -> str:
