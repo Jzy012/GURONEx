@@ -33,6 +33,13 @@
     </p>
   {% endif %}
 
+  {% if instructions %}
+    <div class="divider"></div>
+    <p><strong>Instructions from Admin:</strong></p>
+    <p>{{ instructions }}</p>
+    <div class="divider"></div>
+  {% endif %}
+
   <p>
     <a href="{{ status_url }}" class="btn">View My Dashboard</a>
   </p>

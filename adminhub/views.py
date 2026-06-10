@@ -854,7 +854,7 @@ def _send_faculty_approval_email(faculty_profile: 'FacultyProfile'):
                 "faculty_code": faculty_profile.faculty_code,
                 "status": faculty_profile.status.name if faculty_profile.status else None,
                 "login_url": login_url,
-                "support_email": getattr(settings, "SUPPORT_EMAIL", settings.DEFAULT_FROM_EMAIL),
+                "support_email": settings.SUPPORT_EMAIL,
             },
         )
 
@@ -2083,6 +2083,9 @@ def applicant_list_view(request):
         del get_params['page']
     querystring = get_params.urlencode()
 
+    from adminhub.models import RegistrationSettings
+    registration_settings = RegistrationSettings.get_solo()
+
     return render(request, 'admin/admin_applicant_list.html', {
         'page_obj': page_obj,
         'paginator': paginator,
@@ -2095,6 +2098,7 @@ def applicant_list_view(request):
         'search': search,
         'status': status,
         'querystring': querystring,
+        'registration_settings': registration_settings,
     })
 
 
@@ -2105,11 +2109,15 @@ def _send_advance_email(applicant, new_status, status_date, step_deadline, instr
     try:
         if new_status == 'demo_scheduled':
             step_label = dict(STEPPER_STATUSES).get(new_status, new_status)
-            send_interview_step_email(applicant, step_label, status_date, instructions)
+            send_interview_step_email(
+                applicant, step_label, status_date, instructions,
+                scheduled_time=applicant.demo_scheduled_time,
+                location=applicant.demo_location,
+            )
         elif new_status == 'psych_test':
-            send_psych_test_step_email(applicant, step_deadline)
+            send_psych_test_step_email(applicant, step_deadline, instructions)
         elif new_status == 'contract_of_service':
-            send_contract_of_service_email(applicant, step_deadline)
+            send_contract_of_service_email(applicant, step_deadline, instructions)
         elif new_status == 'first_salary_requirements':
             configs = list(
                 ApplicantSalaryRequirementConfig.objects
@@ -2333,7 +2341,7 @@ def applicant_detail_view(request, uuid):
                             messages.error(request, "Invalid deadline format.")
                             return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
-                    instructions = (request.POST.get("interview_instructions") or "").strip()
+                    instructions = (request.POST.get("step_instructions") or "").strip()
 
                     with transaction.atomic():
                         update_fields = ['status']
@@ -2355,9 +2363,28 @@ def applicant_detail_view(request, uuid):
                             applicant.first_salary_deadline = step_deadline
                             update_fields.append('first_salary_deadline')
 
-                        if new_status == 'demo_scheduled' and instructions:
+                        if new_status == 'demo_scheduled':
                             applicant.interview_instructions = instructions
                             update_fields.append('interview_instructions')
+                            demo_time_raw = (request.POST.get("demo_time") or "").strip()
+                            demo_location_raw = (request.POST.get("demo_location") or "").strip()
+                            if demo_time_raw:
+                                try:
+                                    from datetime import time as _time
+                                    applicant.demo_scheduled_time = _time.fromisoformat(demo_time_raw)
+                                except (ValueError, TypeError):
+                                    pass
+                            else:
+                                applicant.demo_scheduled_time = None
+                            update_fields.append('demo_scheduled_time')
+                            applicant.demo_location = demo_location_raw
+                            update_fields.append('demo_location')
+                        elif new_status == 'psych_test':
+                            applicant.psych_test_instructions = instructions
+                            update_fields.append('psych_test_instructions')
+                        elif new_status == 'contract_of_service':
+                            applicant.contract_of_service_instructions = instructions
+                            update_fields.append('contract_of_service_instructions')
 
                         applicant.save(update_fields=update_fields)
 
@@ -2532,7 +2559,7 @@ def applicant_detail_view(request, uuid):
             })
 
     next_status_needs_deadline = next_status in ('psych_test', 'contract_of_service', 'first_salary_requirements')
-    next_status_needs_instructions = next_status == 'demo_scheduled'
+    next_status_needs_instructions = next_status in ('demo_scheduled', 'psych_test', 'contract_of_service')
 
     _step_advance_hints = {
         'evaluation':                "Evaluators will need to be assigned after advancing.",
@@ -2597,6 +2624,7 @@ def admin_respond_reschedule(request, uuid, pk):
     decision = request.POST.get('decision', '').strip()
     admin_note = request.POST.get('admin_note', '').strip()
     new_date_raw = request.POST.get('new_date', '').strip()
+    new_time_raw = request.POST.get('new_time', '').strip()
 
     if decision not in ('approved', 'denied'):
         messages.error(request, "Invalid decision.")
@@ -2624,7 +2652,18 @@ def admin_respond_reschedule(request, uuid, pk):
             if date_field:
                 old_date = getattr(applicant, date_field, None)
                 setattr(applicant, date_field, new_date)
-                applicant.save(update_fields=[date_field])
+                save_fields = [date_field]
+                if step == 'demo_scheduled':
+                    if new_time_raw:
+                        try:
+                            from datetime import time as _time
+                            applicant.demo_scheduled_time = _time.fromisoformat(new_time_raw)
+                        except (ValueError, TypeError):
+                            pass
+                    else:
+                        applicant.demo_scheduled_time = None
+                    save_fields.append('demo_scheduled_time')
+                applicant.save(update_fields=save_fields)
 
         step_label = dict(STEPPER_STATUSES).get(reschedule_req.step, reschedule_req.step)
 
@@ -2637,7 +2676,10 @@ def admin_respond_reschedule(request, uuid, pk):
 
         if decision == 'approved':
             try:
-                send_reschedule_approved_email(applicant, step_label, old_date, new_date, admin_note)
+                send_reschedule_approved_email(
+                    applicant, step_label, old_date, new_date, admin_note,
+                    new_time=applicant.demo_scheduled_time if reschedule_req.step == 'demo_scheduled' else None,
+                )
             except Exception:
                 pass
             messages.success(request, "Reschedule approved and applicant notified.")
@@ -2753,11 +2795,15 @@ def admin_configure_salary_requirements(request, uuid):
             ).exclude(document_category_id__in=category_ids).delete()
 
             for cat_id in category_ids:
-                ApplicantSalaryRequirementConfig.objects.get_or_create(
+                cfg, _ = ApplicantSalaryRequirementConfig.objects.get_or_create(
                     applicant=applicant,
                     document_category_id=cat_id,
                     defaults={'is_required': True},
                 )
+                instructions = (request.POST.get(f'instructions_{cat_id}') or '').strip()
+                if cfg.instructions != instructions:
+                    cfg.instructions = instructions
+                    cfg.save(update_fields=['instructions'])
 
         ApplicantTimeline.objects.create(
             applicant=applicant,
@@ -5257,5 +5303,23 @@ def employment_status_delete_view(request, pk):
             "message": "Employment status deleted successfully.",
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Applicant Registration Toggle
+# ---------------------------------------------------------------------------
+
+@admin_required
+@require_POST
+def admin_toggle_registration(request):
+    from adminhub.models import RegistrationSettings
+    settings_obj = RegistrationSettings.get_solo()
+    new_state = request.POST.get('is_registration_open') == '1'
+    settings_obj.is_registration_open = new_state
+    settings_obj.updated_by = request.user
+    settings_obj.save()
+    state_label = "open" if new_state else "closed"
+    messages.success(request, f"Applicant registration is now {state_label}.")
+    return redirect('adminhub:applicant_list')
 
     

@@ -1093,11 +1093,9 @@ class ApplicantForm(forms.ModelForm):
         empty_label="Select your area of specialization",
     )
     contact_number = forms.CharField(
-        max_length=15,  # accommodate "0917-123-4567" (13 chars) before normalization
+        max_length=14,  # "0917 123 4567" = 13 chars, allow 1 extra
         required=False,
         label="Contact Number",
-        # no field-level validator — normalization happens in clean_contact_number()
-        # which must run before the regex is applied
     )
 
     class Meta:
@@ -1145,9 +1143,18 @@ class ApplicantForm(forms.ModelForm):
             field.widget.attrs["placeholder"] = field.label
 
         self.fields['contact_number'].widget.attrs.update({
-            "placeholder": "e.g. 09171234567 or 0917-123-4567",
-            "maxlength": "15",
-            "inputmode": "tel",  # tel keyboard on mobile shows digits + hyphen/space
+            "placeholder": "e.g. 09171234567",
+            "maxlength": "14",
+            "inputmode": "numeric",
+            "autocomplete": "off",
+            "oninput": "formatPhoneInput(this)",
+        })
+        self.fields['emergency_contact_number'].widget.attrs.update({
+            "placeholder": "e.g. 09171234567",
+            "maxlength": "14",
+            "inputmode": "numeric",
+            "autocomplete": "off",
+            "oninput": "formatPhoneInput(this)",
         })
         self.fields['middle_name'].required = False
         self.fields['suffix'].required = False
@@ -1156,30 +1163,27 @@ class ApplicantForm(forms.ModelForm):
                       'masters_institution', 'doctorate_degree', 'doctorate_institution'):
             self.fields[fname].required = False
 
-    def clean_contact_number(self):
-        value = (self.cleaned_data.get("contact_number") or "").strip()
+    def _clean_ph_mobile(self, value: str) -> str:
+        """Shared normalizer for PH mobile number fields."""
+        value = (value or "").strip()
         if not value:
             return ""
-
-        # Allow only digits, spaces, and hyphens before normalization.
-        # Anything else (letters, @, +, /, etc.) is rejected immediately.
-        if re.search(r"[^\d\s\-]", value):
-            raise forms.ValidationError(
-                "Only digits, spaces, and hyphens are allowed "
-                "(e.g. 09171234567 or 0917-123-4567)."
-            )
-
-        # Normalize: remove spaces and hyphens.
-        normalized = re.sub(r"[\s\-]", "", value)
-
-        # After normalization, apply full PH mobile number rules.
-        if not re.match(r"^09\d{9}$", normalized):
-            raise forms.ValidationError(
-                "Please enter a valid Philippine mobile number containing exactly "
-                "11 digits starting with 09 (e.g. 09171234567)."
-            )
-
+        # Strip spaces inserted by JS auto-formatter; reject anything else non-digit
+        normalized = value.replace(" ", "")
+        if not normalized.isdigit():
+            raise forms.ValidationError("Contact number must contain numbers only.")
+        if len(normalized) != 11:
+            raise forms.ValidationError("Please enter a valid 11-digit mobile number.")
         return normalized
+
+    def clean_contact_number(self):
+        return self._clean_ph_mobile(self.cleaned_data.get("contact_number") or "")
+
+    def clean_emergency_contact_number(self):
+        value = (self.cleaned_data.get("emergency_contact_number") or "").strip()
+        if not value:
+            return ""
+        return self._clean_ph_mobile(value)
 
 
 

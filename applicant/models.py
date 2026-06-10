@@ -96,6 +96,8 @@ class Applicant(models.Model):
     )
 
     demo_scheduled_date = models.DateField(null=True, blank=True)
+    demo_scheduled_time = models.TimeField(null=True, blank=True)
+    demo_location = models.CharField(max_length=255, blank=True)
     for_interview_date = models.DateField(null=True, blank=True)
     evaluation_date = models.DateField(null=True, blank=True)
     evaluation_deadline = models.DateField(null=True, blank=True)
@@ -140,15 +142,17 @@ class Applicant(models.Model):
 
     # Emergency contact
     emergency_contact_name = models.CharField(max_length=100, null=True, blank=True)
-    emergency_contact_number = models.CharField(max_length=15, null=True, blank=True)
+    emergency_contact_number = models.CharField(max_length=11, null=True, blank=True, validators=[phone_validator])
 
     # Step-specific deadlines set by admin on advance
     psych_test_deadline = models.DateField(null=True, blank=True)
     contract_of_service_deadline = models.DateField(null=True, blank=True)
     first_salary_deadline = models.DateField(null=True, blank=True)
 
-    # Optional instructions shown to applicant for interview/demo steps
+    # Optional instructions shown to applicant per workflow step
     interview_instructions = models.TextField(blank=True)
+    psych_test_instructions = models.TextField(blank=True)
+    contract_of_service_instructions = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     google_drive_folder_id = models.CharField(max_length=255, null=True, blank=True)
@@ -340,6 +344,7 @@ class ApplicantRescheduleRequest(models.Model):
     step = models.CharField(max_length=30)  # 'demo_scheduled' or 'for_interview'
     reason = models.TextField()
     preferred_date = models.DateField(null=True, blank=True)
+    preferred_time = models.TimeField(null=True, blank=True)
     requested_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     reviewed_at = models.DateTimeField(null=True, blank=True)
@@ -409,6 +414,7 @@ class ApplicantSalaryRequirementConfig(models.Model):
     )
     document_category = models.ForeignKey(DocumentCategory, on_delete=models.CASCADE)
     is_required = models.BooleanField(default=True)
+    instructions = models.TextField(blank=True)
 
     class Meta:
         unique_together = ('applicant', 'document_category')

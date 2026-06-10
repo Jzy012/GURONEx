@@ -12,7 +12,19 @@ from .models import (
 # Register your models here.
 
 
-admin.site.register(AdminProfile)
+@admin.register(AdminProfile)
+class AdminProfileAdmin(admin.ModelAdmin):
+    list_display = ('name', 'other_position', 'contact_number', 'account')
+    search_fields = ('name', 'account__email', 'other_position')
+    fieldsets = (
+        (None, {
+            'fields': ('account', 'name', 'contact_number'),
+        }),
+        ('Position', {
+            'fields': ('other_position',),
+            'description': 'other_position is used in the Interview Panel section of evaluation exports.',
+        }),
+    )
 admin.site.register(CreatedAccountLog)
 admin.site.register(DocumentTemplate)
 admin.site.register(PUPSite)

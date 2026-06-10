@@ -19,7 +19,7 @@
     <tr>
       <td style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;font-weight:600;">New Schedule</td>
       <td style="padding:8px 12px;border:1px solid #e5e7eb;">
-        {% if new_date %}<strong>{{ new_date|date:"F j, Y" }}</strong>{% else %}—{% endif %}
+        {% if new_date %}<strong>{{ new_date|date:"F j, Y" }}{% if new_time %}, {{ new_time|time:"g:i A" }}{% endif %}</strong>{% else %}—{% endif %}
       </td>
     </tr>
   </table>

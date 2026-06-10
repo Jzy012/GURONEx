@@ -135,7 +135,7 @@
               <div>
                 {{ basic_form.contact_number.label_tag }}
                 {{ basic_form.contact_number }}
-                <p class="text-xs text-gray-500 mt-1">Accepted: 09171234567 &nbsp;·&nbsp; 0917-123-4567 &nbsp;·&nbsp; 0917 123 4567</p>
+                <p class="text-xs text-gray-500 mt-1">Enter 11-digit PH mobile number (e.g. 09171234567)</p>
                 {% if basic_form.contact_number.errors %}
                   <p class="text-red-600 text-xs mt-1">{{ basic_form.contact_number.errors.0 }}</p>
                 {% endif %}
@@ -163,6 +163,7 @@
               <div>
                 {{ basic_form.emergency_contact_number.label_tag }}
                 {{ basic_form.emergency_contact_number }}
+                <p class="text-xs text-gray-500 mt-1">Enter 11-digit PH mobile number (e.g. 09171234567)</p>
                 {% if basic_form.emergency_contact_number.errors %}
                   <p class="text-red-600 text-xs mt-1">{{ basic_form.emergency_contact_number.errors.0 }}</p>
                 {% endif %}
@@ -337,6 +338,16 @@
 
 {% block extra_scripts %}
 <script>
+  function formatPhoneInput(input) {
+    var digits = input.value.replace(/\D/g, '');
+    if (digits.length > 11) digits = digits.slice(0, 11);
+    var formatted = '';
+    if (digits.length > 0) formatted = digits.slice(0, 4);
+    if (digits.length > 4) formatted += ' ' + digits.slice(4, 7);
+    if (digits.length > 7) formatted += ' ' + digits.slice(7, 11);
+    input.value = formatted;
+  }
+
   document.addEventListener("DOMContentLoaded", function() {
     // File input label updates
     document.querySelectorAll('input[type="file"][id^="file_input_"]').forEach(function(fileInput) {

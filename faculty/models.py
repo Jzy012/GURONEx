@@ -62,6 +62,7 @@ class FacultyProfile(models.Model):
     faculty_code = models.CharField(max_length=20,unique=True,null=True,blank=True,help_text="Unique faculty code, e.g. FA0018SP2023")
     name = models.CharField(max_length=255,blank=True,null=True,validators=[name_part_validator])  # still used everywhere else
 
+    other_position = models.CharField(max_length=255, blank=True, help_text="Optional title/position used in exports (e.g. Program Chair, Campus Director).")
     department = models.CharField(max_length=100, null=True, blank=True)
     birth_date = models.DateField(null=True, blank=True)
     contact_number = models.CharField(max_length=11,null=True,blank=True,validators=[phone_validator],)

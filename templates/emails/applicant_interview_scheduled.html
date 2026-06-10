@@ -12,7 +12,13 @@
 
   {% if scheduled_date %}
     <p>
-      <strong>Scheduled Date:</strong> {{ scheduled_date|date:"F j, Y" }}
+      <strong>Scheduled Date:</strong> {{ scheduled_date|date:"F j, Y" }}{% if scheduled_time %}, {{ scheduled_time|time:"g:i A" }}{% endif %}
+    </p>
+  {% endif %}
+
+  {% if location %}
+    <p>
+      <strong>Location / Meeting Details:</strong> {{ location }}
     </p>
   {% endif %}
 

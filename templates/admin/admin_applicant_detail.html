@@ -343,12 +343,12 @@
           <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-2">
             <p class="text-sm text-gray-800"><span class="font-semibold">Reason:</span> {{ req.reason }}</p>
             {% if req.preferred_date %}
-              <p class="text-sm text-gray-700"><span class="font-semibold">Preferred date:</span> {{ req.preferred_date|date:"F j, Y" }}</p>
+              <p class="text-sm text-gray-700"><span class="font-semibold">Preferred date:</span> {{ req.preferred_date|date:"F j, Y" }}{% if req.preferred_time %}, {{ req.preferred_time|time:"g:i A" }}{% endif %}</p>
             {% endif %}
             <p class="text-xs text-gray-500">Submitted {{ req.requested_at|date:"F j, Y H:i" }}</p>
             <form method="post" action="{% url 'adminhub:admin_respond_reschedule' applicant.uuid req.pk %}" class="pt-2 space-y-3 border-t border-amber-200">
               {% csrf_token %}
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <label class="block text-xs font-semibold text-gray-600 mb-1">Decision</label>
                   <select name="decision" required class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505]">
@@ -359,6 +359,11 @@
                 <div>
                   <label class="block text-xs font-semibold text-gray-600 mb-1">New Date (if approving)</label>
                   <input type="date" name="new_date" value="{% if req.preferred_date %}{{ req.preferred_date|date:"Y-m-d" }}{% endif %}"
+                         class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505]" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">New Time (if approving)</label>
+                  <input type="time" name="new_time" value="{% if req.preferred_time %}{{ req.preferred_time|time:"H:i" }}{% endif %}"
                          class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505]" />
                 </div>
               </div>
@@ -843,15 +848,27 @@
       <form method="post" action="{% url 'adminhub:admin_configure_salary_requirements' applicant.uuid %}" class="space-y-3">
         {% csrf_token %}
         <p class="text-xs text-gray-500">Select which document categories this applicant must submit.</p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+        <div class="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
           {% for cat in all_doc_categories %}
-            {% with is_checked=False %}
-            <label class="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" name="category_ids" value="{{ cat.pk }}"
-                     {% for cfg in salary_configs %}{% if cfg.document_category_id == cat.pk %}checked{% endif %}{% endfor %}
-                     class="rounded border-gray-300 text-[#800505] focus:ring-[#800505]" />
-              {{ cat.name }}
-            </label>
+            {% with cat_id=cat.pk %}
+            {% with existing_cfg=None %}
+            <div class="rounded-lg border border-gray-100 p-2.5 space-y-1.5">
+              <label class="flex items-center gap-2 text-sm cursor-pointer font-medium">
+                <input type="checkbox" name="category_ids" value="{{ cat.pk }}"
+                       id="cat_{{ cat.pk }}"
+                       {% for cfg in salary_configs %}{% if cfg.document_category_id == cat.pk %}checked{% endif %}{% endfor %}
+                       onchange="toggleCatInstructions({{ cat.pk }}, this.checked)"
+                       class="rounded border-gray-300 text-[#800505] focus:ring-[#800505]" />
+                {{ cat.name }}
+              </label>
+              <div id="cat_instructions_{{ cat.pk }}" class="hidden">
+                <input type="text" name="instructions_{{ cat.pk }}"
+                       placeholder="Optional instruction for this document (shown to applicant)"
+                       value="{% for cfg in salary_configs %}{% if cfg.document_category_id == cat.pk %}{{ cfg.instructions }}{% endif %}{% endfor %}"
+                       class="block w-full rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-700 focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
+              </div>
+            </div>
+            {% endwith %}
             {% endwith %}
           {% endfor %}
         </div>
@@ -1047,6 +1064,17 @@
               </div>
             {% endif %}
 
+            {% if next_status == 'demo_scheduled' %}
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Time
+                  <span class="ml-1 text-gray-400 font-normal">Optional</span>
+                </label>
+                <input type="time" name="demo_time"
+                       class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
+              </div>
+            {% endif %}
+
             {% if next_status_needs_deadline %}
               <div>
                 <label class="block text-xs font-semibold text-gray-700 mb-1.5">
@@ -1066,21 +1094,26 @@
             {% endif %}
           </div>
 
+          {% if next_status == 'demo_scheduled' %}
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+                Location / Meeting Details
+                <span class="ml-1 text-gray-400 font-normal">Optional</span>
+              </label>
+              <input type="text" name="demo_location" maxlength="255" placeholder="e.g. Room 301, Main Building or Google Meet link"
+                     class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
+            </div>
+          {% endif %}
+
           {% if next_status_needs_instructions %}
             <div>
               <label class="block text-xs font-semibold text-gray-700 mb-1.5">
                 Instructions for Applicant
                 <span class="ml-1 text-gray-400 font-normal">Optional</span>
               </label>
-              <div class="relative">
-                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-gray-400">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
-                  </svg>
-                </div>
-                <input type="text" name="interview_instructions" placeholder="e.g. Please bring a portfolio or relevant work samples"
-                       class="block w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
-              </div>
+              <textarea name="step_instructions" rows="3"
+                placeholder="{% if next_status == 'demo_scheduled' %}e.g. Please bring a portfolio or relevant work samples{% elif next_status == 'psych_test' %}e.g. Make sure to use the official form from the testing center{% else %}e.g. Please sign and date all pages before uploading{% endif %}"
+                class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition resize-none"></textarea>
             </div>
           {% endif %}
 
@@ -2063,6 +2096,27 @@
     const rejectCancelButton = document.getElementById('rejectConfirmCancel');
     if (rejectCancelButton) {
       rejectCancelButton.addEventListener('click', closeRejectConfirm);
+    }
+  });
+
+  function toggleCatInstructions(catId, checked) {
+    const el = document.getElementById('cat_instructions_' + catId);
+    if (!el) return;
+    if (checked) {
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+      const inp = el.querySelector('input[type="text"]');
+      if (inp) inp.value = '';
+    }
+  }
+
+  // Reveal instructions panels for pre-checked categories on page load
+  document.querySelectorAll('input[id^="cat_"]').forEach(function(cb) {
+    if (cb.checked) {
+      var catId = cb.id.replace('cat_', '');
+      var el = document.getElementById('cat_instructions_' + catId);
+      if (el) el.classList.remove('hidden');
     }
   });
 </script>

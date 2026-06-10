@@ -36,7 +36,7 @@ def send_applicant_status_email(applicant: Applicant, new_status: str, status_da
         "new_status": display_status,  # 👈 USE DISPLAY VERSION HERE
         "status_date": status_date,
         "status_url": status_url,
-        "support_email": getattr(settings, "SUPPORT_EMAIL", settings.DEFAULT_FROM_EMAIL),
+        "support_email": settings.SUPPORT_EMAIL,
     }
 
     send_html_email(
@@ -73,7 +73,7 @@ def send_applicant_status_rescheduled_email(applicant: Applicant, status_label: 
         "status_label": status_label,
         "rescheduled_date": rescheduled_date,
         "status_url": status_url,
-        "support_email": getattr(settings, "SUPPORT_EMAIL", settings.DEFAULT_FROM_EMAIL),
+        "support_email": settings.SUPPORT_EMAIL,
     }
 
     send_html_email(
@@ -108,7 +108,7 @@ def send_applicant_submission_receipt(applicant: Applicant) -> None:
         "full_name": full_name,
         "applicant_id": applicant.applicant_id,
         # "status_url": status_url,
-        "support_email": getattr(settings, "SUPPORT_EMAIL", settings.DEFAULT_FROM_EMAIL),
+        "support_email": settings.SUPPORT_EMAIL,
     }
 
     send_html_email(
@@ -140,7 +140,7 @@ def _base_context(applicant: Applicant) -> dict:
         "applicant": applicant,
         "full_name": _build_full_name(applicant),
         "status_url": _build_status_url(),
-        "support_email": getattr(settings, "SUPPORT_EMAIL", settings.DEFAULT_FROM_EMAIL),
+        "support_email": settings.SUPPORT_EMAIL,
     }
 
 
@@ -153,11 +153,15 @@ def send_interview_step_email(
     step_label: str,
     scheduled_date: Optional[date],
     instructions: str = "",
+    scheduled_time=None,
+    location: str = "",
 ) -> None:
     ctx = _base_context(applicant)
     ctx.update({
         "step_label": step_label,
         "scheduled_date": scheduled_date,
+        "scheduled_time": scheduled_time,
+        "location": location,
         "instructions": instructions,
     })
     send_html_email(
@@ -174,12 +178,14 @@ def send_reschedule_approved_email(
     old_date: Optional[date],
     new_date: Optional[date],
     admin_note: str = "",
+    new_time=None,
 ) -> None:
     ctx = _base_context(applicant)
     ctx.update({
         "step_label": step_label,
         "old_date": old_date,
         "new_date": new_date,
+        "new_time": new_time,
         "admin_note": admin_note,
     })
     send_html_email(
@@ -197,9 +203,11 @@ def send_reschedule_approved_email(
 def send_psych_test_step_email(
     applicant: Applicant,
     deadline: Optional[date] = None,
+    instructions: str = "",
 ) -> None:
     ctx = _base_context(applicant)
     ctx["deadline"] = deadline
+    ctx["instructions"] = instructions
     send_html_email(
         subject="[LINANG] Action Required: Psych Test Document Upload",
         to_emails=applicant.email,
@@ -215,9 +223,11 @@ def send_psych_test_step_email(
 def send_contract_of_service_email(
     applicant: Applicant,
     deadline: Optional[date] = None,
+    instructions: str = "",
 ) -> None:
     ctx = _base_context(applicant)
     ctx["deadline"] = deadline
+    ctx["instructions"] = instructions
     send_html_email(
         subject="[LINANG] Action Required: Sign and Return Your Contract of Service",
         to_emails=applicant.email,
@@ -234,11 +244,13 @@ def send_first_salary_requirements_email(
     applicant: Applicant,
     required_categories: List[str],
     deadline: Optional[date] = None,
+    instructions: str = "",
 ) -> None:
     ctx = _base_context(applicant)
     ctx.update({
         "required_categories": required_categories,
         "deadline": deadline,
+        "instructions": instructions,
     })
     send_html_email(
         subject="[LINANG] Action Required: Submit First Salary Requirements",

@@ -9,20 +9,30 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />
       </svg>
       Applicant List</h2>
-      <div class="flex items-center gap-3 flex-wrap">
-    <a href="{% url 'adminhub:archived_applicants' %}"
-       class="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg shadow-sm transition duration-200 whitespace-nowrap text-sm font-semibold border border-gray-200">
+      <div class="flex flex-col sm:flex-row gap-3">
+    <!-- Registration Toggle Button -->
+    <button type="button" onclick="document.getElementById('registrationSettingsModal').classList.remove('hidden')"
+       class="flex items-center justify-center text-center gap-2 px-3 py-2 rounded-lg shadow-sm transition duration-200 whitespace-nowrap text-sm font-semibold border
+              {% if registration_settings.is_registration_open %}bg-green-50 border-green-300 text-green-700 hover:bg-green-100{% else %}bg-red-50 border-red-300 text-red-700 hover:bg-red-100{% endif %}">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-.375c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v.375c0 .621.504 1.125 1.125 1.125Z" />
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
       </svg>
-      Archived{% if total_archived %} ({{ total_archived }}){% endif %}
-    </a>
+      Registration:
+      {% if registration_settings.is_registration_open %}
+        <span class="font-bold">Open</span>
+      {% else %}
+        <span class="font-bold">Closed</span>
+      {% endif %}
+    </button>
+
+   
     <a href="{% url 'adminhub:applicant_required_document_list' %}"
-       class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+       class="flex items-center justify-center text-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
       Manage Required Documents
     </a>
     <a href="{% url 'adminhub:home' %}"
-       class="flex items-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
+       class="flex items-center justify-center text-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 whitespace-nowrap text-sm font-semibold">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
            stroke-width="1.5" stroke="currentColor" class="w-5 h-4">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -265,9 +275,127 @@
     {% endif %}
   </nav>
   {% endif %}
-  <!-- Bulk Account Creation Section -->
-   <a href="{% url 'adminhub:account_creation' %}" class="inline-flex items-center px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold">
-      Create Accounts for Applicants
-    </a>
+  <div class="flex flex-col sm:flex-row gap-3">
+    
+      <a href="{% url 'adminhub:account_creation' %}"
+        class="inline-flex items-center justify-center px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md text-sm font-semibold">
+          Create Accounts for Applicants
+      </a>
+
+      <a href="{% url 'adminhub:archived_applicants' %}"
+        class="inline-flex items-center justify-center gap-2 px-3 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow-md transition duration-200 text-sm font-semibold">
+          Archived Applicants{% if total_archived %} ({{ total_archived }}){% endif %}
+      </a>
+
+  </div>
 </div>
+
+<!-- ── Registration Settings Modal ─────────────────────────────────────── -->
+<div id="registrationSettingsModal"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-bold text-gray-900">Applicant Registration Settings</h3>
+      <button type="button" onclick="document.getElementById('registrationSettingsModal').classList.add('hidden')"
+              class="text-gray-400 hover:text-gray-600 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <p class="text-sm text-gray-600 mb-5">
+      Control whether new applicants can submit their application forms.
+      When registration is <strong>closed</strong>, the application page will display a notice and
+      the form will be disabled.
+    </p>
+
+    <div class="rounded-xl border px-4 py-3 mb-6
+                {% if registration_settings.is_registration_open %}border-green-200 bg-green-50{% else %}border-red-200 bg-red-50{% endif %}">
+      <p class="text-sm font-semibold
+                {% if registration_settings.is_registration_open %}text-green-800{% else %}text-red-800{% endif %}">
+        Current Status:
+        {% if registration_settings.is_registration_open %}
+          Registration is <span class="font-bold">Open</span>
+        {% else %}
+          Registration is <span class="font-bold">Closed</span>
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="flex gap-3 justify-end">
+      <button type="button"
+              onclick="document.getElementById('registrationSettingsModal').classList.add('hidden')"
+              class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition">
+        Cancel
+      </button>
+      {% if registration_settings.is_registration_open %}
+        <button type="button"
+                onclick="showRegistrationConfirm(false)"
+                class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition">
+          Close Registration
+        </button>
+      {% else %}
+        <button type="button"
+                onclick="showRegistrationConfirm(true)"
+                class="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition">
+          Open Registration
+        </button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ── Registration Confirmation Modal ─────────────────────────────────── -->
+<div id="registrationConfirmModal"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
+    <div id="regConfirmIcon" class="mb-4 flex justify-center"></div>
+    <h3 id="regConfirmTitle" class="text-base font-bold text-gray-900 mb-2"></h3>
+    <p id="regConfirmBody" class="text-sm text-gray-600 mb-6"></p>
+    <form id="registrationToggleForm" method="post" action="{% url 'adminhub:admin_toggle_registration' %}">
+      {% csrf_token %}
+      <input type="hidden" name="is_registration_open" id="regToggleValue" value="">
+      <div class="flex gap-3 justify-center">
+        <button type="button"
+                onclick="document.getElementById('registrationConfirmModal').classList.add('hidden')"
+                class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition">
+          Cancel
+        </button>
+        <button type="submit" id="regConfirmBtn"
+                class="px-4 py-2 rounded-lg text-white text-sm font-semibold transition">
+          Confirm
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function showRegistrationConfirm(openState) {
+  document.getElementById('registrationSettingsModal').classList.add('hidden');
+  const modal = document.getElementById('registrationConfirmModal');
+  const icon = document.getElementById('regConfirmIcon');
+  const title = document.getElementById('regConfirmTitle');
+  const body = document.getElementById('regConfirmBody');
+  const btn = document.getElementById('regConfirmBtn');
+  document.getElementById('regToggleValue').value = openState ? '1' : '0';
+
+  if (openState) {
+    icon.innerHTML = '<span class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-100"><svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>';
+    title.textContent = 'Open Applicant Registration?';
+    body.textContent = 'Applicants will be able to submit new applications immediately after this change.';
+    btn.className = 'px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition';
+    btn.textContent = 'Yes, Open Registration';
+  } else {
+    icon.innerHTML = '<span class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-red-100"><svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636"/></svg></span>';
+    title.textContent = 'Close Applicant Registration?';
+    body.textContent = 'The application form will be disabled. Applicants who visit the apply page will see a "Registration Closed" notice.';
+    btn.className = 'px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition';
+    btn.textContent = 'Yes, Close Registration';
+  }
+  modal.classList.remove('hidden');
+}
+</script>
+
 {% endblock %}

@@ -7,6 +7,7 @@ from base.models import Account  # your custom user model
 class AdminProfile(models.Model):
     account = models.OneToOneField(Account, on_delete=models.CASCADE, related_name='admin_profile')
     name = models.CharField(max_length=255)
+    other_position = models.CharField(max_length=255, blank=True, help_text="Optional title/position used in exports (e.g. HR Coordinator, Guidance Coordinator).")
     contact_number = models.CharField(max_length=20, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -178,6 +179,29 @@ class AttendanceFeatureSetting(models.Model):
     def __str__(self):
         state = "Enabled" if self.enable_faculty_manual_attendance else "Disabled"
         return f"Faculty Manual Attendance: {state}"
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class RegistrationSettings(models.Model):
+    is_registration_open = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        Account,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='registration_setting_updates',
+    )
+
+    class Meta:
+        verbose_name = "Registration Settings"
+        verbose_name_plural = "Registration Settings"
+
+    def __str__(self):
+        return f"Applicant Registration: {'Open' if self.is_registration_open else 'Closed'}"
 
     @classmethod
     def get_solo(cls):

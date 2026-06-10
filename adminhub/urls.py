@@ -66,6 +66,7 @@ urlpatterns = [
  
 
     path('admin/applicants/', views.applicant_list_view, name='applicant_list'),
+    path('admin/applicants/registration-toggle/', views.admin_toggle_registration, name='admin_toggle_registration'),
     path('admin/applicants/archived/', views.archived_applicants_list_view, name='archived_applicants'),
     path('admin/applicants/<uuid:uuid>/', views.applicant_detail_view, name='applicant_detail'),
     path('admin/applicants/documents/download/<int:pk>/',views.download_applicant_document,name='download_applicant_document',),

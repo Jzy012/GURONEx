@@ -293,17 +293,26 @@
 
         <!-- Scheduled date/details -->
         {% if event_date %}
-          <div class="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 space-y-1">
+          <div class="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 space-y-1.5">
             <div class="flex items-center gap-2 text-sm text-blue-900">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
               </svg>
               <span class="font-semibold">Scheduled Date:</span>
-              <span>{{ event_date|date:"F j, Y" }}</span>
+              <span>{{ event_date|date:"F j, Y" }}{% if applicant.demo_scheduled_time %}, {{ applicant.demo_scheduled_time|time:"g:i A" }}{% endif %}</span>
             </div>
+            {% if applicant.demo_location %}
+              <div class="flex items-start gap-2 text-sm text-blue-900">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                </svg>
+                <span><span class="font-semibold">Location:</span> {{ applicant.demo_location }}</span>
+              </div>
+            {% endif %}
             {% if applicant.interview_instructions %}
               <div class="text-sm text-blue-800 pt-1 border-t border-blue-200 mt-1">
-                <p class="font-semibold mb-0.5">Meeting Details / Instructions:</p>
+                <p class="font-semibold mb-0.5">Instructions:</p>
                 <p>{{ applicant.interview_instructions }}</p>
               </div>
             {% endif %}
@@ -390,7 +399,9 @@
           <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             <p class="font-semibold">Reschedule request pending</p>
             <p class="mt-1 text-xs">Reason: {{ pending_reschedule.reason }}</p>
-            {% if pending_reschedule.preferred_date %}<p class="text-xs">Preferred date: {{ pending_reschedule.preferred_date|date:"F j, Y" }}</p>{% endif %}
+            {% if pending_reschedule.preferred_date %}
+              <p class="text-xs">Preferred date: {{ pending_reschedule.preferred_date|date:"F j, Y" }}{% if pending_reschedule.preferred_time %}, {{ pending_reschedule.preferred_time|time:"g:i A" }}{% endif %}</p>
+            {% endif %}
             <p class="text-xs mt-1 text-amber-600">Waiting for admin review.</p>
           </div>
         {% endif %}
@@ -416,10 +427,17 @@
                             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505]"
                             placeholder="Briefly explain why you need to reschedule."></textarea>
                 </div>
-                <div>
-                  <label class="block text-xs font-semibold text-gray-600 mb-1">Preferred Date <span class="text-gray-400">(optional)</span></label>
-                  <input type="date" name="preferred_date"
-                         class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505]" />
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Preferred Date <span class="text-gray-400">(optional)</span></label>
+                    <input type="date" name="preferred_date"
+                           class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505]" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Preferred Time <span class="text-gray-400">(optional)</span></label>
+                    <input type="time" name="preferred_time"
+                           class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505]" />
+                  </div>
                 </div>
                 <div class="flex gap-3 pt-1">
                   <button type="button" onclick="closeRescheduleRequestModal()"
@@ -577,6 +595,13 @@
           {% endif %}
         </div>
 
+        {% if applicant.psych_test_instructions %}
+          <div class="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 space-y-1 text-sm text-purple-900">
+            <p class="font-semibold text-xs text-purple-700 uppercase tracking-wide">Instructions from Admin</p>
+            <p class="text-sm">{{ applicant.psych_test_instructions }}</p>
+          </div>
+        {% endif %}
+
         {% if psych_doc %}
           <div class="rounded-lg border px-4 py-3 text-sm
             {% if psych_doc.status == 'Approved' %}border-green-200 bg-green-50 text-green-800
@@ -654,6 +679,13 @@
             </span>
           {% endif %}
         </div>
+
+        {% if applicant.contract_of_service_instructions %}
+          <div class="rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 space-y-1 text-sm text-cyan-900">
+            <p class="font-semibold text-xs text-cyan-700 uppercase tracking-wide">Instructions from Admin</p>
+            <p class="text-sm">{{ applicant.contract_of_service_instructions }}</p>
+          </div>
+        {% endif %}
 
         <!-- Step 1: Download admin contract -->
         {% if admin_contract %}
@@ -756,8 +788,13 @@
                     {% else %}
                       <svg class="h-4 w-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
                     {% endif %}
-                    <span class="text-sm font-medium text-gray-800">{{ cfg.document_category.name }}</span>
-                    {% if not cfg.is_required %}<span class="text-xs text-gray-400">(Optional)</span>{% endif %}
+                    <div>
+                      <span class="text-sm font-medium text-gray-800">{{ cfg.document_category.name }}</span>
+                      {% if not cfg.is_required %}<span class="ml-1 text-xs text-gray-400">(Optional)</span>{% endif %}
+                      {% if cfg.instructions %}
+                        <p class="text-xs text-gray-500 mt-0.5">{{ cfg.instructions }}</p>
+                      {% endif %}
+                    </div>
                   </div>
                   <div class="flex items-center gap-2 ml-6 sm:ml-0">
                     {% if doc %}

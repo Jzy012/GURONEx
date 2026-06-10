@@ -27,6 +27,20 @@ def _img(path, w, h):
     return Paragraph('', ParagraphStyle('_empty', fontSize=1))
 
 
+def _evaluator_position(ea) -> str:
+    """Return other_position for an EvaluationAssignment evaluator, or empty string."""
+    acc = ea.evaluator
+    role = getattr(acc, 'role', None)
+    try:
+        if role == 'faculty':
+            return (acc.faculty_profile.other_position or '').strip()
+        if role in ('admin', 'system_admin'):
+            return (acc.admin_profile.other_position or '').strip()
+    except Exception:
+        pass
+    return ''
+
+
 def build_evaluation_pdf_response(applicant):
     submitted_assignments = list(
         applicant.evaluation_assignments
@@ -270,18 +284,30 @@ def build_evaluation_pdf_response(applicant):
     story.append(Paragraph('Interview Panel Members:', section_s))
 
     if submitted_assignments:
+        position_s = _style('ev_pos', fontName='Helvetica', fontSize=8,
+                            alignment=1, leading=11, textColor=colors.HexColor('#6B7280'))
         rows = []
-        names = [Paragraph(f'<b>{ea.evaluator_display_name}</b>', panel_s) for ea in submitted_assignments]
-        for i in range(0, len(names), 2):
-            left = names[i]
-            right = names[i + 1] if i + 1 < len(names) else Paragraph('', body_s)
+        cells = []
+        for ea in submitted_assignments:
+            name_para = Paragraph(f'<b>{ea.evaluator_display_name}</b>', panel_s)
+            pos = _evaluator_position(ea)
+            if pos:
+                cell_content = [name_para, Paragraph(pos, position_s)]
+            else:
+                cell_content = [name_para]
+            cells.append(cell_content)
+
+        for i in range(0, len(cells), 2):
+            left = cells[i]
+            right = cells[i + 1] if i + 1 < len(cells) else [Paragraph('', body_s)]
             rows.append([left, right])
+
         panel_table = Table(rows, colWidths=[avail / 2, avail / 2])
         panel_table.setStyle(TableStyle([
             ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#000000')),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('TOPPADDING', (0, 0), (-1, -1), 18),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
             ('RIGHTPADDING', (0, 0), (-1, -1), 6),
         ]))

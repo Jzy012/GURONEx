@@ -47,6 +47,10 @@ def applicant_home(request):
 
 
 def applicant_apply(request):
+    from adminhub.models import RegistrationSettings
+    if not RegistrationSettings.get_solo().is_registration_open:
+        return render(request, 'applicants/applicant_registration_closed.html')
+
     required_docs = ApplicantRequiredDocument.objects.all()
     doc_categories = [doc.document_category for doc in required_docs]
 
@@ -630,6 +634,7 @@ def applicant_request_reschedule(request):
 
     reason = request.POST.get('reason', '').strip()
     preferred_date_raw = request.POST.get('preferred_date', '').strip()
+    preferred_time_raw = request.POST.get('preferred_time', '').strip()
 
     if not reason:
         messages.error(request, "Please provide a reason for your reschedule request.")
@@ -644,6 +649,14 @@ def applicant_request_reschedule(request):
             messages.error(request, "Invalid preferred date format.")
             return redirect('applicants:dashboard')
 
+    preferred_time = None
+    if preferred_time_raw:
+        from datetime import time as _time
+        try:
+            preferred_time = _time.fromisoformat(preferred_time_raw)
+        except (ValueError, TypeError):
+            pass
+
     step_label = "Demo & Interview"
 
     ApplicantRescheduleRequest.objects.create(
@@ -651,6 +664,7 @@ def applicant_request_reschedule(request):
         step=applicant.status,
         reason=reason,
         preferred_date=preferred_date,
+        preferred_time=preferred_time,
     )
 
     ApplicantTimeline.objects.create(
