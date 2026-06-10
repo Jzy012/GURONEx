@@ -36,6 +36,21 @@ from rfid.models import AttendanceLog
 from adminhub.models import Announcement, PUPSite
 
 
+def _normalize_ph_mobile(value: str) -> str:
+    """Normalize and validate a PH mobile number. Strips JS-inserted spaces, then checks format."""
+    value = (value or "").strip()
+    if not value:
+        return ""
+    normalized = value.replace(" ", "")
+    if not normalized.isdigit():
+        raise forms.ValidationError("Contact number must contain numbers only.")
+    if len(normalized) != 11:
+        raise forms.ValidationError("Please enter a valid 11-digit mobile number.")
+    if not normalized.startswith("09"):
+        raise forms.ValidationError("Please enter a valid Philippine mobile number starting with 09.")
+    return normalized
+
+
 class LoginForm(forms.Form):
     email = forms.EmailField(label='Email', max_length=255)
     password = forms.CharField(widget=forms.PasswordInput)
@@ -195,7 +210,7 @@ class FacultyCreationForm(forms.Form):
         required=False,
         widget=forms.DateInput(attrs={"type": "date"})
     )
-    contact_number = forms.CharField(max_length=11, required=False,validators=[phone_validator],)
+    contact_number = forms.CharField(max_length=14, required=False, label="Contact Number")
     status = forms.ModelChoiceField(
         queryset=EmploymentStatus.objects.filter(is_active=True),
         required=False
@@ -218,6 +233,14 @@ class FacultyCreationForm(forms.Form):
             field.widget.attrs["class"] = f"{existing} {field_class}".strip()
             field.widget.attrs["placeholder"] = field.label
 
+        self.fields["contact_number"].widget.attrs.update({
+            "inputmode": "numeric",
+            "maxlength": "14",
+            "autocomplete": "off",
+            "oninput": "formatPhoneInput(this)",
+            "placeholder": "e.g. 09171234567",
+        })
+
     def clean_email(self):
         email = self.cleaned_data["email"]
         if Account.objects.filter(email=email).exists():
@@ -231,6 +254,9 @@ class FacultyCreationForm(forms.Form):
         if FacultyProfile.objects.filter(faculty_code=code).exists():
             raise forms.ValidationError("This faculty code is already in use.")
         return code
+
+    def clean_contact_number(self):
+        return _normalize_ph_mobile(self.cleaned_data.get("contact_number") or "")
 
     def generate_random_password(self):
         return "".join(
@@ -281,10 +307,10 @@ class FacultyPublicSignupForm(forms.Form):
         label="Employment Status",
     )
     contact_number = forms.CharField(
-        max_length=11,
+        max_length=14,
         required=False,
-        validators=[phone_validator],
         label="Contact Number",
+        help_text="Enter 11-digit PH mobile number (e.g. 09171234567)",
     )
     birth_date = forms.DateField(
         required=True,
@@ -319,12 +345,22 @@ class FacultyPublicSignupForm(forms.Form):
         self.fields["suffix"].widget.attrs["placeholder"] = "Suffix (Optional)"
         self.fields["password"].widget.attrs["class"] = f"{self.fields['password'].widget.attrs.get('class', '')} pr-12".strip()
         self.fields["confirm_password"].widget.attrs["class"] = f"{self.fields['confirm_password'].widget.attrs.get('class', '')} pr-12".strip()
+        self.fields["contact_number"].widget.attrs.update({
+            "inputmode": "numeric",
+            "maxlength": "14",
+            "autocomplete": "off",
+            "oninput": "formatPhoneInput(this)",
+            "placeholder": "e.g. 09171234567",
+        })
 
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
         if Account.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("An account with this email already exists.")
         return email
+
+    def clean_contact_number(self):
+        return _normalize_ph_mobile(self.cleaned_data.get("contact_number") or "")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -343,6 +379,11 @@ class FacultyEditForm(forms.ModelForm):
         label='Email',
         max_length=255,
         widget=forms.EmailInput()
+    )
+    contact_number = forms.CharField(
+        max_length=14,
+        required=False,
+        label="Contact Number",
     )
 
     class Meta:
@@ -385,10 +426,17 @@ class FacultyEditForm(forms.ModelForm):
         self.fields['contact_number'].widget.attrs.update({
             'class': common_class,
             'placeholder': 'Contact Number',
+            'inputmode': 'numeric',
+            'maxlength': '14',
+            'autocomplete': 'off',
+            'oninput': 'formatPhoneInput(this)',
         })
         self.fields['status'].widget.attrs.update({
             'class': common_class,
         })
+
+    def clean_contact_number(self):
+        return _normalize_ph_mobile(self.cleaned_data.get("contact_number") or "")
 
     def save(self, commit=True):
         faculty_profile = super().save(commit=False)
@@ -1163,27 +1211,11 @@ class ApplicantForm(forms.ModelForm):
                       'masters_institution', 'doctorate_degree', 'doctorate_institution'):
             self.fields[fname].required = False
 
-    def _clean_ph_mobile(self, value: str) -> str:
-        """Shared normalizer for PH mobile number fields."""
-        value = (value or "").strip()
-        if not value:
-            return ""
-        # Strip spaces inserted by JS auto-formatter; reject anything else non-digit
-        normalized = value.replace(" ", "")
-        if not normalized.isdigit():
-            raise forms.ValidationError("Contact number must contain numbers only.")
-        if len(normalized) != 11:
-            raise forms.ValidationError("Please enter a valid 11-digit mobile number.")
-        return normalized
-
     def clean_contact_number(self):
-        return self._clean_ph_mobile(self.cleaned_data.get("contact_number") or "")
+        return _normalize_ph_mobile(self.cleaned_data.get("contact_number") or "")
 
     def clean_emergency_contact_number(self):
-        value = (self.cleaned_data.get("emergency_contact_number") or "").strip()
-        if not value:
-            return ""
-        return self._clean_ph_mobile(value)
+        return _normalize_ph_mobile(self.cleaned_data.get("emergency_contact_number") or "")
 
 
 

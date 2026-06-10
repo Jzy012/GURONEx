@@ -1,5 +1,6 @@
 from django.db import models
 from base.models import Account  # your custom user model
+from faculty.models import phone_validator
 
 
 # Create your models here.
@@ -8,7 +9,7 @@ class AdminProfile(models.Model):
     account = models.OneToOneField(Account, on_delete=models.CASCADE, related_name='admin_profile')
     name = models.CharField(max_length=255)
     other_position = models.CharField(max_length=255, blank=True, help_text="Optional title/position used in exports (e.g. HR Coordinator, Guidance Coordinator).")
-    contact_number = models.CharField(max_length=20, null=True, blank=True)
+    contact_number = models.CharField(max_length=11, null=True, blank=True, validators=[phone_validator])
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

@@ -99,7 +99,7 @@
         <div>
           <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Contact</div>
           <div class="mt-1 text-gray-800">
-            {{ applicant.contact_number|default:"—" }}
+            {{ applicant.contact_number|format_phone|default:"—" }}
           </div>
         </div>
         <div>
@@ -128,7 +128,7 @@
         <dd class="mt-1 text-gray-800">
           {% if applicant.emergency_contact_name or applicant.emergency_contact_number %}
             {{ applicant.emergency_contact_name|default:"N/A" }}
-            <span class="text-gray-500">({{ applicant.emergency_contact_number|default:"N/A" }})</span>
+            <span class="text-gray-500">({{ applicant.emergency_contact_number|format_phone|default:"N/A" }})</span>
           {% else %}
             <span class="text-gray-400">Not provided</span>
           {% endif %}

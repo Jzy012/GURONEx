@@ -26,6 +26,17 @@ def get_item(dictionary, key):
     return dictionary.get(key)
 
 
+@register.filter
+def format_phone(value):
+    """Format a stored 11-digit PH number (09171234567) as (0917 123 4567) for display."""
+    if not value:
+        return value or ""
+    digits = str(value).replace(" ", "").replace("-", "")
+    if len(digits) == 11:
+        return f"{digits[:4]} {digits[4:7]} {digits[7:]}"
+    return value
+
+
 @register.simple_tag
 def landing_background_url():
     """
