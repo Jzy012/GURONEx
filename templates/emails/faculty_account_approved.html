@@ -1,6 +1,6 @@
 {% extends "emails/base_email.html" %}
 
-{% block title %}{{ subject|default:"LINANG" }}{% endblock %}
+{% block title %}{{ subject|default:"GURONEx" }}{% endblock %}
 
 {% block header_subtitle %}
 Faculty Account Approved
@@ -8,7 +8,7 @@ Faculty Account Approved
 
 {% block content %}
 <p>Hi {{ name }},</p>
-<p>Your faculty registration has been approved. You can now sign in to LINANG.</p>
+<p>Your faculty registration has been approved. You can now sign in to GURONEx.</p>
 
 <p>
   <strong>PUP WebMail:</strong> {{ email }}<br>

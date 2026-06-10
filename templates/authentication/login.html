@@ -6,7 +6,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
-  <title>LINANG - Login</title>
+  <title>GURONEx - Login</title>
   <link rel="stylesheet" href="{% static 'css/output.css' %}" />
   <style>
     body {
@@ -50,11 +50,11 @@
           <img src="{% static 'images/pup-logo.png' %}" alt="PUP Logo" class="w-20 h-20 mx-auto mb-2" />
 
           <h1 class="text-3xl md:text-4xl font-bold leading-snug mb-1">
-            Welcome to LINANG
+            Welcome to GURONEx
           </h1>
 
           <p class="text-sm font-light mb-2">
-            Linking Information Networks for Administration and Narrative Gathering
+            GURO Network for Excellence
           </p>
         </div>
 
@@ -145,13 +145,15 @@
           <!-- Terms -->
           <p class="text-center text-[11px] text-gray-500 pt-0">
             By logging in, you agree to our
-            <a href="#" class="text-[#800505] hover:text-[#a80707] font-medium">Terms and Conditions</a>.
+            <button type="button" onclick="openTermsModal()" class="text-[#800505] hover:text-[#a80707] font-medium underline focus:outline-none">Terms and Conditions</button>.
           </p>
         </div>
 
       </div>
     </div>
   </div>
+
+  {% include 'partials/terms_modal.html' %}
 
   <!-- Show/Hide Password Script -->
   <script>

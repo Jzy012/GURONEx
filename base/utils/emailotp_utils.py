@@ -25,10 +25,10 @@ def send_otp_email(
 
     # Choose subject + template per purpose
     if purpose == "password_reset":
-        subject = " [LINANG] Password Reset Code"
+        subject = " [GURONEx] Password Reset Code"
         template_name = "emails/password_reset_otp.html"
     elif purpose == "login_2fa":
-        subject = " [LINANG] Login Verification Code"
+        subject = " [GURONEx] Login Verification Code"
         template_name = "emails/login_2fa_otp.html"  # make sure this exists
     else:
         subject = "Your One-Time Password"

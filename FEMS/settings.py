@@ -190,6 +190,7 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")        # <-- Use an App Passwor
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
 BREVO_API_KEY = env("BREVO_API_KEY")
 SUPPORT_EMAIL = env("SUPPORT_EMAIL", default=DEFAULT_FROM_EMAIL)
+SITE_BASE_URL = env("SITE_BASE_URL")
 
 # Google Service Account Credentials
 # Google Service Account Credentials

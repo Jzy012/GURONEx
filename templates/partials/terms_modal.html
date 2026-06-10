@@ -1,0 +1,221 @@
+<!-- Terms & Conditions Modal — include this partial in any page that needs it -->
+
+<div
+  id="terms-modal"
+  class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="terms-modal-title"
+>
+  <!-- Backdrop -->
+  <div
+    id="terms-modal-backdrop"
+    class="absolute inset-0 bg-black/50"
+    onclick="closeTermsModal()"
+  ></div>
+
+  <!-- Panel -->
+  <div class="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#800505] text-white shrink-0">
+      <h2 id="terms-modal-title" class="text-base font-bold tracking-wide uppercase">
+        Terms &amp; Conditions
+      </h2>
+      <button
+        type="button"
+        onclick="closeTermsModal()"
+        class="p-1 rounded hover:bg-white/20 transition duration-150 focus:outline-none"
+        aria-label="Close"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="overflow-y-auto px-6 py-5 text-sm text-gray-700 space-y-5 leading-relaxed">
+
+      <p class="text-gray-600">
+        The <strong>GURONEx</strong> (GURO Network for Excellence) system is committed to
+        protecting the privacy, confidentiality, and security of all users' personal and institutional
+        data. By accessing and using the system, users agree to the collection, processing,
+        storage, and management of information in accordance with applicable data privacy
+        principles, Philippine laws, and institutional policies.
+      </p>
+
+      <p class="text-gray-600">GURONEx complies with the following Philippine laws and regulations:</p>
+      <ul class="list-disc pl-5 space-y-1 text-gray-600">
+        <li><strong>Republic Act No. 10173</strong> – Data Privacy Act of 2012</li>
+        <li><strong>Republic Act No. 8792</strong> – Electronic Commerce Act of 2000</li>
+        <li><strong>Republic Act No. 10175</strong> – Cybercrime Prevention Act of 2012</li>
+      </ul>
+      <p class="text-gray-600">
+        These laws guide the proper handling, protection, storage, and security of electronic
+        data and personal information within the system.
+      </p>
+
+      <!-- Section 1 -->
+      <div>
+        <h3 class="font-semibold text-gray-900 mb-1">1. Collection of Information</h3>
+        <p class="text-gray-600">GURONEx may collect and process the following information:</p>
+        <ul class="list-disc pl-5 mt-1 space-y-1 text-gray-600">
+          <li>Personal information such as name, email address, faculty or employee ID, department, and employment-related records.</li>
+          <li>Uploaded documents including academic requirements, contracts, certifications, and other institutional records.</li>
+          <li>RFID attendance logs including check-in and check-out timestamps.</li>
+          <li>System usage data necessary for monitoring system performance, security, and operational improvements.</li>
+        </ul>
+      </div>
+
+      <!-- Section 2 -->
+      <div>
+        <h3 class="font-semibold text-gray-900 mb-1">2. Purpose of Data Collection</h3>
+        <p class="text-gray-600">The collected information shall only be used for legitimate academic and administrative purposes, including:</p>
+        <ul class="list-disc pl-5 mt-1 space-y-1 text-gray-600">
+          <li>Faculty and employee record management</li>
+          <li>Attendance monitoring through RFID technology</li>
+          <li>Document submission, storage, and retrieval</li>
+          <li>Communication and notification services</li>
+          <li>System evaluation, maintenance, and security monitoring</li>
+          <li>Institutional reporting and operational improvements</li>
+        </ul>
+      </div>
+
+      <!-- Section 3 -->
+      <div>
+        <h3 class="font-semibold text-gray-900 mb-1">3. Data Confidentiality and Security</h3>
+        <p class="text-gray-600">
+          GURONEx implements appropriate security measures to protect user information
+          from unauthorized access, disclosure, alteration, misuse, or loss. These measures include:
+        </p>
+        <ul class="list-disc pl-5 mt-1 space-y-1 text-gray-600">
+          <li>Password-protected and role-based access controls</li>
+          <li>Encrypted storage and secure databases</li>
+          <li>Restricted access to authorized administrators and personnel only</li>
+          <li>Regular monitoring and maintenance of system security</li>
+        </ul>
+        <p class="mt-2 text-gray-600">
+          In compliance with <strong>Republic Act No. 10173 (Data Privacy Act of 2012)</strong>, the
+          system ensures that personal information is processed fairly, securely, and only for authorized purposes.
+        </p>
+        <p class="mt-2 text-gray-600">
+          Under <strong>Republic Act No. 10175 (Cybercrime Prevention Act of 2012)</strong>,
+          unauthorized access, hacking, identity theft, data manipulation, or any malicious
+          activities involving the system are strictly prohibited and may result in disciplinary and legal action.
+        </p>
+      </div>
+
+      <!-- Section 4 -->
+      <div>
+        <h3 class="font-semibold text-gray-900 mb-1">4. User Responsibilities</h3>
+        <p class="text-gray-600">Users of the system are responsible for:</p>
+        <ul class="list-disc pl-5 mt-1 space-y-1 text-gray-600">
+          <li>Providing accurate and updated information</li>
+          <li>Protecting their login credentials from unauthorized use</li>
+          <li>Using the system only for authorized academic and administrative purposes</li>
+          <li>Avoiding activities that may compromise the security and integrity of the system</li>
+        </ul>
+        <p class="mt-2 text-gray-600">
+          Users shall also comply with applicable cybersecurity and data privacy regulations while using the GURONEx system.
+        </p>
+      </div>
+
+      <!-- Section 5 -->
+      <div>
+        <h3 class="font-semibold text-gray-900 mb-1">5. Data Sharing and Disclosure</h3>
+        <p class="text-gray-600">
+          Personal data collected within GURONEx shall not be sold, shared, or disclosed
+          to third parties without proper authorization, except when required by institutional
+          policies, legal obligations, or authorized university officials for legitimate purposes.
+        </p>
+        <p class="mt-2 text-gray-600">
+          Electronic records and digital submissions processed within the system are recognized in
+          accordance with <strong>Republic Act No. 8792 (Electronic Commerce Act of 2000)</strong>.
+        </p>
+      </div>
+
+      <!-- Section 6 -->
+      <div>
+        <h3 class="font-semibold text-gray-900 mb-1">6. Data Retention</h3>
+        <p class="text-gray-600">
+          Information stored in the system shall only be retained for as long as necessary
+          to fulfill institutional, operational, and academic requirements. Records may be archived
+          or securely deleted in accordance with university data management policies and applicable laws.
+        </p>
+      </div>
+
+      <!-- Section 7 -->
+      <div>
+        <h3 class="font-semibold text-gray-900 mb-1">7. User Rights</h3>
+        <p class="text-gray-600">Users have the right to:</p>
+        <ul class="list-disc pl-5 mt-1 space-y-1 text-gray-600">
+          <li>Access their personal information stored in the system</li>
+          <li>Request correction of inaccurate or outdated data</li>
+          <li>Report privacy concerns, unauthorized access, or misuse of information</li>
+          <li>Request clarification regarding the handling of their data</li>
+        </ul>
+        <p class="mt-2 text-gray-600">
+          These rights are protected under the provisions of the Data Privacy Act of 2012.
+        </p>
+      </div>
+
+      <!-- Section 8 -->
+      <div>
+        <h3 class="font-semibold text-gray-900 mb-1">8. Consent</h3>
+        <p class="text-gray-600">
+          By using the GURONEx system, users acknowledge that they have read,
+          understood, and agreed to this Data Privacy Policy and consent to the collection and
+          processing of their information for system-related purposes.
+        </p>
+      </div>
+
+      <!-- Section 9 -->
+      <div>
+        <h3 class="font-semibold text-gray-900 mb-1">9. Policy Updates</h3>
+        <p class="text-gray-600">
+          The administrators of GURONEx reserve the right to modify or update this policy
+          when necessary to comply with institutional requirements, technological advancements,
+          or data protection regulations. Users will be informed of significant changes when applicable.
+        </p>
+        <p class="mt-2 text-gray-600">
+          This Data Privacy Policy is aligned with the system's commitment to maintaining
+          confidentiality, transparency, security, and responsible handling of faculty and employee
+          information as discussed in the GURONEx study.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 shrink-0 flex justify-end">
+      <button
+        type="button"
+        onclick="closeTermsModal()"
+        class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold px-5 py-2 rounded-lg transition duration-200 text-sm"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openTermsModal() {
+    var modal = document.getElementById('terms-modal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+  function closeTermsModal() {
+    var modal = document.getElementById('terms-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeTermsModal();
+  });
+</script>

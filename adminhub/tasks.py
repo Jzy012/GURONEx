@@ -256,7 +256,7 @@ def send_announcement_email_task(self, announcement_id):
         role_labels.get(role, role.title()) for role in (announcement.visible_to_roles or [])
     )
 
-    subject = f"[LINANG] New Announcement: {announcement.title}"
+    subject = f"[GURONEx] New Announcement: {announcement.title}"
     context = {
         "announcement": announcement,
         "visible_label": visible_label,

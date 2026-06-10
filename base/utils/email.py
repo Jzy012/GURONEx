@@ -14,7 +14,7 @@ def send_applicant_status_email(applicant: Applicant, new_status: str, status_da
     # Convert internal value -> Label ("psych_test" → "Psych Test")
     display_status = applicant.get_status_display()
 
-    subject = f"[LINANG] Application Status Update: {display_status}"
+    subject = f"[GURONEx] Application Status Update: {display_status}"
 
     # Build status check URL
     status_path = reverse("applicants:check_status")
@@ -45,7 +45,7 @@ def send_applicant_status_email(applicant: Applicant, new_status: str, status_da
         template_name="emails/applicant_status_update.html",
         context=context,
         # Optional:
-        # from_name="PUP-SPC LINANG",
+        # from_name="PUP-SPC GURONEx",
     )
 
 
@@ -53,7 +53,7 @@ def send_applicant_status_rescheduled_email(applicant: Applicant, status_label: 
     """
     Sends an email when the date of the current applicant step is rescheduled.
     """
-    subject = f"[LINANG] Schedule Updated: {status_label}"
+    subject = f"[GURONEx] Schedule Updated: {status_label}"
 
     status_path = reverse("applicants:check_status")
     base_url = getattr(settings, "SITE_BASE_URL", "").rstrip("/")
@@ -89,7 +89,7 @@ def send_applicant_submission_receipt(applicant: Applicant) -> None:
     Sends a receipt email to the applicant with their name and Applicant ID,
     using the Brevo HTML email helper.
     """
-    subject = "[LINANG] Application Received"
+    subject = "[GURONEx] Application Received"
 
     # Build full name with middle + suffix
     name_parts = [applicant.first_name]
@@ -165,7 +165,7 @@ def send_interview_step_email(
         "instructions": instructions,
     })
     send_html_email(
-        subject=f"[LINANG] {step_label} Scheduled",
+        subject=f"[GURONEx] {step_label} Scheduled",
         to_emails=applicant.email,
         template_name="emails/applicant_interview_scheduled.html",
         context=ctx,
@@ -189,7 +189,7 @@ def send_reschedule_approved_email(
         "admin_note": admin_note,
     })
     send_html_email(
-        subject=f"[LINANG] Schedule Updated: {step_label}",
+        subject=f"[GURONEx] Schedule Updated: {step_label}",
         to_emails=applicant.email,
         template_name="emails/applicant_reschedule_approved.html",
         context=ctx,
@@ -209,7 +209,7 @@ def send_psych_test_step_email(
     ctx["deadline"] = deadline
     ctx["instructions"] = instructions
     send_html_email(
-        subject="[LINANG] Action Required: Psych Test Document Upload",
+        subject="[GURONEx] Action Required: Psych Test Document Upload",
         to_emails=applicant.email,
         template_name="emails/applicant_psych_test.html",
         context=ctx,
@@ -229,7 +229,7 @@ def send_contract_of_service_email(
     ctx["deadline"] = deadline
     ctx["instructions"] = instructions
     send_html_email(
-        subject="[LINANG] Action Required: Sign and Return Your Contract of Service",
+        subject="[GURONEx] Action Required: Sign and Return Your Contract of Service",
         to_emails=applicant.email,
         template_name="emails/applicant_contract_of_service.html",
         context=ctx,
@@ -253,7 +253,7 @@ def send_first_salary_requirements_email(
         "instructions": instructions,
     })
     send_html_email(
-        subject="[LINANG] Action Required: Submit First Salary Requirements",
+        subject="[GURONEx] Action Required: Submit First Salary Requirements",
         to_emails=applicant.email,
         template_name="emails/applicant_first_salary_requirements.html",
         context=ctx,
@@ -267,7 +267,7 @@ def send_first_salary_requirements_email(
 def send_hired_email(applicant: Applicant) -> None:
     ctx = _base_context(applicant)
     send_html_email(
-        subject="[LINANG] Congratulations – You Have Been Hired!",
+        subject="[GURONEx] Congratulations – You Have Been Hired!",
         to_emails=applicant.email,
         template_name="emails/applicant_hired.html",
         context=ctx,
@@ -282,7 +282,7 @@ def send_rejection_email(applicant: Applicant, rejection_message: str = "") -> N
     ctx = _base_context(applicant)
     ctx["rejection_message"] = rejection_message
     send_html_email(
-        subject="[LINANG] Application Status Update",
+        subject="[GURONEx] Application Status Update",
         to_emails=applicant.email,
         template_name="emails/applicant_rejected.html",
         context=ctx,
@@ -304,7 +304,7 @@ def send_availability_confirmed_email(
         "event_date": event_date,
     })
     send_html_email(
-        subject=f"[LINANG] Availability Confirmed: {step_label}",
+        subject=f"[GURONEx] Availability Confirmed: {step_label}",
         to_emails=applicant.email,
         template_name="emails/applicant_availability_confirmed.html",
         context=ctx,
@@ -322,7 +322,7 @@ def send_application_withdrawn_email(
     ctx = _base_context(applicant)
     ctx["cancellation_reason"] = cancellation_reason
     send_html_email(
-        subject="[LINANG] Application Withdrawn",
+        subject="[GURONEx] Application Withdrawn",
         to_emails=applicant.email,
         template_name="emails/applicant_application_withdrawn.html",
         context=ctx,
@@ -338,7 +338,7 @@ def send_evaluation_step_email(applicant: Applicant, deadline=None) -> None:
     ctx = _base_context(applicant)
     ctx["deadline"] = deadline
     send_html_email(
-        subject="[LINANG] Application Status Update: Evaluation",
+        subject="[GURONEx] Application Status Update: Evaluation",
         to_emails=applicant.email,
         template_name="emails/applicant_evaluation_step.html",
         context=ctx,
@@ -350,7 +350,7 @@ def send_evaluation_invite_email(evaluator_name: str, evaluator_email: str,
                                   expires_at, submission_deadline=None) -> None:
     """Send the tokenized evaluation link to a faculty evaluator."""
     send_html_email(
-        subject=f"[LINANG] Evaluation Request: {applicant.full_name}",
+        subject=f"[GURONEx] Evaluation Request: {applicant.full_name}",
         to_emails=evaluator_email,
         template_name="emails/evaluation_invite.html",
         context={
@@ -369,7 +369,7 @@ def send_evaluation_submitted_email_to_admin(admin_emails, evaluator_name: str,
                                               admin_url: str) -> None:
     """Notify admins that an evaluator has submitted their evaluation form."""
     send_html_email(
-        subject=f"[LINANG] Evaluation Submitted: {applicant.full_name}",
+        subject=f"[GURONEx] Evaluation Submitted: {applicant.full_name}",
         to_emails=admin_emails,
         template_name="emails/evaluation_submitted_admin.html",
         context={
@@ -385,7 +385,7 @@ def send_evaluation_complete_email_to_applicant(applicant: Applicant) -> None:
     """Notify the applicant that all evaluations have been submitted."""
     ctx = _base_context(applicant)
     send_html_email(
-        subject="[LINANG] Application Update: Evaluation Phase Complete",
+        subject="[GURONEx] Application Update: Evaluation Phase Complete",
         to_emails=applicant.email,
         template_name="emails/evaluation_complete_applicant.html",
         context=ctx,

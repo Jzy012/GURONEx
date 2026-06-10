@@ -841,7 +841,7 @@ def _send_faculty_approval_email(faculty_profile: 'FacultyProfile'):
         if not base_url:
             base_url = 'https://linang.pup.edu.ph'
 
-        subject = '[LINANG] Your Faculty Account Has Been Approved - LINANG'
+        subject = '[GURONEx] Your Faculty Account Has Been Approved - GURONEx'
         login_url = f"{base_url}/login/"
 
         send_html_email(
@@ -1226,7 +1226,7 @@ def create_faculty_view(request):
                         try:
                             login_url = request.build_absolute_uri(reverse('login'))  # adjust if your route differs
                             send_html_email(
-                                subject="[LINANG] Faculty Account Credentials",
+                                subject="[GURONEx] Faculty Account Credentials",
                                 to_emails=account.email,
                                 template_name="emails/faculty_welcome_credentials.html",
                                 context={
@@ -3342,7 +3342,7 @@ def account_creation_view(request):
                         full_name = f"{applicant.first_name} {applicant.last_name}".strip()
                         login_url = request.build_absolute_uri(reverse('login'))
                         send_html_email(
-                            subject="[LINANG] Faculty Account Credentials",
+                            subject="[GURONEx] Faculty Account Credentials",
                             to_emails=applicant.email,
                             template_name="emails/faculty_welcome_credentials.html",
                             context={

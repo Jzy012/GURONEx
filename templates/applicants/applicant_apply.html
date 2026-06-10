@@ -288,8 +288,9 @@
           {% endfor %}
         </div>
 
-        <!-- Submit Button -->
-        <div class="text-right">
+        <!-- Consent + Submit -->
+        <div class="text-right space-y-2">
+          
           <button
             id="submit-btn"
             type="submit"
@@ -308,6 +309,10 @@
             ></span>
           </button>
         </div>
+        <p class="text-xs text-gray-500">
+            By submitting your application, you agree to our
+            <button type="button" onclick="openTermsModal()" class="text-[#800505] hover:text-[#a80707] font-medium underline focus:outline-none">Terms and Conditions</button>.
+          </p>
       </form>
     </div>
 
@@ -333,6 +338,8 @@
       </div>
     </div>
   </div>
+
+  {% include 'partials/terms_modal.html' %}
 
 {% endblock %}
 

@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
-  <title>LINANG – Faculty Evaluation Form</title>
+  <title>GURONEx – Faculty Evaluation Form</title>
   <link rel="stylesheet" href="{% static 'css/output.css' %}" />
   <style>body { font-family: 'Karla', sans-serif; }</style>
 </head>
@@ -45,7 +45,7 @@
           This evaluation link has already been used. Each link is single-use.
         </p>
         <p class="text-xs text-gray-500">
-          If you believe this is an error, please contact the LINANG administration.
+          If you believe this is an error, please contact the GURONEx administration.
         </p>
 
       {% elif reason == 'deadline_passed' %}
@@ -64,7 +64,7 @@
           has passed. Submissions are no longer accepted.
         </p>
         <p class="text-xs text-gray-500">
-          Please contact the LINANG administration if you need assistance.
+          Please contact the GURONEx administration if you need assistance.
         </p>
 
       {% elif reason == 'expired' %}
@@ -75,7 +75,7 @@
         </div>
         <h2 class="text-lg font-semibold text-gray-900">Link Expired</h2>
         <p class="text-sm text-gray-600">
-          This evaluation link has expired. Please contact the LINANG administration to request a new link.
+          This evaluation link has expired. Please contact the GURONEx administration to request a new link.
         </p>
       {% endif %}
     </div>
@@ -297,7 +297,7 @@
     </form>
   {% endif %}
 
-  <p class="text-center text-xs text-gray-400 pb-4">LINANG – PUP-SPC Faculty Management System</p>
+  <p class="text-center text-xs text-gray-400 pb-4">GURONEx</p>
 </div>
 </body>
 </html>

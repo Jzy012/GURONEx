@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>{% block title %}{{ subject|default:"LINANG" }}{% endblock %}</title>
+  <title>{% block title %}{{ subject|default:"GURONEx" }}{% endblock %}</title>
 
   <!-- Hint for some clients that we support light & dark -->
   <meta name="color-scheme" content="light dark">
@@ -245,13 +245,13 @@
         <p class="header-title">
           <!-- Optional logo -->
           <!--
-          <img src="{% static 'images/pup-logo.png' %}" alt="LINANG logo"
+          <img src="{% static 'images/pup-logo.png' %}" alt="GURONEx logo"
                style="height: 24px; width: 24px; border-radius: 6px; object-fit: cover;">
           -->
-          <span>LINANG</span>
+          <span>GURONEx</span>
         </p>
         <p class="header-subtitle">
-          {% block header_subtitle %}Linking Information Networks for Administration and Narrative Gathering{% endblock %}
+          {% block header_subtitle %}GURO Network for Excellence{% endblock %}
         </p>
       </div>
 
@@ -262,11 +262,11 @@
       <div class="footer">
         {% block footer %}
           <p class="muted">
-            You’re receiving this email because you have an account with LINANG.
+            You’re receiving this email because you have an account with GURONEx.
             If this wasn’t you, you can safely ignore this message.
           </p>
           <p class="muted">
-            &copy; {{ year }} LINANG. All rights reserved.
+            &copy; {{ year }} GURONEx. All rights reserved.
           </p>
         {% endblock %}
       </div>

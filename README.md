@@ -1,11 +1,10 @@
-<h1 style="font-size: 50px;">LINANG</h1>
-<h3 >Linking Information Network for Administration and Narrative Gathering</h3>
+<h1 style="font-size: 50px;">GURONEx</h1>
 
 
 ---
 
 ## 📌 Overview  
-**LINANG** is a **web-based Human Resources Information System** designed to streamline academic administrative processes.  
+**GURONEx** is a **web-based Human Resources Information System** designed to streamline academic administrative processes.  
 It provides **automated attendance tracking**, **document management**, and **faculty and applicant management** within the system.
 
 The primary goal is to **improve efficiency and transparency** by automating manual workflows, reducing paperwork, and enabling centralized access to information.
@@ -100,7 +99,7 @@ Make sure to configure the following environment variables in your `.env` file:
 
 This project is developed as part of a Capstone Study and is intended for academic purposes only.
 
-© 2025 LINANG Capstone Team. All Rights Reserved.
+© 2025 GURONEx Capstone Team. All Rights Reserved.
 
 You are free to view, reference, and learn from the source code.
 However, redistribution, reproduction, or commercial use of this project without prior permission from the authors is strictly prohibited.

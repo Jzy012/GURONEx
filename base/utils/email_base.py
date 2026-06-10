@@ -19,14 +19,14 @@ def send_html_email(
     from_name: str | None = None,   # 👈 added
 ) -> None:
     """
-    Generic HTML email sender for LINANG using Brevo HTTP API.
+    Generic HTML email sender for GURONEx using Brevo HTTP API.
 
     - subject: email subject line
     - to_emails: string or list of strings
     - template_name: Django template path (e.g., 'emails/password_reset_otp.html')
     - context: dict of template vars
     - from_email: override settings.DEFAULT_FROM_EMAIL if needed
-    - from_name: override sender display name (e.g. "LINANG Support")
+    - from_name: override sender display name (e.g. "GURONEx Support")
     """
     if context is None:
         context = {}
@@ -61,13 +61,13 @@ def send_html_email(
 
     # Sender (can be your personal email, but must be a verified Brevo sender)
     sender_email = from_email or settings.DEFAULT_FROM_EMAIL
-    sender_name = from_name or getattr(settings, "DEFAULT_FROM_NAME", "LINANG System")
+    sender_name = from_name or getattr(settings, "DEFAULT_FROM_NAME", "GURONEx System")
 
     send_email = brevo_python.SendSmtpEmail(
         to=to_list,
         sender={
             "email": sender_email,
-            "name": "LINANG",  # 👈 display name here
+            "name": "GURONEx",  # 👈 display name here
         },
         subject=subject,
         html_content=html_content,
