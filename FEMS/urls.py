@@ -22,6 +22,11 @@ from django.conf.urls.static import static
 
 from base.media_views import serve_landing_background  # <-- add this
 
+handler400 = 'FEMS.error_views.handler_400'
+handler403 = 'FEMS.error_views.handler_403'
+handler404 = 'FEMS.error_views.handler_404'
+handler500 = 'FEMS.error_views.handler_500'
+
 urlpatterns = [
     path('system-config/', admin.site.urls),
     path('', include('base.urls')),

@@ -188,13 +188,15 @@ def applicant_login(request):
             except Applicant.DoesNotExist:
                 messages.error(request, "Applicant not found. Please check your Applicant ID and email.")
             else:
+                if applicant.is_archived:
+                    return redirect("applicants:inactive")
                 request.session["applicant_pk"] = applicant.pk
                 request.session.cycle_key()
                 return redirect("applicants:dashboard")
     else:
         form = ApplicantLoginForm()
 
-    return render(request, "applicants/applicant_check_status.html", {"form": form})
+    return render(request, "applicants/applicant_check_status.html", {"form": form, "support_email": getattr(settings, "SUPPORT_EMAIL", "")})
 
 
 
@@ -202,6 +204,13 @@ def applicant_logout(request):
     request.session.pop("applicant_pk", None)
     messages.success(request, "Logged out.")
     return redirect("applicants:check_status")
+
+
+
+def applicant_inactive(request):
+    return render(request, "applicants/applicant_inactive.html", {
+        "support_email": getattr(settings, "SUPPORT_EMAIL", ""),
+    })
 
 
 

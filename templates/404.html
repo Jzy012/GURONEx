@@ -1,0 +1,64 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{% static 'images/pup-favicon.ico' %}" type="image/x-icon">
+  <title>404 – Page Not Found | GURONEx</title>
+  <link href="{% static 'css/output.css' %}" rel="stylesheet" />
+  <style>
+    body { font-family: 'Karla', sans-serif; }
+    .fade-in { animation: fade-in 0.6s ease-out both; }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .divider {
+      width: 60px; height: 4px; border-radius: 2px;
+      background: linear-gradient(90deg, #a80707 0%, #800505 100%);
+      margin: 0.75rem auto 1.5rem;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center px-4 py-12">
+
+  <div class="w-full max-w-md text-center fade-in">
+
+    <img src="{% static 'images/pup-logo.png' %}" alt="GURONEx"
+         class="w-20 h-20 mx-auto mb-4 object-contain" />
+
+    <p class="text-5xl font-extrabold text-[#800505] leading-none mb-2">404</p>
+
+    <div class="divider"></div>
+
+    <h1 class="text-2xl font-bold text-gray-800 mb-3">Page Not Found</h1>
+
+    <p class="text-gray-500 text-sm leading-relaxed mb-8">
+      The page you're looking for doesn't exist or may have been moved.<br>
+      Double-check the URL or return to a safe place.
+    </p>
+
+    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+      <a href="{% url 'index' %}"
+         class="bg-[#800505] hover:bg-[#a80707] text-white font-semibold py-3 px-6 rounded-lg transition duration-200 text-sm shadow-sm">
+        Return Home
+      </a>
+      <button type="button" onclick="history.back()"
+              class="border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-lg transition duration-200 text-sm">
+        Go Back
+      </button>
+    </div>
+
+    {% if support_email %}
+    <p class="mt-10 text-xs text-gray-400">
+      Need help? Contact support:
+      <a href="mailto:{{ support_email }}"
+         class="text-[#800505] hover:underline font-medium">{{ support_email }}</a>
+    </p>
+    {% endif %}
+
+  </div>
+
+</body>
+</html>

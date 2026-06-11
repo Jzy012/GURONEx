@@ -11,6 +11,7 @@ urlpatterns = [
 
     path("applicant/check-status/", views.applicant_login, name="check_status"),
     path("applicant/logout/", views.applicant_logout, name="logout"),
+    path("applicant/inactive/", views.applicant_inactive, name="inactive"),
     path("applicant/dashboard/", views.applicant_dashboard, name="dashboard"),
 
     path("applicant/upload-documents/", views.applicant_upload_documents, name="upload_documents"),

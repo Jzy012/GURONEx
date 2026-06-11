@@ -281,6 +281,24 @@
       </section>
     {% endif %}
 
+    <!-- Rejection Details -->
+    {% if applicant.status == 'rejected' and applicant.rejection_message %}
+      <section class="bg-white rounded-xl border border-red-100 shadow-sm p-4 sm:p-6">
+        <div class="flex items-start gap-3 text-sm text-gray-700">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 shrink-0 text-red-400 mt-0.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+          </svg>
+          <div class="space-y-1">
+            <p class="font-semibold text-gray-800">We regret to inform you that your application has been rejected.</p>
+            {% if applicant.rejected_date %}
+              <p class="text-xs text-gray-500">{{ applicant.rejected_date|date:"F j, Y" }}</p>
+            {% endif %}
+            <p class="mt-1 text-xs text-gray-700"><span class="font-semibold">Reason:</span> {{ applicant.rejection_message }}</p>
+          </div>
+        </div>
+      </section>
+    {% endif %}
+
     <!-- Demo & Interview – Schedule + Availability + Cancel + Reschedule -->
     {% if applicant.status == 'demo_scheduled' or applicant.status == 'for_interview' %}
       <section class="bg-white rounded-xl border border-blue-100 shadow-sm p-4 sm:p-6 space-y-4">

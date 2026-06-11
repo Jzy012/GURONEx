@@ -81,12 +81,12 @@ class CentralGoogleDriveService:
         return parent_id
 
     def create_faculty_folder(self, faculty_profile):
-        folder_path = f"FEMS/Faculty/{faculty_profile.name.strip().replace('/', '_').replace('\\', '_')}"
+        folder_path = f"GURONEx/Faculty/{faculty_profile.name.strip().replace('/', '_').replace('\\', '_')}"
         return self.get_or_create_folder_path(folder_path)
 
     def create_applicant_folder(self, applicant):
         folder_name = f"{applicant.applicant_id} - {applicant.first_name} {applicant.last_name}{' ' + applicant.suffix if applicant.suffix else ''}".strip()
-        folder_path = f"FEMS/Applicants/{folder_name}"
+        folder_path = f"GURONEx/Applicants/{folder_name}"
         return self.get_or_create_folder_path(folder_path)
 
     def share_folder_with_user(self, folder_id, user_email, role="writer"):

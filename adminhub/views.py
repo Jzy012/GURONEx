@@ -2930,8 +2930,12 @@ def admin_archive_applicant(request, uuid):
         messages.warning(request, "Applicant is already archived.")
         return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
-    if applicant.status != 'hired' or not applicant.account_created:
-        messages.error(request, "Only hired applicants with a created faculty account can be archived.")
+    eligible = (
+        (applicant.status == 'hired' and applicant.account_created)
+        or applicant.status == 'rejected'
+    )
+    if not eligible:
+        messages.error(request, "Only hired applicants with a created account, or rejected applicants, can be archived.")
         return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
     applicant.is_archived = True

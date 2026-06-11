@@ -939,6 +939,26 @@
     </section>
   {% endif %}
 
+  <!-- Rejected – Archive option -->
+  {% if applicant.status == 'rejected' and not applicant.is_archived %}
+    <section class="bg-white rounded-xl border border-red-100 shadow-sm p-4 sm:p-6 space-y-3">
+      <h3 class="text-sm font-semibold text-red-800">Application Rejected</h3>
+      <p class="text-sm text-gray-600">
+        This applicant's application has been rejected. You may archive this record to remove it from the active list.
+        Archiving preserves all history and can be undone at any time.
+      </p>
+      <form method="post" action="{% url 'adminhub:admin_archive_applicant' applicant.uuid %}"
+            class="js-confirm-form" data-confirm-message="Archive this applicant record?"
+            data-doc-name="{{ applicant.applicant_id }}" data-owner="{{ applicant.first_name }} {{ applicant.last_name }}" data-category="Rejected">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100">
+          Archive Applicant
+        </button>
+      </form>
+    </section>
+  {% endif %}
+
   <!-- Change Application Status -->
   <section class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
     <!-- Section header -->
