@@ -30,6 +30,21 @@
     </div>
   </div>
 
+  <!-- Messages -->
+  {% if messages %}
+    <div class="space-y-2">
+      {% for message in messages %}
+        <div class="text-sm px-4 py-3 rounded-lg border
+          {% if message.tags == 'error' %}bg-red-50 text-red-700 border-red-200
+          {% elif message.tags == 'success' %}bg-green-50 text-green-700 border-green-200
+          {% elif message.tags == 'warning' %}bg-yellow-50 text-yellow-800 border-yellow-200
+          {% else %}bg-gray-50 text-gray-800 border-gray-200{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
   <!-- Applicant Overview -->
   <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-6">
     <div class="flex flex-col gap-4">
@@ -329,8 +344,48 @@
        STEP-SPECIFIC ADMIN PANELS
        ================================================================ -->
 
-  <!-- Demo / Interview – Reschedule Requests -->
+  <!-- Demo / Interview – Details -->
   {% if applicant.status == 'demo_scheduled' or applicant.status == 'for_interview' %}
+    <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-4">
+      <h3 class="text-sm font-semibold text-gray-900">Demo &amp; Interview Details</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+        {% if applicant.status == 'demo_scheduled' %}
+          {% if applicant.demo_scheduled_date %}
+            <div>
+              <p class="text-xs text-gray-500 mb-0.5">Demo Date</p>
+              <p class="text-sm font-medium text-gray-900">{{ applicant.demo_scheduled_date|date:"F j, Y" }}</p>
+            </div>
+          {% endif %}
+          {% if applicant.demo_scheduled_time %}
+            <div>
+              <p class="text-xs text-gray-500 mb-0.5">Demo Time</p>
+              <p class="text-sm font-medium text-gray-900">{{ applicant.demo_scheduled_time|time:"g:i A" }}</p>
+            </div>
+          {% endif %}
+          {% if applicant.demo_location %}
+            <div class="sm:col-span-2">
+              <p class="text-xs text-gray-500 mb-0.5">Location</p>
+              <p class="text-sm font-medium text-gray-900">{{ applicant.demo_location }}</p>
+            </div>
+          {% endif %}
+        {% elif applicant.status == 'for_interview' %}
+          {% if applicant.for_interview_date %}
+            <div>
+              <p class="text-xs text-gray-500 mb-0.5">Interview Date</p>
+              <p class="text-sm font-medium text-gray-900">{{ applicant.for_interview_date|date:"F j, Y" }}</p>
+            </div>
+          {% endif %}
+        {% endif %}
+        {% if applicant.interview_instructions %}
+          <div class="sm:col-span-2">
+            <p class="text-xs text-gray-500 mb-0.5">Interview Instructions</p>
+            <p class="text-sm text-gray-800 whitespace-pre-line">{{ applicant.interview_instructions }}</p>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+  <!-- Demo / Interview – Reschedule Requests -->
     {% if pending_reschedule_requests %}
       <section class="bg-white rounded-xl border border-amber-200 shadow-sm p-4 sm:p-6 space-y-3">
         <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
@@ -563,7 +618,7 @@
                     </div>
                     <input type="text" id="evaluator-search"
                            placeholder="Search by name, email, role, or department…"
-                           class="block w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
+                           class="block w-full rounded-lg border border-gray-300 bg-white pl-12 pr-3 py-2 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
                   </div>
                   <div id="selected-evaluators" class="hidden flex-wrap gap-2 mb-2"></div>
                   <div id="evaluator-list" class="max-h-56 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
@@ -588,6 +643,7 @@
                             </span>
                           </p>
                           <p class="text-xs text-gray-500 truncate">
+                            {% if ev.other_position %}<span class="font-medium text-gray-700">{{ ev.other_position }}</span>{% if ev.display_name != ev.email or ev.faculty_code or ev.department %} · {% endif %}{% endif %}
                             {% if ev.display_name != ev.email %}{{ ev.email }}{% endif %}
                             {% if ev.faculty_code %}{% if ev.display_name != ev.email %} · {% endif %}{{ ev.faculty_code }}{% endif %}
                             {% if ev.department %} · {{ ev.department }}{% endif %}
@@ -798,11 +854,20 @@
           </div>
         {% endif %}
         <form method="post" action="{% url 'adminhub:admin_upload_contract' applicant.uuid %}" enctype="multipart/form-data"
-              class="flex flex-col sm:flex-row gap-2 items-start">
+              class="space-y-2">
           {% csrf_token %}
-          <input type="file" name="contract_file" accept=".pdf,.jpg,.jpeg,.png" required
-                 class="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#800505] file:text-white file:font-semibold hover:file:bg-[#a80707]" />
-          <button type="submit" class="shrink-0 rounded-lg bg-[#800505] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a80707]">Upload</button>
+          <div class="flex items-center w-full">
+            <label for="admin-contract-upload"
+                   class="inline-flex items-center cursor-pointer px-4 py-2 h-9 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg rounded-r-none font-semibold text-xs transition whitespace-nowrap shrink-0">
+              Choose File
+            </label>
+            <span id="admin-contract-upload-display"
+                  class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg px-4 py-2 h-9 text-xs bg-gray-50 flex-1 min-w-0 truncate text-gray-500">
+              No file chosen
+            </span>
+            <input type="file" id="admin-contract-upload" name="contract_file" accept=".pdf,.jpg,.jpeg,.png" required class="sr-only" />
+          </div>
+          <button type="submit" class="rounded-lg bg-[#800505] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a80707]">Upload</button>
         </form>
       </div>
 
@@ -848,12 +913,12 @@
       <form method="post" action="{% url 'adminhub:admin_configure_salary_requirements' applicant.uuid %}" class="space-y-3">
         {% csrf_token %}
         <p class="text-xs text-gray-500">Select which document categories this applicant must submit.</p>
-        <div class="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
+        <div class="space-y-3 max-h-72 overflow-y-auto border border-gray-200 rounded-lg p-3">
           {% for cat in all_doc_categories %}
             {% with cat_id=cat.pk %}
             {% with existing_cfg=None %}
-            <div class="rounded-lg border border-gray-100 p-2.5 space-y-1.5">
-              <label class="flex items-center gap-2 text-sm cursor-pointer font-medium">
+            <div class="rounded-lg border border-gray-100 p-3 space-y-2">
+              <label class="flex items-center gap-3 text-sm cursor-pointer font-medium">
                 <input type="checkbox" name="category_ids" value="{{ cat.pk }}"
                        id="cat_{{ cat.pk }}"
                        {% for cfg in salary_configs %}{% if cfg.document_category_id == cat.pk %}checked{% endif %}{% endfor %}
@@ -879,11 +944,11 @@
 
       <!-- Review uploaded salary requirement documents -->
       {% if salary_configs %}
-        <div class="space-y-2 border-t border-gray-100 pt-3">
+        <div class="space-y-3 border-t border-gray-100 pt-4">
           <p class="text-xs font-semibold text-gray-600">Uploaded Documents</p>
           {% for cfg in salary_configs %}
             {% with doc=salary_uploads|get_item:cfg.document_category_id %}
-            <div class="rounded-lg border p-3 space-y-1.5
+            <div class="rounded-lg border p-4 space-y-2
               {% if doc and doc.status == 'Approved' %}border-green-200 bg-green-50
               {% elif doc and doc.status == 'Rejected' %}border-red-200 bg-red-50
               {% elif doc %}border-amber-200 bg-amber-50
@@ -892,10 +957,10 @@
                 <p class="text-sm font-medium text-gray-800">{{ cfg.document_category.name }}</p>
                 {% if doc %}
                   <div class="flex items-center gap-2 shrink-0">
-                    <span class="text-xs font-semibold
-                      {% if doc.status == 'Approved' %}text-green-700
-                      {% elif doc.status == 'Rejected' %}text-red-700
-                      {% else %}text-amber-700{% endif %}">{{ doc.status }}</span>
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold
+                      {% if doc.status == 'Approved' %}bg-green-100 text-green-700
+                      {% elif doc.status == 'Rejected' %}bg-red-100 text-red-700
+                      {% else %}bg-amber-100 text-amber-700{% endif %}">{{ doc.status }}</span>
                     <a href="{% url 'adminhub:download_applicant_step_document' doc.pk %}?inline=1" target="_blank"
                        class="text-xs text-[#800505] font-semibold underline">View</a>
                   </div>
@@ -1074,12 +1139,10 @@
                 </label>
                 <div class="relative">
                   <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-gray-400">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                    </svg>
+                   
                   </div>
                   <input type="date" name="status_date" id="status_date" required
-                         class="block w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
+                         class="block w-full rounded-lg border border-gray-300 bg-white pl-4 pr-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
                 </div>
               </div>
             {% endif %}
@@ -1103,12 +1166,9 @@
                 </label>
                 <div class="relative">
                   <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-gray-400">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    </svg>
                   </div>
                   <input type="date" name="step_deadline"
-                         class="block w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
+                         class="block w-full rounded-lg border border-gray-300 bg-white pl-5 pr-3 py-2.5 text-sm text-gray-800 shadow-sm focus:border-[#800505] focus:ring-1 focus:ring-[#800505] transition" />
                 </div>
               </div>
             {% endif %}
@@ -1172,7 +1232,13 @@
             <div class="flex-1 min-w-0">
               <p class="text-sm font-semibold text-green-800">Applicant has been hired.</p>
               <p class="text-xs text-green-700 mt-0.5">Create a faculty account to give them system access.</p>
-              <a href="{% url 'adminhub:account_creation' %}" class="mt-2 inline-flex items-center gap-1.5 rounded-md bg-[#800505] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#a80707] transition">
+              <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-start gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-4 w-4 text-amber-500 shrink-0 mt-0.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                </svg>
+                <p class="text-xs text-amber-800 leading-relaxed">Please make sure to approve all of the applicant's documents. Only approved documents will be transferred to their faculty account.</p>
+              </div>
+              <a href="{% url 'adminhub:account_creation' %}" class="mt-3 inline-flex items-center gap-1.5 rounded-md bg-[#800505] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#a80707] transition">
                 Create Faculty Account
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-3.5 w-3.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
@@ -1388,13 +1454,37 @@
                 </form>
               </td>
           </tr>
-          {% empty %}
+          {% endfor %}
+          {% for doc in completed_step_docs %}
+          <tr class="hover:bg-gray-50/60 transition bg-green-50/30">
+            <td class="px-4 py-3 align-top">
+              <div class="font-medium text-gray-900">{{ doc.get_step_type_display }}{% if doc.document_category %} — {{ doc.document_category.name }}{% endif %}</div>
+              <div class="text-[11px] text-gray-400 mt-0.5">Step document</div>
+            </td>
+            <td class="px-4 py-3 align-top">
+              <a href="{% url 'adminhub:download_applicant_step_document' doc.pk %}?inline=1"
+                 target="_blank" rel="noopener noreferrer"
+                 class="inline-flex items-center gap-1 text-[#800505] hover:underline font-medium">
+                View
+              </a>
+            </td>
+            <td class="px-4 py-3 align-top">
+              <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-800 ring-1 ring-green-200">
+                {{ doc.status }}
+              </span>
+            </td>
+            <td class="px-4 py-3 align-top text-gray-400">N/A</td>
+            <td class="px-4 py-3 align-top text-gray-800 whitespace-nowrap">{{ doc.uploaded_at|date:"M j, Y H:i" }}</td>
+            <td class="px-4 py-3 align-top text-gray-400 text-xs">—</td>
+          </tr>
+          {% endfor %}
+          {% if not documents and not completed_step_docs %}
           <tr>
               <td colspan="6" class="px-4 py-10 text-center text-gray-500 font-medium">
               No documents uploaded.
             </td>
           </tr>
-          {% endfor %}
+          {% endif %}
         </tbody>
       </table>
     </div>
@@ -1454,9 +1544,39 @@
           </div>
         </div>
       </div>
-      {% empty %}
-        <p class="text-gray-500 text-sm text-center">No documents uploaded.</p>
       {% endfor %}
+      {% for doc in completed_step_docs %}
+      <div class="border border-green-100 rounded-lg p-4 shadow-sm bg-green-50/40">
+        <div class="flex items-start justify-between gap-3 mb-2">
+          <div>
+            <div class="font-semibold text-gray-900">{{ doc.get_step_type_display }}{% if doc.document_category %} — {{ doc.document_category.name }}{% endif %}</div>
+            <div class="text-[11px] text-gray-400 mt-0.5">Step document</div>
+          </div>
+          <a href="{% url 'adminhub:download_applicant_step_document' doc.pk %}?inline=1"
+             target="_blank" rel="noopener noreferrer"
+             class="text-xs font-semibold text-[#800505] hover:underline">
+            View
+          </a>
+        </div>
+        <div class="text-xs text-gray-700 space-y-1.5">
+          <div>
+            <span class="text-gray-500">Status:</span>
+            <span class="ml-1 inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-semibold text-green-800 ring-1 ring-green-200">{{ doc.status }}</span>
+          </div>
+          <div>
+            <span class="text-gray-500">Expiry:</span>
+            <span class="text-gray-400">N/A</span>
+          </div>
+          <div>
+            <span class="text-gray-500">Uploaded:</span>
+            {{ doc.uploaded_at|date:"M j, Y H:i" }}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      {% if not documents and not completed_step_docs %}
+        <p class="text-gray-500 text-sm text-center">No documents uploaded.</p>
+      {% endif %}
     </div>
   </section>
 </div>
@@ -2138,6 +2258,14 @@
       var el = document.getElementById('cat_instructions_' + catId);
       if (el) el.classList.remove('hidden');
     }
+  });
+
+  // File input filename display (custom Choose File label → filename span)
+  document.querySelectorAll('input[type="file"][id]').forEach(function(inp) {
+    inp.addEventListener('change', function() {
+      var display = document.getElementById(inp.id + '-display');
+      if (display) display.textContent = this.files.length ? this.files[0].name : 'No file chosen';
+    });
   });
 </script>
 {% endblock %}

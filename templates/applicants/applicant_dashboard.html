@@ -637,16 +637,28 @@
                  class="shrink-0 text-xs font-semibold underline">View</a>
             </div>
           </div>
-          {% if psych_doc.status == 'Rejected' %}
-            <p class="text-xs text-gray-500">Your document was rejected. You may upload a new one below.</p>
-            <form method="post" action="{% url 'applicants:upload_psych_test' %}" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-2 items-start">
+          {% if psych_doc.status == 'Approved' %}
+            <p class="mt-2 text-xs font-semibold text-green-700">Your document has been approved and cannot be replaced.</p>
+          {% else %}
+            {% if psych_doc.status == 'Rejected' %}
+              <p class="text-xs text-gray-500">Your document was rejected. You may upload a new one below.</p>
+            {% else %}
+              <p class="text-xs text-gray-500">Your document is pending review. You may replace it with a new upload if needed.</p>
+            {% endif %}
+            <form method="post" action="{% url 'applicants:upload_psych_test' %}" enctype="multipart/form-data" class="space-y-2">
               {% csrf_token %}
-              <input type="file" name="psych_test_file" accept=".pdf,.jpg,.jpeg,.png" required
-                     class="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#800505] file:text-white file:font-semibold hover:file:bg-[#a80707]" />
-              <button type="submit"
-                      class="shrink-0 rounded-lg bg-[#800505] px-5 py-2 text-sm font-semibold text-white hover:bg-[#a80707]">
-                Re-upload
-              </button>
+              <div class="flex items-center w-full">
+                <label for="psych-file-upload"
+                       class="inline-flex items-center cursor-pointer px-4 py-2 h-9 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg rounded-r-none font-semibold text-xs transition whitespace-nowrap shrink-0">
+                  Choose File
+                </label>
+                <span id="psych-file-upload-display"
+                      class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg px-4 py-2 h-9 text-xs bg-gray-50 flex-1 min-w-0 truncate text-gray-500">
+                  No file chosen
+                </span>
+                <input type="file" id="psych-file-upload" name="psych_test_file" accept=".pdf,.jpg,.jpeg,.png" required class="sr-only" />
+              </div>
+              <button type="submit" class="rounded-lg bg-[#800505] px-5 py-2 text-sm font-semibold text-white hover:bg-[#a80707]">Re-upload</button>
             </form>
           {% endif %}
         {% else %}
@@ -670,14 +682,20 @@
             {% endif %}
           </div>
 
-          <form method="post" action="{% url 'applicants:upload_psych_test' %}" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-2 items-start">
+          <form method="post" action="{% url 'applicants:upload_psych_test' %}" enctype="multipart/form-data" class="space-y-2">
             {% csrf_token %}
-            <input type="file" name="psych_test_file" accept=".pdf,.jpg,.jpeg,.png" required
-                   class="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#800505] file:text-white file:font-semibold hover:file:bg-[#a80707]" />
-            <button type="submit"
-                    class="shrink-0 rounded-lg bg-[#800505] px-5 py-2 text-sm font-semibold text-white hover:bg-[#a80707]">
-              Upload
-            </button>
+            <div class="flex items-center w-full">
+              <label for="psych-file-upload"
+                     class="inline-flex items-center cursor-pointer px-4 py-2 h-9 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg rounded-r-none font-semibold text-xs transition whitespace-nowrap shrink-0">
+                Choose File
+              </label>
+              <span id="psych-file-upload-display"
+                    class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg px-4 py-2 h-9 text-xs bg-gray-50 flex-1 min-w-0 truncate text-gray-500">
+                No file chosen
+              </span>
+              <input type="file" id="psych-file-upload" name="psych_test_file" accept=".pdf,.jpg,.jpeg,.png" required class="sr-only" />
+            </div>
+            <button type="submit" class="rounded-lg bg-[#800505] px-5 py-2 text-sm font-semibold text-white hover:bg-[#a80707]">Upload</button>
           </form>
         {% endif %}
       </section>
@@ -749,24 +767,46 @@
                  class="shrink-0 text-xs font-semibold underline">View</a>
             </div>
           </div>
-          {% if signed_contract.status == 'Rejected' and admin_contract %}
-            <p class="text-xs text-gray-500">Your signed contract was rejected. Please re-upload.</p>
-            <form method="post" action="{% url 'applicants:upload_signed_contract' %}" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-2 items-start">
+          {% if signed_contract.status == 'Approved' %}
+            <p class="mt-2 text-xs font-semibold text-green-700">Your signed contract has been approved and cannot be replaced.</p>
+          {% elif admin_contract %}
+            {% if signed_contract.status == 'Rejected' %}
+              <p class="text-xs text-gray-500">Your signed contract was rejected. Please re-upload.</p>
+            {% else %}
+              <p class="text-xs text-gray-500">Your signed contract is pending review. You may replace it with a new upload if needed.</p>
+            {% endif %}
+            <form method="post" action="{% url 'applicants:upload_signed_contract' %}" enctype="multipart/form-data" class="space-y-2">
               {% csrf_token %}
-              <input type="file" name="signed_contract_file" accept=".pdf,.jpg,.jpeg,.png" required
-                     class="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#800505] file:text-white file:font-semibold hover:file:bg-[#a80707]" />
-              <button type="submit" class="shrink-0 rounded-lg bg-[#800505] px-5 py-2 text-sm font-semibold text-white hover:bg-[#a80707]">Re-upload</button>
+              <div class="flex items-center w-full">
+                <label for="contract-file-upload"
+                       class="inline-flex items-center cursor-pointer px-4 py-2 h-9 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg rounded-r-none font-semibold text-xs transition whitespace-nowrap shrink-0">
+                  Choose File
+                </label>
+                <span id="contract-file-upload-display"
+                      class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg px-4 py-2 h-9 text-xs bg-gray-50 flex-1 min-w-0 truncate text-gray-500">
+                  No file chosen
+                </span>
+                <input type="file" id="contract-file-upload" name="signed_contract_file" accept=".pdf,.jpg,.jpeg,.png" required class="sr-only" />
+              </div>
+              <button type="submit" class="rounded-lg bg-[#800505] px-5 py-2 text-sm font-semibold text-white hover:bg-[#a80707]">Re-upload</button>
             </form>
           {% endif %}
         {% elif admin_contract %}
           <form method="post" action="{% url 'applicants:upload_signed_contract' %}" enctype="multipart/form-data" class="space-y-2">
             {% csrf_token %}
             <label class="block text-xs font-semibold text-gray-600">Upload Signed Contract</label>
-            <div class="flex flex-col sm:flex-row gap-2 items-start">
-              <input type="file" name="signed_contract_file" accept=".pdf,.jpg,.jpeg,.png" required
-                     class="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#800505] file:text-white file:font-semibold hover:file:bg-[#a80707]" />
-              <button type="submit" class="shrink-0 rounded-lg bg-[#800505] px-5 py-2 text-sm font-semibold text-white hover:bg-[#a80707]">Upload</button>
+            <div class="flex items-center w-full">
+              <label for="contract-file-upload"
+                     class="inline-flex items-center cursor-pointer px-4 py-2 h-9 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg rounded-r-none font-semibold text-xs transition whitespace-nowrap shrink-0">
+                Choose File
+              </label>
+              <span id="contract-file-upload-display"
+                    class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg px-4 py-2 h-9 text-xs bg-gray-50 flex-1 min-w-0 truncate text-gray-500">
+                No file chosen
+              </span>
+              <input type="file" id="contract-file-upload" name="signed_contract_file" accept=".pdf,.jpg,.jpeg,.png" required class="sr-only" />
             </div>
+            <button type="submit" class="rounded-lg bg-[#800505] px-5 py-2 text-sm font-semibold text-white hover:bg-[#a80707]">Upload</button>
             <p class="text-xs text-gray-400">Accepted: PDF, JPG, PNG — max 15 MB</p>
           </form>
         {% endif %}
@@ -789,10 +829,10 @@
         </div>
 
         {% if salary_checklist %}
-          <div class="space-y-3">
+          <div class="space-y-4">
             {% for item in salary_checklist %}
               {% with doc=item.uploaded_doc cfg=item.config %}
-              <div class="rounded-lg border p-3
+              <div class="rounded-lg border p-4
                 {% if doc and doc.status == 'Approved' %}border-green-200 bg-green-50
                 {% elif doc and doc.status == 'Rejected' %}border-red-200 bg-red-50
                 {% elif doc %}border-amber-200 bg-amber-50
@@ -816,8 +856,10 @@
                   </div>
                   <div class="flex items-center gap-2 ml-6 sm:ml-0">
                     {% if doc %}
-                      <span class="text-xs font-semibold
-                        {% if doc.status == 'Approved' %}text-green-700{% elif doc.status == 'Rejected' %}text-red-700{% else %}text-amber-700{% endif %}">
+                      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold
+                        {% if doc.status == 'Approved' %}bg-green-100 text-green-700
+                        {% elif doc.status == 'Rejected' %}bg-red-100 text-red-700
+                        {% else %}bg-amber-100 text-amber-700{% endif %}">
                         {{ doc.status }}
                       </span>
                       <a href="{% url 'applicants:download_step_document' doc.pk %}?inline=1" target="_blank"
@@ -832,15 +874,28 @@
                   <p class="mt-1.5 text-xs text-gray-600 ml-6"><span class="font-semibold">Remarks:</span> {{ doc.admin_remarks }}</p>
                 {% endif %}
 
-                {% if not doc or doc.status == 'Rejected' %}
+                {% if doc and doc.status == 'Approved' %}
+                  <p class="mt-1.5 ml-6 text-xs font-semibold text-green-700">Approved — cannot be replaced.</p>
+                {% elif not doc or doc.status == 'Rejected' or doc.status == 'Pending' %}
+                  {% if doc and doc.status == 'Pending' %}
+                    <p class="mt-1.5 ml-6 text-xs text-gray-500">Pending review — you may replace this file if needed.</p>
+                  {% endif %}
                   <form method="post" action="{% url 'applicants:upload_salary_requirement' %}" enctype="multipart/form-data"
-                        class="mt-2 ml-6 flex flex-col sm:flex-row gap-2 items-start">
+                        class="mt-2 ml-6 space-y-2">
                     {% csrf_token %}
                     <input type="hidden" name="document_category_id" value="{{ cfg.document_category.pk }}">
-                    <input type="file" name="salary_req_file" accept=".pdf,.jpg,.jpeg,.png" required
-                           class="block w-full text-xs text-gray-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-[#800505] file:text-white file:font-semibold hover:file:bg-[#a80707]" />
-                    <button type="submit"
-                            class="shrink-0 rounded-lg bg-[#800505] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#a80707]">
+                    <div class="flex items-center w-full">
+                      <label for="salary-file-{{ forloop.counter }}"
+                             class="inline-flex items-center cursor-pointer px-3 py-1.5 h-8 bg-[#800505] hover:bg-[#a80707] text-white rounded-l-lg rounded-r-none font-semibold text-xs transition whitespace-nowrap shrink-0">
+                        Choose File
+                      </label>
+                      <span id="salary-file-{{ forloop.counter }}-display"
+                            class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg px-3 py-1.5 h-8 text-xs bg-gray-50 flex-1 min-w-0 truncate text-gray-500">
+                        No file chosen
+                      </span>
+                      <input type="file" id="salary-file-{{ forloop.counter }}" name="salary_req_file" accept=".pdf,.jpg,.jpeg,.png" required class="sr-only" />
+                    </div>
+                    <button type="submit" class="rounded-lg bg-[#800505] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#a80707]">
                       {% if doc %}Re-upload{% else %}Upload{% endif %}
                     </button>
                   </form>
@@ -1011,13 +1066,36 @@
                 {{ doc.submitted_at|date:"F j, Y" }}
               </td>
             </tr>
-            {% empty %}
+            {% endfor %}
+            {% for doc in completed_step_docs %}
+            <tr class="hover:bg-gray-50/60 transition bg-green-50/30">
+              <td class="px-4 py-3 align-top">
+                <div class="font-medium text-gray-900">{{ doc.get_step_type_display }}{% if doc.document_category %} — {{ doc.document_category.name }}{% endif %}</div>
+                <div class="text-[11px] text-gray-400 mt-0.5">Step document</div>
+              </td>
+              <td class="px-4 py-3 align-top">
+                <a href="{% url 'applicants:download_step_document' doc.pk %}?inline=1"
+                   target="_blank" rel="noopener noreferrer"
+                   class="inline-flex items-center gap-1 text-[#800505] hover:underline font-medium">
+                  View
+                </a>
+              </td>
+              <td class="px-4 py-3 align-top">
+                <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-800 ring-1 ring-green-200">
+                  {{ doc.status }}
+                </span>
+              </td>
+              <td class="px-4 py-3 align-top text-gray-400">N/A</td>
+              <td class="px-4 py-3 align-top text-gray-800 whitespace-nowrap">{{ doc.uploaded_at|date:"F j, Y" }}</td>
+            </tr>
+            {% endfor %}
+            {% if not documents and not completed_step_docs %}
             <tr>
               <td colspan="5" class="px-4 py-10 text-center text-gray-500 font-medium">
                 No documents uploaded.
               </td>
             </tr>
-            {% endfor %}
+            {% endif %}
           </tbody>
         </table>
       </div>
@@ -1060,9 +1138,39 @@
             </div>
           </div>
         </div>
-        {% empty %}
-          <p class="text-gray-500 text-sm text-center">No documents uploaded.</p>
         {% endfor %}
+        {% for doc in completed_step_docs %}
+        <div class="border border-green-100 rounded-lg p-4 shadow-sm bg-green-50/40">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <div class="font-semibold text-gray-900">{{ doc.get_step_type_display }}{% if doc.document_category %} — {{ doc.document_category.name }}{% endif %}</div>
+              <div class="text-[11px] text-gray-400 mt-0.5">Step document</div>
+            </div>
+            <a href="{% url 'applicants:download_step_document' doc.pk %}?inline=1"
+               target="_blank" rel="noopener noreferrer"
+               class="text-xs font-semibold text-[#800505] hover:underline">
+              View
+            </a>
+          </div>
+          <div class="text-xs text-gray-700 space-y-1.5">
+            <div>
+              <span class="text-gray-500">Status:</span>
+              <span class="ml-1 inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-semibold text-green-800 ring-1 ring-green-200">{{ doc.status }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Expiry:</span>
+              <span class="text-gray-400">N/A</span>
+            </div>
+            <div>
+              <span class="text-gray-500">Uploaded:</span>
+              {{ doc.uploaded_at|date:"F j, Y" }}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        {% if not documents and not completed_step_docs %}
+          <p class="text-gray-500 text-sm text-center">No documents uploaded.</p>
+        {% endif %}
       </div>
     </section>
 
@@ -1234,6 +1342,14 @@
         closeRescheduleRequestModal();
         closeCancelApplicationModal();
       }
+    });
+
+    // Update filename display spans for custom file inputs
+    document.querySelectorAll('input[type="file"][id]').forEach(function(inp) {
+      inp.addEventListener('change', function() {
+        var display = document.getElementById(inp.id + '-display');
+        if (display) display.textContent = this.files.length ? this.files[0].name : 'No file chosen';
+      });
     });
   </script>
 </body>

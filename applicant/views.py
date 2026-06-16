@@ -55,6 +55,8 @@ def applicant_apply(request):
     doc_categories = [doc.document_category for doc in required_docs]
 
     if request.method == "POST":
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
         basic_form = ApplicantForm(request.POST)
         forms = [
             ApplicantDocumentUploadForm(
@@ -102,14 +104,17 @@ def applicant_apply(request):
                     "Registration failed during document upload for form data: "
                     "%s", basic_form.cleaned_data.get("email", "<unknown>")
                 )
+                _upload_error_msg = (
+                    "One or more documents could not be uploaded. "
+                    "Please try again or contact support if the issue persists."
+                )
+                if is_ajax:
+                    return JsonResponse({'success': False, 'upload_error': _upload_error_msg})
                 context = {
                     "basic_form": basic_form,
                     "forms": forms,
                     "required_docs": required_docs,
-                    "upload_error": (
-                        "One or more documents could not be uploaded. "
-                        "Please try again or contact support if the issue persists."
-                    ),
+                    "upload_error": _upload_error_msg,
                 }
                 return render(request, "applicants/applicant_apply.html", context)
 
@@ -149,9 +154,19 @@ def applicant_apply(request):
                 "Application submitted! A copy has been sent to your email. "
                 "Please keep your Applicant ID for future status checks.",
             )
+            if is_ajax:
+                return JsonResponse({'success': True, 'redirect': reverse('applicants:registration_confirmed')})
             return redirect("applicants:registration_confirmed")
         else:
-            messages.error(request, "Please correct errors in your form(s).")
+            if is_ajax:
+                errors = {
+                    'basic_form': {k: [str(e) for e in v] for k, v in basic_form.errors.items()},
+                    'doc_forms': {
+                        str(i): {k: [str(e) for e in v] for k, v in form.errors.items()}
+                        for i, form in enumerate(forms)
+                    },
+                }
+                return JsonResponse({'success': False, 'errors': errors})
     else:
         basic_form = ApplicantForm()
         forms = [
@@ -614,6 +629,23 @@ def _get_dashboard_step_context(applicant: Applicant) -> dict:
             uploaded_docs.get(c.document_category_id) for c in configs if c.is_required
         )
 
+    # Collect approved step documents from completed steps so they remain
+    # visible on the dashboard after the applicant advances past those steps.
+    all_step_docs = list(
+        applicant.step_documents
+        .filter(status=ApplicantStepDocument.STATUS_APPROVED)
+        .select_related('document_category')
+        .order_by('step_type', '-uploaded_at')
+    )
+    seen_keys: set = set()
+    completed_step_docs = []
+    for d in all_step_docs:
+        key = (d.step_type, d.document_category_id)
+        if key not in seen_keys:
+            seen_keys.add(key)
+            completed_step_docs.append(d)
+    ctx['completed_step_docs'] = completed_step_docs
+
     return ctx
 
 
@@ -720,10 +752,10 @@ def applicant_upload_psych_test(request):
 
     existing = applicant.step_documents.filter(
         step_type=ApplicantStepDocument.STEP_PSYCH_TEST,
-        status=ApplicantStepDocument.STATUS_PENDING,
-    ).first()
-    if existing:
-        messages.warning(request, "You already have a psych test document pending review. Please wait for admin feedback.")
+    ).order_by('-uploaded_at').first()
+
+    if existing and existing.status == ApplicantStepDocument.STATUS_APPROVED:
+        messages.error(request, "Your psych test document has already been approved and cannot be replaced.")
         return redirect('applicants:dashboard')
 
     file = request.FILES.get('psych_test_file')
@@ -750,13 +782,24 @@ def applicant_upload_psych_test(request):
             fields='id,webViewLink',
         ).execute()
 
-        ApplicantStepDocument.objects.create(
-            applicant=applicant,
-            step_type=ApplicantStepDocument.STEP_PSYCH_TEST,
-            file_path=upload['webViewLink'],
-            google_drive_id=upload['id'],
-            file_size=file.size,
-        )
+        if existing and existing.status == ApplicantStepDocument.STATUS_PENDING:
+            try:
+                service.service.files().delete(fileId=existing.google_drive_id).execute()
+            except Exception:
+                pass
+            existing.file_path = upload['webViewLink']
+            existing.google_drive_id = upload['id']
+            existing.file_size = file.size
+            existing.status = ApplicantStepDocument.STATUS_PENDING
+            existing.save()
+        else:
+            ApplicantStepDocument.objects.create(
+                applicant=applicant,
+                step_type=ApplicantStepDocument.STEP_PSYCH_TEST,
+                file_path=upload['webViewLink'],
+                google_drive_id=upload['id'],
+                file_size=file.size,
+            )
         ApplicantTimeline.objects.create(
             applicant=applicant,
             action="Uploaded psych test document",
@@ -839,10 +882,10 @@ def applicant_upload_signed_contract(request):
 
     existing = applicant.step_documents.filter(
         step_type=ApplicantStepDocument.STEP_CONTRACT_SIGNED,
-        status=ApplicantStepDocument.STATUS_PENDING,
-    ).first()
-    if existing:
-        messages.warning(request, "Your signed contract is already pending admin review.")
+    ).order_by('-uploaded_at').first()
+
+    if existing and existing.status == ApplicantStepDocument.STATUS_APPROVED:
+        messages.error(request, "Your signed contract has already been approved and cannot be replaced.")
         return redirect('applicants:dashboard')
 
     file = request.FILES.get('signed_contract_file')
@@ -867,13 +910,24 @@ def applicant_upload_signed_contract(request):
             fields='id,webViewLink',
         ).execute()
 
-        ApplicantStepDocument.objects.create(
-            applicant=applicant,
-            step_type=ApplicantStepDocument.STEP_CONTRACT_SIGNED,
-            file_path=upload['webViewLink'],
-            google_drive_id=upload['id'],
-            file_size=file.size,
-        )
+        if existing and existing.status == ApplicantStepDocument.STATUS_PENDING:
+            try:
+                service.service.files().delete(fileId=existing.google_drive_id).execute()
+            except Exception:
+                pass
+            existing.file_path = upload['webViewLink']
+            existing.google_drive_id = upload['id']
+            existing.file_size = file.size
+            existing.status = ApplicantStepDocument.STATUS_PENDING
+            existing.save()
+        else:
+            ApplicantStepDocument.objects.create(
+                applicant=applicant,
+                step_type=ApplicantStepDocument.STEP_CONTRACT_SIGNED,
+                file_path=upload['webViewLink'],
+                google_drive_id=upload['id'],
+                file_size=file.size,
+            )
         ApplicantTimeline.objects.create(
             applicant=applicant,
             action="Uploaded signed contract",
@@ -929,10 +983,10 @@ def applicant_upload_salary_requirement(request):
     existing = applicant.step_documents.filter(
         step_type=ApplicantStepDocument.STEP_SALARY_REQUIREMENT,
         document_category_id=category_id,
-        status=ApplicantStepDocument.STATUS_PENDING,
-    ).first()
-    if existing:
-        messages.warning(request, f"A document for '{config.document_category.name}' is already pending review.")
+    ).order_by('-uploaded_at').first()
+
+    if existing and existing.status == ApplicantStepDocument.STATUS_APPROVED:
+        messages.error(request, f"'{config.document_category.name}' has already been approved and cannot be replaced.")
         return redirect('applicants:dashboard')
 
     file = request.FILES.get('salary_req_file')
@@ -957,14 +1011,25 @@ def applicant_upload_salary_requirement(request):
             fields='id,webViewLink',
         ).execute()
 
-        ApplicantStepDocument.objects.create(
-            applicant=applicant,
-            step_type=ApplicantStepDocument.STEP_SALARY_REQUIREMENT,
-            document_category=config.document_category,
-            file_path=upload['webViewLink'],
-            google_drive_id=upload['id'],
-            file_size=file.size,
-        )
+        if existing and existing.status == ApplicantStepDocument.STATUS_PENDING:
+            try:
+                service.service.files().delete(fileId=existing.google_drive_id).execute()
+            except Exception:
+                pass
+            existing.file_path = upload['webViewLink']
+            existing.google_drive_id = upload['id']
+            existing.file_size = file.size
+            existing.status = ApplicantStepDocument.STATUS_PENDING
+            existing.save()
+        else:
+            ApplicantStepDocument.objects.create(
+                applicant=applicant,
+                step_type=ApplicantStepDocument.STEP_SALARY_REQUIREMENT,
+                document_category=config.document_category,
+                file_path=upload['webViewLink'],
+                google_drive_id=upload['id'],
+                file_size=file.size,
+            )
         ApplicantTimeline.objects.create(
             applicant=applicant,
             action="Uploaded salary requirement document",

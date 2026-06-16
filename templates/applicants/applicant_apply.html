@@ -72,6 +72,14 @@
       </div>
       {% endif %}
 
+      <!-- AJAX error banner (hidden by default, shown on AJAX validation failure) -->
+      <div id="ajax-form-error" class="hidden mb-6 bg-red-50 border border-red-300 text-red-800 rounded-lg px-4 py-3 text-sm flex items-start gap-3">
+        <svg class="w-5 h-5 mt-0.5 shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"/>
+        </svg>
+        <p id="ajax-form-error-message"></p>
+      </div>
+
       <!-- Form -->
       <form id="applicant-form" method="post" enctype="multipart/form-data" class="space-y-8">
         {% csrf_token %}
@@ -86,31 +94,27 @@
               <div>
                 {{ basic_form.first_name.label_tag }}
                 {{ basic_form.first_name }}
-                {% if basic_form.first_name.errors %}
-                  <p class="text-red-600 text-xs mt-1">{{ basic_form.first_name.errors.0 }}</p>
-                {% endif %}
+                <p id="ajax-error-first_name"
+                   class="text-red-600 text-xs mt-1 {% if not basic_form.first_name.errors %}hidden{% endif %}">{{ basic_form.first_name.errors.0 }}</p>
               </div>
               <div>
                 {{ basic_form.middle_name.label_tag }}
                 {{ basic_form.middle_name }}
                 <p class="text-xs text-gray-500 mt-1">Optional</p>
-                {% if basic_form.middle_name.errors %}
-                  <p class="text-red-600 text-xs mt-1">{{ basic_form.middle_name.errors.0 }}</p>
-                {% endif %}
+                <p id="ajax-error-middle_name"
+                   class="text-red-600 text-xs mt-1 {% if not basic_form.middle_name.errors %}hidden{% endif %}">{{ basic_form.middle_name.errors.0 }}</p>
               </div>
               <div>
                 {{ basic_form.last_name.label_tag }}
                 {{ basic_form.last_name }}
-                {% if basic_form.last_name.errors %}
-                  <p class="text-red-600 text-xs mt-1">{{ basic_form.last_name.errors.0 }}</p>
-                {% endif %}
+                <p id="ajax-error-last_name"
+                   class="text-red-600 text-xs mt-1 {% if not basic_form.last_name.errors %}hidden{% endif %}">{{ basic_form.last_name.errors.0 }}</p>
               </div>
               <div>
                 {{ basic_form.suffix.label_tag }}
                 {{ basic_form.suffix }}
-                {% if basic_form.suffix.errors %}
-                  <p class="text-red-600 text-xs mt-1">{{ basic_form.suffix.errors.0 }}</p>
-                {% endif %}
+                <p id="ajax-error-suffix"
+                   class="text-red-600 text-xs mt-1 {% if not basic_form.suffix.errors %}hidden{% endif %}">{{ basic_form.suffix.errors.0 }}</p>
               </div>
             </div>
 
@@ -118,9 +122,8 @@
             <div>
               {{ basic_form.birth_date.label_tag }}
               {{ basic_form.birth_date }}
-              {% if basic_form.birth_date.errors %}
-                <p class="text-red-600 text-xs mt-1">{{ basic_form.birth_date.errors.0 }}</p>
-              {% endif %}
+              <p id="ajax-error-birth_date"
+                 class="text-red-600 text-xs mt-1 {% if not basic_form.birth_date.errors %}hidden{% endif %}">{{ basic_form.birth_date.errors.0 }}</p>
             </div>
 
             <!-- Email - Contact Number -->
@@ -128,17 +131,15 @@
               <div>
                 {{ basic_form.email.label_tag }}
                 {{ basic_form.email }}
-                {% if basic_form.email.errors %}
-                  <p class="text-red-600 text-xs mt-1">{{ basic_form.email.errors.0 }}</p>
-                {% endif %}
+                <p id="ajax-error-email"
+                   class="text-red-600 text-xs mt-1 {% if not basic_form.email.errors %}hidden{% endif %}">{{ basic_form.email.errors.0 }}</p>
               </div>
               <div>
                 {{ basic_form.contact_number.label_tag }}
                 {{ basic_form.contact_number }}
                 <p class="text-xs text-gray-500 mt-1">Enter 11-digit PH mobile number (e.g. 09171234567)</p>
-                {% if basic_form.contact_number.errors %}
-                  <p class="text-red-600 text-xs mt-1">{{ basic_form.contact_number.errors.0 }}</p>
-                {% endif %}
+                <p id="ajax-error-contact_number"
+                   class="text-red-600 text-xs mt-1 {% if not basic_form.contact_number.errors %}hidden{% endif %}">{{ basic_form.contact_number.errors.0 }}</p>
               </div>
             </div>
 
@@ -146,9 +147,8 @@
             <div>
               {{ basic_form.area_of_specialization.label_tag }}
               {{ basic_form.area_of_specialization }}
-              {% if basic_form.area_of_specialization.errors %}
-                <p class="text-red-600 text-xs mt-1">{{ basic_form.area_of_specialization.errors.0 }}</p>
-              {% endif %}
+              <p id="ajax-error-area_of_specialization"
+                 class="text-red-600 text-xs mt-1 {% if not basic_form.area_of_specialization.errors %}hidden{% endif %}">{{ basic_form.area_of_specialization.errors.0 }}</p>
             </div>
 
             <!-- Emergency Contact -->
@@ -156,17 +156,15 @@
               <div>
                 {{ basic_form.emergency_contact_name.label_tag }}
                 {{ basic_form.emergency_contact_name }}
-                {% if basic_form.emergency_contact_name.errors %}
-                  <p class="text-red-600 text-xs mt-1">{{ basic_form.emergency_contact_name.errors.0 }}</p>
-                {% endif %}
+                <p id="ajax-error-emergency_contact_name"
+                   class="text-red-600 text-xs mt-1 {% if not basic_form.emergency_contact_name.errors %}hidden{% endif %}">{{ basic_form.emergency_contact_name.errors.0 }}</p>
               </div>
               <div>
                 {{ basic_form.emergency_contact_number.label_tag }}
                 {{ basic_form.emergency_contact_number }}
                 <p class="text-xs text-gray-500 mt-1">Enter 11-digit PH mobile number (e.g. 09171234567)</p>
-                {% if basic_form.emergency_contact_number.errors %}
-                  <p class="text-red-600 text-xs mt-1">{{ basic_form.emergency_contact_number.errors.0 }}</p>
-                {% endif %}
+                <p id="ajax-error-emergency_contact_number"
+                   class="text-red-600 text-xs mt-1 {% if not basic_form.emergency_contact_number.errors %}hidden{% endif %}">{{ basic_form.emergency_contact_number.errors.0 }}</p>
               </div>
             </div>
 
@@ -184,16 +182,14 @@
             <div>
               {{ basic_form.college_degree.label_tag }}
               {{ basic_form.college_degree }}
-              {% if basic_form.college_degree.errors %}
-                <p class="text-red-600 text-xs mt-1">{{ basic_form.college_degree.errors.0 }}</p>
-              {% endif %}
+              <p id="ajax-error-college_degree"
+                 class="text-red-600 text-xs mt-1 {% if not basic_form.college_degree.errors %}hidden{% endif %}">{{ basic_form.college_degree.errors.0 }}</p>
             </div>
             <div>
               {{ basic_form.college_institution.label_tag }}
               {{ basic_form.college_institution }}
-              {% if basic_form.college_institution.errors %}
-                <p class="text-red-600 text-xs mt-1">{{ basic_form.college_institution.errors.0 }}</p>
-              {% endif %}
+              <p id="ajax-error-college_institution"
+                 class="text-red-600 text-xs mt-1 {% if not basic_form.college_institution.errors %}hidden{% endif %}">{{ basic_form.college_institution.errors.0 }}</p>
             </div>
           </div>
 
@@ -203,16 +199,14 @@
             <div>
               {{ basic_form.masters_degree.label_tag }}
               {{ basic_form.masters_degree }}
-              {% if basic_form.masters_degree.errors %}
-                <p class="text-red-600 text-xs mt-1">{{ basic_form.masters_degree.errors.0 }}</p>
-              {% endif %}
+              <p id="ajax-error-masters_degree"
+                 class="text-red-600 text-xs mt-1 {% if not basic_form.masters_degree.errors %}hidden{% endif %}">{{ basic_form.masters_degree.errors.0 }}</p>
             </div>
             <div>
               {{ basic_form.masters_institution.label_tag }}
               {{ basic_form.masters_institution }}
-              {% if basic_form.masters_institution.errors %}
-                <p class="text-red-600 text-xs mt-1">{{ basic_form.masters_institution.errors.0 }}</p>
-              {% endif %}
+              <p id="ajax-error-masters_institution"
+                 class="text-red-600 text-xs mt-1 {% if not basic_form.masters_institution.errors %}hidden{% endif %}">{{ basic_form.masters_institution.errors.0 }}</p>
             </div>
           </div>
 
@@ -222,16 +216,14 @@
             <div>
               {{ basic_form.doctorate_degree.label_tag }}
               {{ basic_form.doctorate_degree }}
-              {% if basic_form.doctorate_degree.errors %}
-                <p class="text-red-600 text-xs mt-1">{{ basic_form.doctorate_degree.errors.0 }}</p>
-              {% endif %}
+              <p id="ajax-error-doctorate_degree"
+                 class="text-red-600 text-xs mt-1 {% if not basic_form.doctorate_degree.errors %}hidden{% endif %}">{{ basic_form.doctorate_degree.errors.0 }}</p>
             </div>
             <div>
               {{ basic_form.doctorate_institution.label_tag }}
               {{ basic_form.doctorate_institution }}
-              {% if basic_form.doctorate_institution.errors %}
-                <p class="text-red-600 text-xs mt-1">{{ basic_form.doctorate_institution.errors.0 }}</p>
-              {% endif %}
+              <p id="ajax-error-doctorate_institution"
+                 class="text-red-600 text-xs mt-1 {% if not basic_form.doctorate_institution.errors %}hidden{% endif %}">{{ basic_form.doctorate_institution.errors.0 }}</p>
             </div>
           </div>
         </div>
@@ -260,28 +252,23 @@
                     Choose File
                   </label>
                   <span id="file-chosen-{{ forloop.counter0 }}"
-                        class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg px-5 py-2 h-10 text-gray-700 text-sm bg-gray-50 flex-1 min-w-0 truncate overflow-hidden whitespace-nowrap">
-                    No file chosen
+                        class="inline-flex items-center border border-gray-300 border-l-0 rounded-r-lg px-5 py-2 h-10 text-sm bg-gray-50 flex-1 min-w-0 truncate overflow-hidden whitespace-nowrap
+                               {% if form.file.value %}text-amber-700{% else %}text-gray-700{% endif %}">
+                    {% if form.file.value %}{{ form.file.value.name }}{% else %}No file chosen{% endif %}
                   </span>
                   {{ form.file }}
                 </div>
               </div>
-              {% if form.file.errors %}
-                <div class="text-xs text-red-600 mt-1">
-                  {{ form.file.errors }}
-                </div>
-              {% endif %}
+              <p id="ajax-error-doc{{ forloop.counter0 }}-file"
+                 class="text-xs text-red-600 mt-1 {% if not form.file.errors %}hidden{% endif %}">{{ form.file.errors.0 }}</p>
             </div>
 
             {% if form.fields.expiry_date and form.fixed_document_category.requires_expiry_date %}
             <div class="flex-1 min-w-0 mt-2 md:mt-0">
               <label class="block text-sm font-medium text-gray-700 mb-2">{{ form.expiry_date.label }}</label>
               {{ form.expiry_date }}
-              {% if form.expiry_date.errors %}
-                <div class="text-xs text-red-600 mt-1">
-                  {{ form.expiry_date.errors }}
-                </div>
-              {% endif %}
+              <p id="ajax-error-doc{{ forloop.counter0 }}-expiry_date"
+                 class="text-xs text-red-600 mt-1 {% if not form.expiry_date.errors %}hidden{% endif %}">{{ form.expiry_date.errors.0 }}</p>
             </div>
             {% endif %}
           </div>
@@ -385,19 +372,95 @@
     var formContainer = document.getElementById("form-container");
 
     if (form && submitBtn && submitText && submitSpinner && overlay && formContainer) {
-      form.addEventListener("submit", function() {
-        // Disable to prevent double submit
-        submitBtn.disabled = true;
+      form.addEventListener("submit", function(e) {
+        e.preventDefault();
 
-        // Show spinner on button
+        // Clear previous AJAX errors
+        document.querySelectorAll('[id^="ajax-error-"]').forEach(function(el) {
+          el.textContent = '';
+          el.classList.add('hidden');
+        });
+        var formErrorBanner = document.getElementById('ajax-form-error');
+        formErrorBanner.classList.add('hidden');
+        document.getElementById('ajax-form-error-message').textContent = '';
+
+        // Show loading state
+        submitBtn.disabled = true;
         submitSpinner.classList.remove("hidden");
         submitText.textContent = "Submitting...";
-
-        // Blur the form container
         formContainer.classList.add("blurred");
-
-        // Show centered overlay
         overlay.classList.remove("hidden");
+
+        var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        fetch(window.location.href, {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken,
+          },
+          body: new FormData(form),
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+          if (data.success) {
+            window.location.href = data.redirect;
+            return;
+          }
+
+          // Restore form on error
+          submitBtn.disabled = false;
+          submitSpinner.classList.add("hidden");
+          submitText.textContent = "Submit Application";
+          formContainer.classList.remove("blurred");
+          overlay.classList.add("hidden");
+
+          if (data.upload_error) {
+            document.getElementById('ajax-form-error-message').textContent = data.upload_error;
+            formErrorBanner.classList.remove('hidden');
+            return;
+          }
+
+          if (data.errors) {
+            document.getElementById('ajax-form-error-message').textContent =
+              'Please correct the errors below and resubmit.';
+            formErrorBanner.classList.remove('hidden');
+
+            var basicErrors = data.errors.basic_form || {};
+            for (var field in basicErrors) {
+              var container = document.getElementById('ajax-error-' + field);
+              if (container && basicErrors[field].length > 0) {
+                container.textContent = basicErrors[field][0];
+                container.classList.remove('hidden');
+              }
+            }
+
+            var docErrors = data.errors.doc_forms || {};
+            for (var idx in docErrors) {
+              var formErrors = docErrors[idx];
+              for (var docField in formErrors) {
+                var dcont = document.getElementById('ajax-error-doc' + idx + '-' + docField);
+                if (dcont && formErrors[docField].length > 0) {
+                  dcont.textContent = formErrors[docField][0];
+                  dcont.classList.remove('hidden');
+                }
+              }
+            }
+
+            var firstErr = document.querySelector('[id^="ajax-error-"]:not(.hidden)');
+            if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        })
+        .catch(function() {
+          submitBtn.disabled = false;
+          submitSpinner.classList.add("hidden");
+          submitText.textContent = "Submit Application";
+          formContainer.classList.remove("blurred");
+          overlay.classList.add("hidden");
+          document.getElementById('ajax-form-error-message').textContent =
+            'A network error occurred. Please check your connection and try again.';
+          formErrorBanner.classList.remove('hidden');
+        });
       });
     }
   });

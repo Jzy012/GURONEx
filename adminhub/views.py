@@ -2209,6 +2209,19 @@ def _get_rejected_reached_status(applicant: Applicant):
 def applicant_detail_view(request, uuid):
     applicant = get_object_or_404(Applicant, uuid=uuid)
     documents = ApplicantDocument.objects.filter(applicant=applicant, is_archived=False)
+    _all_step_docs = list(
+        applicant.step_documents
+        .filter(status=ApplicantStepDocument.STATUS_APPROVED)
+        .select_related('document_category')
+        .order_by('step_type', '-uploaded_at')
+    )
+    _seen_step_keys: set = set()
+    completed_step_docs = []
+    for _d in _all_step_docs:
+        _key = (_d.step_type, _d.document_category_id)
+        if _key not in _seen_step_keys:
+            _seen_step_keys.add(_key)
+            completed_step_docs.append(_d)
     status_labels = dict(STEPPER_STATUSES)
     # Legacy: for_interview is merged into demo_scheduled display
     _display_status = 'demo_scheduled' if applicant.status == 'for_interview' else applicant.status
@@ -2305,29 +2318,55 @@ def applicant_detail_view(request, uuid):
                     if not _ea_qs.exists():
                         _eval_block_msg = "No evaluators have been assigned for this evaluation step."
                     else:
-                        from django.db.models import Q as _Q
-                        _pending = _ea_qs.filter(
-                            is_submitted=False,
-                            token_expires_at__gt=_now,
-                        ).filter(
-                            _Q(submission_deadline__isnull=True) | _Q(submission_deadline__gt=_now)
-                        )
-                        _any_submitted = _ea_qs.filter(is_submitted=True).exists()
-                        if _pending.exists():
+                        _unsubmitted = _ea_qs.filter(is_submitted=False)
+                        if _unsubmitted.exists():
                             _total = _ea_qs.count()
                             _done = _ea_qs.filter(is_submitted=True).count()
                             _eval_block_msg = (
-                                f"Evaluation not yet complete — {_done}/{_total} evaluators have submitted. "
-                                "All evaluators must submit or their deadline must pass before advancing."
+                                f"Cannot advance to the Psych Test stage. {_done}/{_total} evaluators have submitted. "
+                                "All assigned evaluators must submit their evaluations before proceeding."
                             )
-                        elif not _any_submitted:
-                            _eval_block_msg = (
-                                "No evaluations have been submitted yet. "
-                                "At least one evaluator must submit before advancing."
+
+                _step_doc_block_msg = ""
+                if applicant.status == 'psych_test':
+                    if not applicant.step_documents.filter(
+                        step_type=ApplicantStepDocument.STEP_PSYCH_TEST,
+                        status=ApplicantStepDocument.STATUS_APPROVED,
+                    ).exists():
+                        _step_doc_block_msg = (
+                            "The applicant's psych test document has not been approved yet. "
+                            "Please review and approve it before advancing."
+                        )
+                elif applicant.status == 'contract_of_service':
+                    if not applicant.step_documents.filter(
+                        step_type=ApplicantStepDocument.STEP_CONTRACT_SIGNED,
+                        status=ApplicantStepDocument.STATUS_APPROVED,
+                    ).exists():
+                        _step_doc_block_msg = (
+                            "The applicant's signed contract has not been approved yet. "
+                            "Please review and approve it before advancing."
+                        )
+                elif applicant.status == 'first_salary_requirements':
+                    required_configs = ApplicantSalaryRequirementConfig.objects.filter(
+                        applicant=applicant, is_required=True
+                    )
+                    if required_configs.exists():
+                        approved_cat_ids = set(
+                            applicant.step_documents.filter(
+                                step_type=ApplicantStepDocument.STEP_SALARY_REQUIREMENT,
+                                status=ApplicantStepDocument.STATUS_APPROVED,
+                            ).values_list('document_category_id', flat=True)
+                        )
+                        if required_configs.exclude(document_category_id__in=approved_cat_ids).exists():
+                            _step_doc_block_msg = (
+                                "Not all required salary requirement documents have been approved. "
+                                "Please review and approve them before advancing."
                             )
 
                 if new_status in REQUIRED_STATUS_DATES and not status_date:
                     messages.error(request, "A date is required for this step.")
+                elif _step_doc_block_msg:
+                    messages.error(request, _step_doc_block_msg)
                 elif _eval_block_msg:
                     messages.error(request, _eval_block_msg)
                 else:
@@ -2518,7 +2557,7 @@ def applicant_detail_view(request, uuid):
     all_eligible_evaluators = []
     if applicant.status == 'evaluation' and not evaluation_assignments:
         eligible_accounts = (
-            Account.objects.filter(is_active=True, role__in=['faculty', 'admin', 'system_admin'])
+            Account.objects.filter(is_active=True, role__in=['faculty', 'admin'])
             .select_related('faculty_profile', 'admin_profile')
             .order_by('email')
         )
@@ -2528,17 +2567,22 @@ def applicant_detail_view(request, uuid):
                     display_name = acc.faculty_profile.name or acc.email
                     faculty_code = acc.faculty_profile.faculty_code or ''
                     department = acc.faculty_profile.department or ''
+                    other_position = acc.faculty_profile.other_position or ''
                 except Exception:
                     display_name = acc.get_full_name() or acc.email
                     faculty_code = ''
                     department = ''
+                    other_position = ''
             else:
                 display_name = None
-                if acc.role in ('admin', 'system_admin'):
+                if acc.role == 'admin':
                     try:
                         display_name = acc.admin_profile.name or None
+                        other_position = acc.admin_profile.other_position or ''
                     except Exception:
-                        pass
+                        other_position = ''
+                else:
+                    other_position = ''
                 if not display_name:
                     full = acc.get_full_name().strip()
                     if full:
@@ -2556,9 +2600,10 @@ def applicant_detail_view(request, uuid):
                 'role_label': acc.get_role_display(),
                 'faculty_code': faculty_code,
                 'department': department,
+                'other_position': other_position,
             })
 
-    next_status_needs_deadline = next_status in ('psych_test', 'contract_of_service', 'first_salary_requirements')
+    next_status_needs_deadline = next_status in ('contract_of_service', 'first_salary_requirements')
     next_status_needs_instructions = next_status in ('demo_scheduled', 'psych_test', 'contract_of_service')
 
     _step_advance_hints = {
@@ -2573,6 +2618,7 @@ def applicant_detail_view(request, uuid):
     return render(request, 'admin/admin_applicant_detail.html', {
         'applicant': applicant,
         'documents': documents,
+        'completed_step_docs': completed_step_docs,
         'current_status_label': current_status_label,
         'current_status_date': current_status_date,
         'can_reschedule_current_step': can_reschedule_current_step,
@@ -2856,7 +2902,7 @@ def admin_assign_evaluators(request, uuid):
     evaluators = list(
         Account.objects.filter(
             pk__in=evaluator_ids, is_active=True,
-            role__in=['faculty', 'admin', 'system_admin'],
+            role__in=['faculty', 'admin'],
         ).select_related('faculty_profile')
     )
     if not evaluators:

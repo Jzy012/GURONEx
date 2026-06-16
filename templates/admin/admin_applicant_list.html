@@ -150,25 +150,25 @@
           <td class="px-5 py-4 border-b">{{ applicant.email }}</td>
           <td class="px-5 py-4 border-b">
             {% if applicant.status == 'pending' %}
-              <span class="inline-block bg-yellow-200 text-yellow-800 px-2 py-1 rounded text-xs font-semibold">Initial Review</span>
+              <span class="inline-flex items-center rounded-full bg-yellow-50 px-2.5 py-0.5 text-xs font-semibold text-yellow-800 ring-1 ring-yellow-200">Initial Review</span>
             {% elif applicant.status == 'demo_scheduled' or applicant.status == 'for_interview' %}
-              <span class="inline-block bg-blue-200 text-blue-800 px-2 py-1 rounded text-xs font-semibold">Demo &amp; Interview</span>
+              <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-800 ring-1 ring-blue-200">Demo &amp; Interview</span>
             {% elif applicant.status == 'evaluation' %}
-              <span class="inline-block bg-amber-200 text-amber-800 px-2 py-1 rounded text-xs font-semibold">Evaluation</span>
+              <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">Evaluation</span>
             {% elif applicant.status == 'psych_test' %}
-              <span class="inline-block bg-purple-200 text-purple-800 px-2 py-1 rounded text-xs font-semibold">Psych Test</span>
+              <span class="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-800 ring-1 ring-purple-200">Psych Test</span>
             {% elif applicant.status == 'contract_of_service' %}
-              <span class="inline-block bg-cyan-200 text-cyan-800 px-2 py-1 rounded text-xs font-semibold">Contract of Service</span>
+              <span class="inline-flex items-center rounded-full bg-cyan-50 px-2.5 py-0.5 text-xs font-semibold text-cyan-800 ring-1 ring-cyan-200">Contract of Service</span>
             {% elif applicant.status == 'first_salary_requirements' %}
-              <span class="inline-block bg-orange-200 text-orange-800 px-2 py-1 rounded text-xs font-semibold">First Salary Requirements</span>
+              <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-800 ring-1 ring-orange-200">First Salary Requirements</span>
             {% elif applicant.status == 'hired' %}
-              <span class="inline-block bg-green-200 text-green-800 px-2 py-1 rounded text-xs font-semibold">Hired</span>
+              <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-800 ring-1 ring-green-200">Hired</span>
             {% elif applicant.status == 'rejected' %}
-              <span class="inline-block bg-red-200 text-red-800 px-2 py-1 rounded text-xs font-semibold">Rejected</span>
+              <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-800 ring-1 ring-red-200">Rejected</span>
             {% elif applicant.status == 'withdrawn' %}
-              <span class="inline-block bg-gray-200 text-gray-600 px-2 py-1 rounded text-xs font-semibold">Withdrawn</span>
+              <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600 ring-1 ring-gray-300">Withdrawn</span>
             {% else %}
-              <span class="inline-block bg-gray-200 text-gray-800 px-2 py-1 rounded text-xs font-semibold">{{ applicant.status }}</span>
+              <span class="inline-flex items-center rounded-full bg-gray-50 px-2.5 py-0.5 text-xs font-semibold text-gray-700 ring-1 ring-gray-200">{{ applicant.status }}</span>
             {% endif %}
           </td>
           <td class="px-5 py-4 border-b">{{ applicant.created_at|date:"F j, Y" }}</td>
@@ -206,18 +206,29 @@
         </div>
         <div>
           <p class="font-semibold">Status</p>
-          <p>
-            {% if applicant.status == 'pending' %}Initial Review
-            {% elif applicant.status == 'demo_scheduled' or applicant.status == 'for_interview' %}Demo &amp; Interview
-            {% elif applicant.status == 'evaluation' %}Evaluation
-            {% elif applicant.status == 'psych_test' %}Psych Test
-            {% elif applicant.status == 'contract_of_service' %}Contract of Service
-            {% elif applicant.status == 'first_salary_requirements' %}First Salary Requirements
-            {% elif applicant.status == 'hired' %}Hired
-            {% elif applicant.status == 'rejected' %}Rejected
-            {% elif applicant.status == 'withdrawn' %}Withdrawn
-            {% else %}{{ applicant.status }}{% endif %}
-          </p>
+          <div class="mt-0.5">
+            {% if applicant.status == 'pending' %}
+              <span class="inline-flex items-center rounded-full bg-yellow-50 px-2.5 py-0.5 text-xs font-semibold text-yellow-800 ring-1 ring-yellow-200">Initial Review</span>
+            {% elif applicant.status == 'demo_scheduled' or applicant.status == 'for_interview' %}
+              <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-800 ring-1 ring-blue-200">Demo &amp; Interview</span>
+            {% elif applicant.status == 'evaluation' %}
+              <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">Evaluation</span>
+            {% elif applicant.status == 'psych_test' %}
+              <span class="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-800 ring-1 ring-purple-200">Psych Test</span>
+            {% elif applicant.status == 'contract_of_service' %}
+              <span class="inline-flex items-center rounded-full bg-cyan-50 px-2.5 py-0.5 text-xs font-semibold text-cyan-800 ring-1 ring-cyan-200">Contract of Service</span>
+            {% elif applicant.status == 'first_salary_requirements' %}
+              <span class="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-800 ring-1 ring-orange-200">First Salary Requirements</span>
+            {% elif applicant.status == 'hired' %}
+              <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-800 ring-1 ring-green-200">Hired</span>
+            {% elif applicant.status == 'rejected' %}
+              <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-800 ring-1 ring-red-200">Rejected</span>
+            {% elif applicant.status == 'withdrawn' %}
+              <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600 ring-1 ring-gray-300">Withdrawn</span>
+            {% else %}
+              <span class="inline-flex items-center rounded-full bg-gray-50 px-2.5 py-0.5 text-xs font-semibold text-gray-700 ring-1 ring-gray-200">{{ applicant.status }}</span>
+            {% endif %}
+          </div>
         </div>
         <div>
            <p class="font-semibold">Applied At</p>

@@ -12,8 +12,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import (
-    HRFlowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    HRFlowable, Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
+from reportlab.platypus.flowables import Flowable
 
 _STATIC = os.path.join(settings.BASE_DIR, 'static', 'images')
 _PUP_LOGO = os.path.join(_STATIC, 'pup-logo.png')

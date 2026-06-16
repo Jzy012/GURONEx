@@ -1141,9 +1141,14 @@ class ApplicantForm(forms.ModelForm):
         empty_label="Select your area of specialization",
     )
     contact_number = forms.CharField(
-        max_length=14,  # "0917 123 4567" = 13 chars, allow 1 extra
+        max_length=14,
         required=False,
         label="Contact Number",
+    )
+    emergency_contact_number = forms.CharField(
+        max_length=14, 
+        required=False,
+        label="Emergency Contact Number",
     )
 
     class Meta:
