@@ -5,6 +5,7 @@
 
 # Virtual environment
 venv/
+venv-linux/
 
 # Google Drive credentials (ignore all JSON files inside)
 gdrive_credentials/*.json

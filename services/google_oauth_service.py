@@ -1,4 +1,5 @@
 import json
+import datetime
 from google_auth_oauthlib.flow import Flow
 from django.conf import settings
 from django.utils import timezone  # <-- add this
@@ -59,7 +60,7 @@ class GoogleOAuthService:
         if not expiry:
             raise ValueError("Missing expiry on Google credentials.")
         if timezone.is_naive(expiry):
-            expiry = timezone.make_aware(expiry, timezone=timezone.utc)
+            expiry = expiry.replace(tzinfo=datetime.timezone.utc)
 
         # Save centrally! Deactivate old accounts.
         from google.oauth2 import id_token
