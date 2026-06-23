@@ -116,6 +116,23 @@ class CentralGoogleDriveService:
     
 
 
+    def move_file_to_folder(self, file_id, from_folder_id, to_folder_id, new_name=None):
+        """
+        Reassign a file's parent folder without copying — file ID and webViewLink stay the same.
+        Falls back to copy+delete if from_folder_id is unavailable.
+        """
+        body = {}
+        if new_name:
+            body['name'] = new_name
+        updated = self.service.files().update(
+            fileId=file_id,
+            addParents=to_folder_id,
+            removeParents=from_folder_id or '',
+            body=body,
+            fields='id, webViewLink',
+        ).execute()
+        return updated['id'], updated.get('webViewLink')
+
     def delete_file(self, file_id):
         """
         Permanently delete a file from Google Drive by its file ID.

@@ -69,6 +69,7 @@ class Applicant(models.Model):
         related_name='applicants',
     )
     birth_date = models.DateField(null=True, blank=True)
+    facebook_link = models.URLField(max_length=500, blank=True, null=True)
 
     # Educational Background
     college_degree = models.CharField(max_length=200, blank=True)

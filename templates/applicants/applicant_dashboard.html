@@ -116,6 +116,17 @@
           <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Area of Specialization</div>
           <div class="mt-1 text-gray-800">{{ applicant.area_of_specialization|default:"—" }}</div>
         </div>
+        {% if applicant.facebook_link %}
+        <div>
+          <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Facebook</div>
+          <div class="mt-1">
+            <a href="{{ applicant.facebook_link }}" target="_blank" rel="noopener noreferrer"
+               class="text-[#800505] hover:underline text-xs break-all">
+              {{ applicant.facebook_link }}
+            </a>
+          </div>
+        </div>
+        {% endif %}
       </div>
 
       <dl class="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 text-sm pt-2 border-t border-gray-100">

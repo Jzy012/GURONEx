@@ -1,10 +1,8 @@
 """
 Evaluation PDF export service.
 """
-import os
 from io import BytesIO
 
-from django.conf import settings
 from django.http import HttpResponse
 from django.utils import timezone
 from reportlab.lib import colors
@@ -12,31 +10,20 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import (
-    HRFlowable, Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
 from reportlab.platypus.flowables import Flowable
 
-_STATIC = os.path.join(settings.BASE_DIR, 'static', 'images')
-_PUP_LOGO = os.path.join(_STATIC, 'pup-logo.png')
-_BP_LOGO = os.path.join(_STATIC, 'bagong-ph-header.png')
-_QS_BANNER = os.path.join(_STATIC, 'footer-img.jpg')
-
-
-def _img(path, w, h):
-    if os.path.exists(path):
-        return Image(path, width=w, height=h)
-    return Paragraph('', ParagraphStyle('_empty', fontSize=1))
-
 
 def _evaluator_position(ea) -> str:
-    """Return other_position for an EvaluationAssignment evaluator, or empty string."""
+    """Return designation for an EvaluationAssignment evaluator, or empty string."""
     acc = ea.evaluator
     role = getattr(acc, 'role', None)
     try:
         if role == 'faculty':
-            return (acc.faculty_profile.other_position or '').strip()
+            return (acc.faculty_profile.designation or '').strip()
         if role in ('admin', 'system_admin'):
-            return (acc.admin_profile.other_position or '').strip()
+            return (acc.admin_profile.designation or '').strip()
     except Exception:
         pass
     return ''
@@ -91,14 +78,14 @@ def build_evaluation_pdf_response(applicant):
 
     story = []
 
-    # ── HEADER ────────────────────────────────────────────────────────────────
-    pup = _img(_PUP_LOGO, 2.0 * cm, 2.0 * cm)
-    bp = _img(_BP_LOGO, 2.0 * cm, 2.0 * cm)
+    # ── HEADER (content blanked; spacing preserved) ───────────────────────────
+    pup = Spacer(2.0 * cm, 2.0 * cm)
+    bp = Spacer(2.0 * cm, 2.0 * cm)
 
     center_lines = [
-        Paragraph('REPUBLIC OF THE PHILIPPINES', header_center_s),
-        Paragraph('<b>POLYTECHNIC UNIVERSITY OF THE PHILIPPINES</b>', header_bold_s),
-        Paragraph('OFFICE OF THE VICE PRESIDENT FOR CAMPUSES', header_center_s),
+        Paragraph('', header_center_s),
+        Paragraph('', header_bold_s),
+        Paragraph('', header_center_s),
     ]
 
     logo_col = avail * 0.15
@@ -114,7 +101,9 @@ def build_evaluation_pdf_response(applicant):
     ]))
     story.append(hdr_table)
     story.append(HRFlowable(width=avail, thickness=1, color=colors.HexColor("#6B7280"), spaceAfter=6))
-    story.append(Paragraph('PART-TIME FACULTY APPLICANT INTERVIEW FORM', doc_title_s))
+    story.append(Paragraph('FACULTY APPLICANT INTERVIEW FORM', doc_title_s))
+    story.append(Spacer(1, 7))  # replaces HRFlowable (1pt thickness + 6pt spaceAfter)
+    story.append(Paragraph('', doc_title_s))
     story.append(Spacer(1, 4))
 
     # ── APPLICANT INFO ─────────────────────────────────────────────────────────
@@ -314,19 +303,19 @@ def build_evaluation_pdf_response(applicant):
         ]))
         story.append(panel_table)
 
-    # ── FOOTER ────────────────────────────────────────────────────────────────
+    # ── FOOTER (content blanked; spacing preserved) ───────────────────────────
     story.append(Spacer(1, 12))
-    story.append(HRFlowable(width=avail, thickness=0.5, color=colors.HexColor('#9CA3AF'), spaceAfter=4))
+    story.append(Spacer(1, 5))  # replaces HRFlowable (0.5pt thickness + 4pt spaceAfter)
 
     ft_col = avail * 0.55
     qs_col = avail - ft_col
-    qs = _img(_QS_BANNER, qs_col, 3.4 * cm)
+    qs = Spacer(qs_col, 3.4 * cm)
     footer_text = [
-        Paragraph('PUP A. Mabini Campus, Anonas Street, Sta. Mesa, Manila 1016', footer_s),
-        Paragraph('Trunk Line: 335-1787 or 335-1777', footer_s),
-        Paragraph('Website: www.pup.edu.ph | Inquiries: https://bit.ly/PUPSINTA', footer_s),
+        Paragraph('', footer_s),
+        Paragraph('', footer_s),
+        Paragraph('', footer_s),
         Spacer(1, 3),
-        Paragraph("THE COUNTRY'S 1<super>st</super> POLYTECHNIC UNIVERSITY", footer_bold_s),
+        Paragraph('', footer_bold_s),
     ]
     footer_table = Table([[footer_text, qs]], colWidths=[ft_col, qs_col])
     footer_table.setStyle(TableStyle([

@@ -73,6 +73,16 @@
           </p>
         </div>
 
+        {% if faculty_profile.position %}
+        <!-- ALWAYS VISIBLE: Position -->
+        <div class="space-y-1">
+          <p class="text-xs uppercase tracking-wide text-gray-400">Position</p>
+          <p class="font-medium text-gray-900">
+            {{ faculty_profile.position }}
+          </p>
+        </div>
+        {% endif %}
+
         <!-- HIDDEN BY DEFAULT: rest of details -->
         <div class="space-y-1 extra-profile-detail hidden">
           <p class="text-xs uppercase tracking-wide text-gray-400">Employment Status</p>
@@ -100,11 +110,29 @@
         </div>
 
         <div class="space-y-1 extra-profile-detail hidden">
-          <p class="text-xs uppercase tracking-wide text-gray-400">Email</p>
+          <p class="text-xs uppercase tracking-wide text-gray-400">Webmail</p>
           <p class="font-medium text-gray-900 break-all">
             {{ faculty_profile.account.email }}
           </p>
         </div>
+
+        {% if faculty_profile.personal_email %}
+        <div class="space-y-1 extra-profile-detail hidden">
+          <p class="text-xs uppercase tracking-wide text-gray-400">Personal Email</p>
+          <p class="font-medium text-gray-900 break-all">
+            {{ faculty_profile.personal_email }}
+          </p>
+        </div>
+        {% endif %}
+
+        {% if faculty_profile.designation %}
+        <div class="space-y-1 extra-profile-detail hidden">
+          <p class="text-xs uppercase tracking-wide text-gray-400">Designation</p>
+          <p class="font-medium text-gray-900">
+            {{ faculty_profile.designation }}
+          </p>
+        </div>
+        {% endif %}
       </div>
     </div>
 

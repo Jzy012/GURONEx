@@ -123,6 +123,17 @@
             {{ applicant.area_of_specialization|default:"—" }}
           </div>
         </div>
+        {% if applicant.facebook_link %}
+        <div>
+          <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Facebook</div>
+          <div class="mt-1">
+            <a href="{{ applicant.facebook_link }}" target="_blank" rel="noopener noreferrer"
+               class="text-[#800505] hover:underline text-xs break-all">
+              {{ applicant.facebook_link }}
+            </a>
+          </div>
+        </div>
+        {% endif %}
       </div>
     </div>
 
@@ -643,7 +654,7 @@
                             </span>
                           </p>
                           <p class="text-xs text-gray-500 truncate">
-                            {% if ev.other_position %}<span class="font-medium text-gray-700">{{ ev.other_position }}</span>{% if ev.display_name != ev.email or ev.faculty_code or ev.department %} · {% endif %}{% endif %}
+                            {% if ev.designation %}<span class="font-medium text-gray-700">{{ ev.designation }}</span>{% if ev.display_name != ev.email or ev.faculty_code or ev.department %} · {% endif %}{% endif %}
                             {% if ev.display_name != ev.email %}{{ ev.email }}{% endif %}
                             {% if ev.faculty_code %}{% if ev.display_name != ev.email %} · {% endif %}{{ ev.faculty_code }}{% endif %}
                             {% if ev.department %} · {{ ev.department }}{% endif %}

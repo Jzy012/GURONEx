@@ -16,6 +16,27 @@
     </a>
   </div>
 
+  {% if messages %}
+    <div class="space-y-2">
+      {% for message in messages %}
+        <div class="flex items-start gap-3 rounded-lg border px-4 py-3 text-sm
+          {% if 'error' in message.tags %}border-red-200 bg-red-50 text-red-800
+          {% else %}border-green-200 bg-green-50 text-green-800{% endif %}">
+          {% if 'error' in message.tags %}
+            <svg class="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/>
+            </svg>
+          {% else %}
+            <svg class="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/>
+            </svg>
+          {% endif %}
+          <span>{{ message }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
   <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-6">
     {% if hired_applicants %}
     <form method="post" id="accountCreationForm">
@@ -72,6 +93,16 @@
                 <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Password (optional)</label>
                 <input type="text" name="faculty_password_{{ applicant.uuid }}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]/40" placeholder="Leave blank to auto-generate">
               </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Position (optional)</label>
+                  <input type="text" name="position_{{ applicant.uuid }}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]/40" placeholder="e.g. Instructor II">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Designation (optional)</label>
+                  <input type="text" name="designation_{{ applicant.uuid }}" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505]/40" placeholder="e.g. Program Chair">
+                </div>
+              </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                 <div class="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-2 text-xs text-gray-600 break-words">
                   <span class="font-semibold text-gray-700">Contact:</span>
@@ -81,6 +112,11 @@
                   <span class="font-semibold text-gray-700">Birth Date:</span>
                   {{ applicant.birth_date|date:"Y-m-d"|default:"—" }}
                 </div>
+                {% if applicant.email %}
+                <div class="sm:col-span-2 rounded-md border border-blue-100 bg-blue-50 px-2.5 py-2 text-xs text-blue-700 break-words">
+                  <span class="font-semibold">Personal Email (auto):</span> {{ applicant.email }}
+                </div>
+                {% endif %}
               </div>
             </div>
           </div>

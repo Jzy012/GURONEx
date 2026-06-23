@@ -215,6 +215,23 @@ class FacultyCreationForm(forms.Form):
         queryset=EmploymentStatus.objects.filter(is_active=True),
         required=False
     )
+    position = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Position",
+        help_text="e.g. Instructor II, Assistant Professor I",
+    )
+    designation = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Designation",
+        help_text="Optional administrative title (e.g. Program Chair).",
+    )
+    personal_email = forms.EmailField(
+        required=False,
+        label="Personal Email",
+        help_text="Secondary email for notifications (optional).",
+    )
     password = forms.CharField(
         max_length=128,
         required=False,
@@ -294,7 +311,10 @@ class FacultyPublicSignupForm(forms.Form):
         label="Suffix",
     )
 
-    email = forms.EmailField(label="PUP WebMail")
+    email = forms.EmailField(
+        label="PUP WebMail",
+        help_text="Will be used for account login and notifications. Must be a valid PUP email.",
+        )
     faculty_code = forms.CharField(
         max_length=20,
         required=True,
@@ -316,6 +336,23 @@ class FacultyPublicSignupForm(forms.Form):
         required=True,
         widget=forms.DateInput(attrs={"type": "date"}),
         label="Birth Date",
+    )
+    position = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Position",
+        help_text="e.g. Instructor II, Assistant Professor I",
+    )
+    designation = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Designation",
+        help_text="Optional administrative title (e.g. Academic Head, Program Chair).",
+    )
+    personal_email = forms.EmailField(
+        required=False,
+        label="Personal Email",
+        help_text="Optional secondary email for notifications.",
     )
 
     password = forms.CharField(
@@ -388,7 +425,7 @@ class FacultyEditForm(forms.ModelForm):
 
     class Meta:
         model = FacultyProfile
-        fields = ['faculty_code', 'name', 'department', 'birth_date', 'contact_number', 'status']
+        fields = ['faculty_code', 'name', 'position', 'designation', 'personal_email', 'birth_date', 'contact_number', 'status']
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
         }
@@ -400,14 +437,13 @@ class FacultyEditForm(forms.ModelForm):
         if account_instance:
             self.fields['email'].initial = account_instance.email
 
-
-        common_class = 'w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#800505]'
+        common_class = 'w-full border border-gray-300 rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition'
 
         self.fields['email'].widget.attrs.update({
             'class': common_class,
             'placeholder': 'Email',
         })
-        self.fields['faculty_code'].widget.attrs.update({   
+        self.fields['faculty_code'].widget.attrs.update({
             'class': common_class,
             'placeholder': 'Faculty Code',
         })
@@ -415,9 +451,17 @@ class FacultyEditForm(forms.ModelForm):
             'class': common_class,
             'placeholder': 'Full Name',
         })
-        self.fields['department'].widget.attrs.update({
+        self.fields['position'].widget.attrs.update({
             'class': common_class,
-            'placeholder': 'Department',
+            'placeholder': 'Position (e.g. Instructor II)',
+        })
+        self.fields['designation'].widget.attrs.update({
+            'class': common_class,
+            'placeholder': 'Designation (e.g. Program Chair)',
+        })
+        self.fields['personal_email'].widget.attrs.update({
+            'class': common_class,
+            'placeholder': 'Personal Email (optional)',
         })
         self.fields['birth_date'].widget.attrs.update({
             'class': common_class,
@@ -1163,6 +1207,7 @@ class ApplicantForm(forms.ModelForm):
             "contact_number",
             "area_of_specialization",
             "birth_date",
+            "facebook_link",
             "emergency_contact_name",
             "emergency_contact_number",
             # Educational background
@@ -1175,8 +1220,12 @@ class ApplicantForm(forms.ModelForm):
         ]
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
+            'facebook_link': forms.TextInput(attrs={
+                'placeholder': 'https://facebook.com/yourprofile',
+            }),
         }
         labels = {
+            'facebook_link': "Facebook Profile Link",
             'college_degree': "College Degree",
             'college_institution': "College Educational Institution",
             'masters_degree': "Master's Degree",
@@ -1211,6 +1260,7 @@ class ApplicantForm(forms.ModelForm):
         })
         self.fields['middle_name'].required = False
         self.fields['suffix'].required = False
+        self.fields['facebook_link'].required = False
         # Educational background fields are optional
         for fname in ('college_degree', 'college_institution', 'masters_degree',
                       'masters_institution', 'doctorate_degree', 'doctorate_institution'):

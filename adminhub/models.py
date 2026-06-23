@@ -8,7 +8,8 @@ from faculty.models import phone_validator
 class AdminProfile(models.Model):
     account = models.OneToOneField(Account, on_delete=models.CASCADE, related_name='admin_profile')
     name = models.CharField(max_length=255)
-    other_position = models.CharField(max_length=255, blank=True, help_text="Optional title/position used in exports (e.g. HR Coordinator, Guidance Coordinator).")
+    position = models.CharField(max_length=255, blank=True, help_text="e.g. Director IV, Chief Administrative Officer")
+    designation = models.CharField(max_length=255, blank=True, help_text="Optional administrative title used in exports (e.g. HR Coordinator, Guidance Coordinator).")
     contact_number = models.CharField(max_length=11, null=True, blank=True, validators=[phone_validator])
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -50,6 +50,12 @@ def _get_announcement_recipient_emails(visible_roles):
         ).exclude(email="").values_list("email", flat=True)
         recipients.update(email.strip() for email in faculty_emails if email)
 
+        from faculty.models import FacultyProfile
+        personal_emails = FacultyProfile.objects.filter(
+            account__is_active=True,
+        ).exclude(personal_email="").exclude(personal_email__isnull=True).values_list("personal_email", flat=True)
+        recipients.update(e.strip() for e in personal_emails if e)
+
     if "applicant" in roles:
         applicant_emails = Applicant.objects.exclude(email="").values_list("email", flat=True)
         recipients.update(email.strip() for email in applicant_emails if email)

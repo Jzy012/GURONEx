@@ -97,6 +97,10 @@ def faculty_signup_view(request):
                         status=data.get('status'),
                         birth_date=data.get('birth_date'),
                         contact_number=data.get('contact_number'),
+                        department='San Pedro Campus',
+                        position=data.get('position') or '',
+                        designation=data.get('designation') or '',
+                        personal_email=data.get('personal_email') or None,
                     )
 
                 try:

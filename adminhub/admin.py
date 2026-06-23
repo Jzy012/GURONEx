@@ -14,15 +14,15 @@ from .models import (
 
 @admin.register(AdminProfile)
 class AdminProfileAdmin(admin.ModelAdmin):
-    list_display = ('name', 'other_position', 'contact_number', 'account')
-    search_fields = ('name', 'account__email', 'other_position')
+    list_display = ('name', 'position', 'designation', 'contact_number', 'account')
+    search_fields = ('name', 'account__email', 'position', 'designation')
     fieldsets = (
         (None, {
             'fields': ('account', 'name', 'contact_number'),
         }),
         ('Position', {
-            'fields': ('other_position',),
-            'description': 'other_position is used in the Interview Panel section of evaluation exports.',
+            'fields': ('position', 'designation'),
+            'description': 'designation is used in the Interview Panel section of evaluation exports.',
         }),
     )
 admin.site.register(CreatedAccountLog)

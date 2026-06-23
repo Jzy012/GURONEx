@@ -821,6 +821,15 @@ def faculty_pending_approvals_view(request):
     })
 
 
+def _build_recipients(primary_email, personal_email=None):
+    """Return a list of unique recipients: primary + personal when different."""
+    recipients = [primary_email]
+    personal = (personal_email or '').strip()
+    if personal and personal.lower() != primary_email.lower():
+        recipients.append(personal)
+    return recipients
+
+
 def _send_faculty_approval_email(faculty_profile: 'FacultyProfile'):
     """
     Send approval notification email to faculty.
@@ -846,7 +855,7 @@ def _send_faculty_approval_email(faculty_profile: 'FacultyProfile'):
 
         send_html_email(
             subject=subject,
-            to_emails=recipient_email,
+            to_emails=_build_recipients(recipient_email, getattr(faculty_profile, 'personal_email', None)),
             template_name="emails/faculty_account_approved.html",
             context={
                 "name": faculty_name,
@@ -1201,7 +1210,10 @@ def create_faculty_view(request):
                         middle_name=data.get("middle_name"),
                         last_name=data.get("last_name"),
                         suffix=data.get("suffix"),
-                        department=data.get("department"),
+                        department='San Pedro Campus',
+                        position=data.get("position") or '',
+                        designation=data.get("designation") or '',
+                        personal_email=data.get("personal_email") or None,
                         birth_date=data.get("birth_date"),
                         contact_number=data.get("contact_number"),
                         status=data.get("status"),
@@ -1224,10 +1236,10 @@ def create_faculty_view(request):
                     # 4. Queue credentials email after transaction commits
                     def _send_credentials_email():
                         try:
-                            login_url = request.build_absolute_uri(reverse('login'))  # adjust if your route differs
+                            login_url = request.build_absolute_uri(reverse('login'))
                             send_html_email(
                                 subject="[GURONEx] Faculty Account Credentials",
-                                to_emails=account.email,
+                                to_emails=_build_recipients(account.email, faculty.personal_email),
                                 template_name="emails/faculty_welcome_credentials.html",
                                 context={
                                     "name": faculty.name,
@@ -2567,22 +2579,22 @@ def applicant_detail_view(request, uuid):
                     display_name = acc.faculty_profile.name or acc.email
                     faculty_code = acc.faculty_profile.faculty_code or ''
                     department = acc.faculty_profile.department or ''
-                    other_position = acc.faculty_profile.other_position or ''
+                    designation = acc.faculty_profile.designation or ''
                 except Exception:
                     display_name = acc.get_full_name() or acc.email
                     faculty_code = ''
                     department = ''
-                    other_position = ''
+                    designation = ''
             else:
                 display_name = None
                 if acc.role == 'admin':
                     try:
                         display_name = acc.admin_profile.name or None
-                        other_position = acc.admin_profile.other_position or ''
+                        designation = acc.admin_profile.designation or ''
                     except Exception:
-                        other_position = ''
+                        designation = ''
                 else:
-                    other_position = ''
+                    designation = ''
                 if not display_name:
                     full = acc.get_full_name().strip()
                     if full:
@@ -2600,7 +2612,7 @@ def applicant_detail_view(request, uuid):
                 'role_label': acc.get_role_display(),
                 'faculty_code': faculty_code,
                 'department': department,
-                'other_position': other_position,
+                'designation': designation,
             })
 
     next_status_needs_deadline = next_status in ('contract_of_service', 'first_salary_requirements')
@@ -3300,28 +3312,42 @@ def account_creation_view(request):
             email = request.POST.get(f'faculty_email_{applicant_uuid}', '').strip()
             faculty_code = request.POST.get(f'faculty_code_{applicant_uuid}', '').strip()
             password = request.POST.get(f'faculty_password_{applicant_uuid}', '').strip()
+            position_val = request.POST.get(f'position_{applicant_uuid}', '').strip()
+            designation_val = request.POST.get(f'designation_{applicant_uuid}', '').strip()
+
+            try:
+                applicant = Applicant.objects.get(uuid=applicant_uuid)
+            except Applicant.DoesNotExist:
+                errors.append(f"Applicant {applicant_uuid}: record not found.")
+                continue
+            applicant_label = f"{applicant.first_name} {applicant.last_name}"
+
             if not email:
-                errors.append(f"Applicant {applicant_uuid}: Faculty email is required.")
+                errors.append(f"{applicant_label}: Faculty email is required.")
                 continue
             if not faculty_code:
-                errors.append(f"Applicant {applicant_uuid}: Faculty code is required.")
+                errors.append(f"{applicant_label}: Faculty code is required.")
                 continue
             if Account.objects.filter(email=email).exists():
-                errors.append(f"{email}: Email already exists.")
+                errors.append(f"{applicant_label}: The email '{email}' is already in use.")
                 continue
             if FacultyProfile.objects.filter(faculty_code__iexact=faculty_code).exists():
-                errors.append(f"{faculty_code}: Faculty code already exists.")
+                errors.append(f"{applicant_label}: The faculty code '{faculty_code}' is already taken.")
                 continue
             if not password:
                 password = get_random_string(8)
             try:
                 with transaction.atomic():
-                    applicant = Applicant.objects.get(uuid=applicant_uuid)
                     account = Account.objects.create_user(
                         email=email,
                         password=password,
                         role='faculty'
                     )
+                    # Auto-populate personal_email from applicant's original registration email
+                    applicant_personal_email = (applicant.email or '').strip()
+                    if applicant_personal_email.lower() == email.lower():
+                        applicant_personal_email = ''
+
                     faculty = FacultyProfile.objects.create(
                         account=account,
                         first_name=applicant.first_name,
@@ -3330,12 +3356,16 @@ def account_creation_view(request):
                         suffix=applicant.suffix,
                         name=f"{applicant.first_name} {applicant.last_name}",
                         faculty_code=faculty_code,
-                        department=getattr(applicant, "department", ""),
+                        department='San Pedro Campus',
+                        position=position_val,
+                        designation=designation_val,
+                        personal_email=applicant_personal_email or None,
                         birth_date=applicant.birth_date,
                         contact_number=applicant.contact_number,
                         status=emp_status,
                     )
                     # Create Drive folder for the faculty
+                    folder_id = None
                     try:
                         drive = CentralGoogleDriveService()
                         folder_id = drive.create_faculty_folder(faculty)
@@ -3343,45 +3373,87 @@ def account_creation_view(request):
                         faculty.save()
                     except Exception as e:
                         errors.append(f"{email}: Drive folder error: {e}")
-                    # Copy only active approved applicant docs to faculty and Drive.
-                    for doc in ApplicantDocument.objects.filter(
-                        applicant=applicant,
-                        is_archived=False,
-                        status='Approved',
-                    ):
-                        doc_name = f"{applicant.first_name} {applicant.last_name}"
-                        if applicant.suffix:
-                            doc_name += f" {applicant.suffix}"
-                        doc_name += f" - {doc.document_category.name}"
-                        try:
-                            # Copy the file in Google Drive from applicant to faculty folder
-                            new_file_id, new_file_link = drive.copy_file_to_folder(
-                                doc.google_drive_id,
-                                folder_id,
-                                new_name=doc_name
+                    # Move approved applicant documents to the faculty Drive folder.
+                    # Using move (not copy) prevents duplicate files in Drive.
+                    if not folder_id:
+                        errors.append(f"{email}: Skipping document transfer — Drive folder was not created.")
+                    else:
+                        def _doc_name(suffix, category_name):
+                            base = f"{applicant.first_name} {applicant.last_name}"
+                            if suffix:
+                                base += f" {suffix}"
+                            return f"{base} - {category_name}"
+
+                        # 1. Transfer ApplicantDocument records (approved, not archived)
+                        for doc in ApplicantDocument.objects.filter(
+                            applicant=applicant,
+                            is_archived=False,
+                            status='Approved',
+                        ):
+                            doc_name = _doc_name(applicant.suffix, doc.document_category.name)
+                            try:
+                                new_file_id, new_file_link = drive.move_file_to_folder(
+                                    doc.google_drive_id,
+                                    applicant.google_drive_folder_id,
+                                    folder_id,
+                                    new_name=doc_name,
+                                )
+                            except Exception as e:
+                                errors.append(f"{email}: Failed to move file '{doc_name}': {e}")
+                                continue
+                            FacultyDocument.objects.create(
+                                faculty=faculty,
+                                document_name=doc_name,
+                                document_category=doc.document_category,
+                                file_path=new_file_link,
+                                google_drive_id=new_file_id,
+                                file_size=doc.file_size,
+                                expiry_date=doc.expiry_date,
+                                status=doc.status,
+                                admin_remarks=doc.admin_remarks,
                             )
-                        except Exception as e:
-                            errors.append(f"{email}: Failed to copy file for document '{doc_name}': {e}")
-                            continue  # skip this doc but process others
-                        FacultyDocument.objects.create(
-                            faculty=faculty,
-                            document_name=doc_name,
-                            document_category=doc.document_category,
-                            file_path=new_file_link,
-                            google_drive_id=new_file_id,
-                            file_size=doc.file_size,
-                            expiry_date=doc.expiry_date,
-                            status=doc.status,
-                            admin_remarks=doc.admin_remarks,
-                            # uploaded_by is skipped (nullable)
-                        )
+
+                        # 2. Transfer ApplicantStepDocument records (approved)
+                        for step_doc in ApplicantStepDocument.objects.filter(
+                            applicant=applicant,
+                            status=ApplicantStepDocument.STATUS_APPROVED,
+                        ):
+                            step_label = step_doc.get_step_type_display()
+                            cat_name = (
+                                step_doc.document_category.name
+                                if step_doc.document_category
+                                else step_label
+                            )
+                            doc_name = _doc_name(applicant.suffix, f"{step_label} - {cat_name}")
+                            try:
+                                new_file_id, new_file_link = drive.move_file_to_folder(
+                                    step_doc.google_drive_id,
+                                    applicant.google_drive_folder_id,
+                                    folder_id,
+                                    new_name=doc_name,
+                                )
+                            except Exception as e:
+                                errors.append(f"{email}: Failed to move step file '{doc_name}': {e}")
+                                continue
+                            FacultyDocument.objects.create(
+                                faculty=faculty,
+                                document_name=doc_name,
+                                document_category=step_doc.document_category,
+                                file_path=new_file_link,
+                                google_drive_id=new_file_id,
+                                file_size=step_doc.file_size,
+                                expiry_date=None,
+                                status='Approved',
+                                admin_remarks=step_doc.admin_remarks or '',
+                            )
+
                     # Mark applicant as converted
                     applicant.account_created = True
                     applicant.save()
-                    # Log created account
+                    # Log created account — never store the plaintext password
                     CreatedAccountLog.objects.create(
                         faculty_email=email,
-                        password=password,
+                        password='[REDACTED]',
                         applicant=applicant,
                         applicant_name=f"{applicant.first_name} {applicant.last_name}",
                         applicant_email=applicant.email,
@@ -3393,7 +3465,7 @@ def account_creation_view(request):
                         login_url = request.build_absolute_uri(reverse('login'))
                         send_html_email(
                             subject="[GURONEx] Faculty Account Credentials",
-                            to_emails=applicant.email,
+                            to_emails=_build_recipients(email, applicant.email),
                             template_name="emails/faculty_welcome_credentials.html",
                             context={
                                 "name": full_name,
@@ -3405,7 +3477,7 @@ def account_creation_view(request):
                             },
                         )
                     except Exception as email_exc:
-                        logger.exception("Failed to send account creation email to %s", applicant.email)
+                        logger.exception("Failed to send account creation email to %s", email)
                         errors.append(f"{email}: Account created, but email notification failed: {email_exc}")
                     created.append(email)
             except Exception as e:
