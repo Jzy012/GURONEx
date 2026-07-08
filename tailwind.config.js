@@ -22,6 +22,10 @@ module.exports = {
     'text-gray-700',
     'bg-black/40',
     'bg-silhouette-overlay',
+    // Critical for the flex-column modal scroll pattern (header/footer fixed,
+    // body scrolls). `min-h-0` is rarely used so it is easily purged; keep it so
+    // production builds never drop it (see the document-category / faculty modals).
+    'min-h-0',
     // Keep responsive visibility/display utilities used by desktop/mobile table variants.
     { pattern: /^(block|hidden|table|table-row|table-cell|flex|grid)$/ , variants: ['sm', 'md', 'lg'] },
   ],
