@@ -2,6 +2,7 @@ import calendar
 import datetime
 import io
 import json
+import logging
 import mimetypes
 from datetime import date
 from io import BytesIO
@@ -60,6 +61,8 @@ from services.faculty_clearance_service import (
     evaluate_faculty_clearance_eligibility,
 )
 from services.google_drive_service import CentralGoogleDriveService
+
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 
@@ -135,6 +138,9 @@ def faculty_signup_view(request):
                 )
                 return redirect('login')
             except Exception:
+                logger.exception(
+                    "Faculty signup failed for email=%s", data.get('email')
+                )
                 messages.error(
                     request,
                     'Unable to submit your registration right now. Please try again later.',

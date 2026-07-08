@@ -562,6 +562,9 @@
   </div>
 </div>
 
+{% include 'partials/loading_overlay.html' with overlay_id='approvalOverlay' message='Approving faculty account…' subtext='Please wait while we process the approval.' %}
+{% include 'partials/loading_overlay.html' with overlay_id='rejectOverlay' message='Rejecting registration…' subtext='Please wait while we process the rejection.' %}
+
 <script>
   (function() {
     // ── Shared modal helpers ────────────────────────────────────────────────
@@ -711,6 +714,46 @@
       if (modal.classList.contains('flex')) closeModalEl(modal);
       else if (rejectModal.classList.contains('flex')) closeModalEl(rejectModal);
     });
+
+    // ── Submit loading state ────────────────────────────────────────────────
+    // These are full-page POSTs, so the loading state clears automatically when
+    // the page navigates (success) or re-renders with messages (error). We never
+    // preventDefault — we only disable buttons + show the overlay to block
+    // duplicate submissions.
+    const approvalOverlay = document.getElementById('approvalOverlay');
+    const rejectOverlay = document.getElementById('rejectOverlay');
+
+    function inlineSpinner() {
+      const s = document.createElement('span');
+      s.className = 'inline-block w-4 h-4 mr-2 align-[-2px]';
+      s.style.cssText = 'border:2px solid #ffffff;border-top-color:transparent;border-radius:9999px;animation:spin 0.8s linear infinite;';
+      return s;
+    }
+
+    function startSubmitLoading(submitBtn, otherBtns, overlay, label) {
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.7';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.textContent = '';
+        submitBtn.appendChild(inlineSpinner());
+        submitBtn.appendChild(document.createTextNode(label));
+      }
+      (otherBtns || []).forEach((b) => { if (b) b.disabled = true; });
+      if (overlay) openModal(overlay);
+    }
+
+    if (editForm) {
+      editForm.addEventListener('submit', function () {
+        startSubmitLoading(approveBtn, [cancelBtn], approvalOverlay, 'Processing…');
+      });
+    }
+    if (rejectForm) {
+      rejectForm.addEventListener('submit', function () {
+        const confirmRejectBtn = rejectForm.querySelector('button[type="submit"]');
+        startSubmitLoading(confirmRejectBtn, [cancelRejectBtn], rejectOverlay, 'Rejecting…');
+      });
+    }
   })();
 </script>
 {% endblock %}

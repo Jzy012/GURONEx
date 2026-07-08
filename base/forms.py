@@ -396,6 +396,12 @@ class FacultyPublicSignupForm(forms.Form):
             raise forms.ValidationError("An account with this email already exists.")
         return email
 
+    def clean_faculty_code(self):
+        code = self.cleaned_data.get("faculty_code")
+        if code and FacultyProfile.objects.filter(faculty_code=code).exists():
+            raise forms.ValidationError("This faculty code is already in use.")
+        return code
+
     def clean_contact_number(self):
         return _normalize_ph_mobile(self.cleaned_data.get("contact_number") or "")
 
