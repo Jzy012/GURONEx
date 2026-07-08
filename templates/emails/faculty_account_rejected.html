@@ -1,0 +1,43 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ subject|default:"GURONEx" }}{% endblock %}
+
+{% block header_subtitle %}
+Faculty Registration Update
+{% endblock %}
+
+{% block content %}
+<p>Hi {{ name }},</p>
+
+<p>
+  Thank you for your interest in joining as faculty and for taking the time to register.
+  After careful review, we regret to inform you that your faculty account request was
+  <strong>not approved</strong> at this time.
+</p>
+
+{% if rejection_reason %}
+<div style="background:#fef2f2;border-left:4px solid #ef4444;padding:12px 16px;margin:16px 0;border-radius:4px;">
+  <p style="margin:0 0 6px;font-weight:600;color:#b91c1c;">Reason:</p>
+  <p style="margin:0;color:#7f1d1d;">{{ rejection_reason }}</p>
+</div>
+{% endif %}
+
+<p>
+  <strong>PUP WebMail:</strong> {{ email }}<br>
+  {% if faculty_code %}<strong>Faculty Code:</strong> {{ faculty_code }}<br>{% endif %}
+  {% if status %}<strong>Employment Status:</strong> {{ status }}{% endif %}
+</p>
+
+<div class="divider"></div>
+
+<h2>What you can do next</h2>
+<ul>
+  <li>If you believe this was a mistake, or you would like to re-apply, please reach out to us.</li>
+  <li>Make sure your submitted details (name, faculty code, employment status) are accurate before re-applying.</li>
+</ul>
+
+<p class="muted">
+  For questions or assistance, contact support at
+  <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+</p>
+{% endblock %}

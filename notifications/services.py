@@ -281,6 +281,22 @@ def get_user_activity_logs(user: Account, *, limit: int = 200) -> list[dict]:
     return [serialize_activity_log(item) for item in activity_logs]
 
 
+def get_admin_pending_faculty_count() -> int:
+    from faculty.models import FacultyProfile
+    return FacultyProfile.objects.filter(
+        account__role='faculty',
+        account__is_active=False,
+    ).count()
+
+
+def get_admin_pending_applicant_count() -> int:
+    # "New" applicant submissions = those still in Initial Review (status='pending').
+    # Advancing or rejecting an applicant moves it out of this bucket, so the badge
+    # count decreases automatically.
+    from applicant.models import Applicant
+    return Applicant.objects.filter(status='pending', is_archived=False).count()
+
+
 def get_admin_pending_deliverables_count() -> int:
     # Keep sidebar count aligned with admin deliverables page logic:
     # count only submitted deliverables currently marked Pending.
@@ -344,13 +360,19 @@ def get_user_notification_summary(user: Account, *, limit: int = 5) -> dict:
     latest = Notification.objects.filter(recipient=user, is_read=False).order_by("-updated_at", "-created_at")[:limit]
 
     pending_deliverables_count = 0
+    pending_faculty_count = 0
+    pending_applicant_count = 0
     if user.role in ROLE_ADMIN_GROUP:
         pending_deliverables_count = get_admin_pending_deliverables_count()
+        pending_faculty_count = get_admin_pending_faculty_count()
+        pending_applicant_count = get_admin_pending_applicant_count()
 
     return {
         "unread_count": unread_count,
         "latest": [serialize_notification(item) for item in latest],
         "pending_deliverables_count": pending_deliverables_count,
+        "pending_faculty_count": pending_faculty_count,
+        "pending_applicant_count": pending_applicant_count,
     }
 
 

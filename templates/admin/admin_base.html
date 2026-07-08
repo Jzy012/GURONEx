@@ -240,10 +240,14 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"
               viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round"
-                d="M5.121 17.804A3 3 0 017 17h10a3 3 0 011.879.804M15 
+                d="M5.121 17.804A3 3 0 017 17h10a3 3 0 011.879.804M15
                   10a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             <span>Faculty</span>
+            <span id="pendingFacultyNavBadge" class="{% if notification_pending_faculty_count %}inline-flex{% else %}hidden{% endif %} ml-auto min-w-5 h-5 px-1 items-center justify-center rounded-full bg-amber-300 text-[#4a0101] text-[11px] font-bold"
+              style="min-width:20px;width:20px;height:20px;padding:0;border-radius:9999px;line-height:1;background-color:#fcd34d;color:#4a0101;">
+              {% if notification_pending_faculty_count > 99 %}99+{% else %}{{ notification_pending_faculty_count }}{% endif %}
+            </span>
           </a>
            <a href="{% url 'adminhub:attendance_logs' %}" class="flex items-center gap-3 px-3 py-2 rounded hover:bg-neutral-700 transition-all duration-200">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
@@ -275,6 +279,10 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />
             </svg>
             <span>Applicants</span>
+            <span id="pendingApplicantNavBadge" class="{% if notification_pending_applicant_count %}inline-flex{% else %}hidden{% endif %} ml-auto min-w-5 h-5 px-1 items-center justify-center rounded-full bg-amber-300 text-[#4a0101] text-[11px] font-bold"
+              style="min-width:20px;width:20px;height:20px;padding:0;border-radius:9999px;line-height:1;background-color:#fcd34d;color:#4a0101;">
+              {% if notification_pending_applicant_count > 99 %}99+{% else %}{{ notification_pending_applicant_count }}{% endif %}
+            </span>
           </a>
         </nav>
       </div>
@@ -469,6 +477,32 @@
       pendingDeliverablesNavBadge.classList.toggle('inline-flex', safeCount > 0);
     }
 
+    const pendingFacultyNavBadge = document.getElementById('pendingFacultyNavBadge');
+
+    function updatePendingFacultyNavBadge(count) {
+      if (!pendingFacultyNavBadge) {
+        return;
+      }
+
+      const safeCount = Number.isFinite(Number(count)) ? Number(count) : 0;
+      pendingFacultyNavBadge.textContent = safeCount > 99 ? '99+' : String(safeCount);
+      pendingFacultyNavBadge.classList.toggle('hidden', safeCount <= 0);
+      pendingFacultyNavBadge.classList.toggle('inline-flex', safeCount > 0);
+    }
+
+    const pendingApplicantNavBadge = document.getElementById('pendingApplicantNavBadge');
+
+    function updatePendingApplicantNavBadge(count) {
+      if (!pendingApplicantNavBadge) {
+        return;
+      }
+
+      const safeCount = Number.isFinite(Number(count)) ? Number(count) : 0;
+      pendingApplicantNavBadge.textContent = safeCount > 99 ? '99+' : String(safeCount);
+      pendingApplicantNavBadge.classList.toggle('hidden', safeCount <= 0);
+      pendingApplicantNavBadge.classList.toggle('inline-flex', safeCount > 0);
+    }
+
     function parseUnreadCount(rawCount, items) {
       const parsed = Number(rawCount);
       if (Number.isFinite(parsed) && parsed >= 0) {
@@ -489,9 +523,13 @@
           const pendingDeliverablesCount = Number(
             data.pending_deliverables_count ?? 0
           );
+          const pendingFacultyCount = Number(data.pending_faculty_count ?? 0);
+          const pendingApplicantCount = Number(data.pending_applicant_count ?? 0);
 
           updateBadgeCount(unread);
           updatePendingDeliverablesNavBadge(pendingDeliverablesCount);
+          updatePendingFacultyNavBadge(pendingFacultyCount);
+          updatePendingApplicantNavBadge(pendingApplicantCount);
           renderDropdown(latest);
           if (keepOpen) {
             notifDropdown.classList.remove('hidden');

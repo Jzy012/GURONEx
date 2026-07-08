@@ -132,6 +132,7 @@ from services.evaluation_export_service import build_evaluation_pdf_response
 from services.faculty_clearance_service import build_clearance_pdf_response
 from services.google_drive_service import CentralGoogleDriveService, get_google_drive_status
 from notifications.services import log_activity, notify_role, notify_user, ROLE_ADMIN_GROUP
+from adminhub.forms import FacultyAdminPendingEditForm
 
 # Logger Setup
 logger = logging.getLogger(__name__)
@@ -818,16 +819,18 @@ def faculty_pending_approvals_view(request):
         'search': search,
         'querystring': querystring,
         'total_pending_accounts': total_pending_accounts,
+        'employment_statuses': EmploymentStatus.objects.filter(is_active=True).order_by('name'),
     })
 
 
 def _build_recipients(primary_email, personal_email=None):
-    """Return a list of unique recipients: primary + personal when different."""
-    recipients = [primary_email]
-    personal = (personal_email or '').strip()
-    if personal and personal.lower() != primary_email.lower():
-        recipients.append(personal)
-    return recipients
+    """Return a list of unique recipients: primary + personal when different.
+
+    Thin wrapper over the shared build_recipient_list helper so faculty and
+    evaluation emails use one source of truth for recipient de-duplication.
+    """
+    from base.utils.email_base import build_recipient_list
+    return build_recipient_list(primary_email, personal_email)
 
 
 def _send_faculty_approval_email(faculty_profile: 'FacultyProfile'):
@@ -871,6 +874,47 @@ def _send_faculty_approval_email(faculty_profile: 'FacultyProfile'):
         return True, None
     except Exception as e:
         logger.exception("Failed to send approval email to %s", faculty_profile.account.email)
+        return False, str(e)
+
+
+def _send_faculty_rejection_email(*, recipient_email, personal_email=None, name=None,
+                                  faculty_code=None, status_name=None, rejection_reason=''):
+    """
+    Send rejection notification email to a faculty applicant.
+
+    Accepts primitive values (not a FacultyProfile) because the account/profile is
+    deleted during rejection before this is called.
+    Returns (email_sent: bool, email_error: str | None), mirroring the approval helper.
+    """
+    try:
+        recipient_email = (recipient_email or "").strip()
+        if not recipient_email:
+            return False, "Missing faculty recipient email."
+
+        if not getattr(settings, "BREVO_API_KEY", None):
+            return False, "BREVO_API_KEY is not configured."
+
+        display_name = name or recipient_email
+        subject = '[GURONEx] Update on Your Faculty Registration'
+
+        send_html_email(
+            subject=subject,
+            to_emails=_build_recipients(recipient_email, personal_email),
+            template_name="emails/faculty_account_rejected.html",
+            context={
+                "name": display_name,
+                "email": recipient_email,
+                "faculty_code": faculty_code,
+                "status": status_name,
+                "rejection_reason": rejection_reason,
+                "support_email": settings.SUPPORT_EMAIL,
+            },
+        )
+
+        logger.info(f"Rejection email sent to {recipient_email}")
+        return True, None
+    except Exception as e:
+        logger.exception("Failed to send rejection email to %s", recipient_email)
         return False, str(e)
 
 
@@ -967,7 +1011,13 @@ def reject_faculty_account_view(request, faculty_uuid):
         account__role='faculty',
     )
 
+    rejection_reason = request.POST.get('rejection_reason', '').strip()
+
     with transaction.atomic():
+        # Lock only FacultyProfile + its (non-nullable) account. Do NOT select_related
+        # the nullable 'status' FK here: it produces a LEFT OUTER JOIN, and Postgres
+        # rejects FOR UPDATE on the nullable side of an outer join. status.name is read
+        # (lazily) below for the email, which is fine.
         locked_faculty = (
             FacultyProfile.objects
             .select_for_update()
@@ -981,6 +1031,21 @@ def reject_faculty_account_view(request, faculty_uuid):
 
         rejected_uuid = str(locked_faculty.uuid)
         email = locked_faculty.account.email
+
+        # Capture recipient details BEFORE deletion so we can email after commit.
+        name_parts = [
+            locked_faculty.first_name, locked_faculty.middle_name,
+            locked_faculty.last_name, locked_faculty.suffix,
+        ]
+        full_name = " ".join(p.strip() for p in name_parts if p and str(p).strip())
+        rejection_recipient = {
+            'recipient_email': email,
+            'personal_email': locked_faculty.personal_email,
+            'name': full_name or locked_faculty.name or email,
+            'faculty_code': locked_faculty.faculty_code,
+            'status_name': locked_faculty.status.name if locked_faculty.status else None,
+        }
+
         locked_faculty.account.delete()
 
     log_activity(
@@ -988,13 +1053,137 @@ def reject_faculty_account_view(request, faculty_uuid):
         action='faculty_account_rejected',
         target_type='FacultyProfile',
         target_id=rejected_uuid,
-        details={'target_name': locked_faculty.name or email, 'email': email},
+        details={
+            'target_name': rejection_recipient['name'],
+            'email': email,
+            'rejection_reason': rejection_reason,
+        },
     )
 
-    messages.success(request, f'Faculty registration rejected and removed: {email}.')
+    # Send rejection email after the transaction commits (never on a rolled-back reject).
+    email_sent, email_error = _send_faculty_rejection_email(
+        rejection_reason=rejection_reason,
+        **rejection_recipient,
+    )
+
+    if email_sent:
+        messages.success(
+            request,
+            f'Faculty registration rejected and removed: {email}. A notification email has been sent.'
+        )
+    else:
+        messages.warning(
+            request,
+            f'Faculty registration rejected and removed: {email}, but the notification email could not be sent. '
+            f'Reason: {email_error or "Unknown email error."}'
+        )
     return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
 
 
+@admin_required
+@require_POST
+def save_and_approve_faculty_account_view(request, faculty_uuid):
+    faculty = get_object_or_404(
+        FacultyProfile.objects.select_related('account'),
+        uuid=faculty_uuid,
+        account__role='faculty',
+    )
+
+    if faculty.account.is_active:
+        messages.info(request, 'This faculty account is already active.')
+        return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
+
+    form = FacultyAdminPendingEditForm(request.POST, instance_pk=faculty.pk)
+    if not form.is_valid():
+        error_summary = "; ".join(
+            f"{field}: {', '.join(errs)}" for field, errs in form.errors.items()
+        )
+        messages.error(request, f'Could not save changes: {error_summary}')
+        return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
+
+    folder_id = faculty.gdrive_folder_id
+    if not folder_id:
+        try:
+            drive = CentralGoogleDriveService()
+            folder_id = drive.create_faculty_folder(faculty)
+        except Exception as exc:
+            messages.error(
+                request,
+                f'Account approval was blocked because Google Drive folder creation failed: {exc}'
+            )
+            return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
+
+    with transaction.atomic():
+        locked_faculty = (
+            FacultyProfile.objects
+            .select_for_update()
+            .select_related('account')
+            .get(pk=faculty.pk)
+        )
+
+        if locked_faculty.account.is_active:
+            messages.info(request, 'This faculty account was already activated by another admin.')
+            return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
+
+        cd = form.cleaned_data
+        locked_faculty.first_name = cd['first_name']
+        locked_faculty.middle_name = cd['middle_name']
+        locked_faculty.last_name = cd['last_name']
+        locked_faculty.suffix = cd['suffix']
+        locked_faculty.faculty_code = cd['faculty_code']
+        locked_faculty.status = cd['status']
+        locked_faculty.contact_number = cd['contact_number']
+        locked_faculty.birth_date = cd['birth_date']
+        locked_faculty.position = cd['position']
+        locked_faculty.designation = cd['designation']
+        locked_faculty.personal_email = cd['personal_email']
+        locked_faculty.save()
+
+        if folder_id and not locked_faculty.gdrive_folder_id:
+            locked_faculty.gdrive_folder_id = folder_id
+            locked_faculty.save(update_fields=['gdrive_folder_id'])
+
+        locked_faculty.account.is_active = True
+        locked_faculty.account.save(update_fields=['is_active'])
+
+    approved_faculty = FacultyProfile.objects.select_related('account').get(pk=faculty.pk)
+
+    notify_user(
+        recipient=approved_faculty.account,
+        actor=request.user,
+        notification_type='faculty_account_approved',
+        title='Faculty account approved',
+        message='Your faculty account has been approved. You can now access the faculty portal.',
+        url=reverse('login'),
+        related_type='FacultyProfile',
+        related_id=str(approved_faculty.uuid),
+    )
+    log_activity(
+        actor=request.user,
+        action='faculty_account_approved',
+        target_type='FacultyProfile',
+        target_id=str(approved_faculty.uuid),
+        details={
+            'target_name': approved_faculty.name or approved_faculty.account.email,
+            'email': approved_faculty.account.email,
+            'edited_before_approval': True,
+        },
+    )
+
+    email_sent, email_error = _send_faculty_approval_email(approved_faculty)
+
+    if email_sent:
+        messages.success(
+            request,
+            f'Changes saved and faculty account approved for {approved_faculty.account.email}. Approval notification email has been sent.'
+        )
+    else:
+        messages.warning(
+            request,
+            f'Changes saved and faculty account approved for {approved_faculty.account.email}, but the notification email could not be sent. Reason: {email_error or "Unknown email error."}'
+        )
+
+    return _redirect_back(request, fallback_url_name='adminhub:faculty_pending_approvals')
 
 
 @admin_required
@@ -2948,10 +3137,15 @@ def admin_assign_evaluators(request, uuid):
             eval_url = f"{base_url}{eval_path}" if base_url else request.build_absolute_uri(eval_path)
 
             evaluator_name = assignment.evaluator_display_name
+            # Faculty evaluators may have a personal email on their profile; admins
+            # have no faculty_profile and simply resolve to None.
+            evaluator_profile = getattr(evaluator, 'faculty_profile', None)
+            evaluator_personal_email = evaluator_profile.personal_email if evaluator_profile else None
             try:
                 send_evaluation_invite_email(
                     evaluator_name, evaluator.email, applicant, eval_url,
                     expires_at, submission_deadline=submission_deadline,
+                    personal_email=evaluator_personal_email,
                 )
             except Exception:
                 logger.exception("Failed to send evaluation invite email to %s", evaluator.email)
@@ -3419,12 +3613,14 @@ def account_creation_view(request):
                             status=ApplicantStepDocument.STATUS_APPROVED,
                         ):
                             step_label = step_doc.get_step_type_display()
-                            cat_name = (
-                                step_doc.document_category.name
-                                if step_doc.document_category
-                                else step_label
-                            )
-                            doc_name = _doc_name(applicant.suffix, f"{step_label} - {cat_name}")
+                            if step_doc.document_category:
+                                doc_name = _doc_name(applicant.suffix, f"{step_label} - {step_doc.document_category.name}")
+                                step_category = step_doc.document_category
+                            else:
+                                doc_name = _doc_name(applicant.suffix, step_label)
+                                # Best-effort: find a matching DocumentCategory by the step type label
+                                from faculty.models import DocumentCategory
+                                step_category = DocumentCategory.objects.filter(name__iexact=step_label).first()
                             try:
                                 new_file_id, new_file_link = drive.move_file_to_folder(
                                     step_doc.google_drive_id,
@@ -3438,7 +3634,7 @@ def account_creation_view(request):
                             FacultyDocument.objects.create(
                                 faculty=faculty,
                                 document_name=doc_name,
-                                document_category=step_doc.document_category,
+                                document_category=step_category,
                                 file_path=new_file_link,
                                 google_drive_id=new_file_id,
                                 file_size=step_doc.file_size,

@@ -308,7 +308,7 @@ class FacultyPublicSignupForm(forms.Form):
         max_length=20,
         required=False,
         validators=[name_part_validator],
-        label="Suffix",
+        label="Suffix (optional)",
     )
 
     email = forms.EmailField(

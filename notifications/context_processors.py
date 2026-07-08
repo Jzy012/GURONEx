@@ -1,5 +1,5 @@
 from .models import Notification
-from .services import get_admin_pending_deliverables_count, get_faculty_pending_deliverables_count
+from .services import get_admin_pending_deliverables_count, get_admin_pending_faculty_count, get_admin_pending_applicant_count, get_faculty_pending_deliverables_count
 
 
 def notifications_context(request):
@@ -14,8 +14,12 @@ def notifications_context(request):
     latest = Notification.objects.filter(recipient=user, is_read=False).order_by("-updated_at", "-created_at")[:5]
 
     pending_deliverables_count = 0
+    pending_faculty_count = 0
+    pending_applicant_count = 0
     if user.role in {"admin", "system_admin"}:
         pending_deliverables_count = get_admin_pending_deliverables_count()
+        pending_faculty_count = get_admin_pending_faculty_count()
+        pending_applicant_count = get_admin_pending_applicant_count()
     elif user.role == "faculty":
         faculty = getattr(user, "faculty_profile", None)
         if faculty:
@@ -25,4 +29,6 @@ def notifications_context(request):
         "notification_unread_count": unread_count,
         "notification_latest_items": latest,
         "notification_pending_deliverables_count": pending_deliverables_count,
+        "notification_pending_faculty_count": pending_faculty_count,
+        "notification_pending_applicant_count": pending_applicant_count,
     }

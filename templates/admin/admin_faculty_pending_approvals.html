@@ -94,7 +94,7 @@
           <td class="px-5 py-4 border-b">{{ faculty.account.email }}</td>
           <td class="px-5 py-4 border-b">{{ faculty.faculty_code|default:'-' }}</td>
           <td class="px-5 py-4 border-b">{{ faculty.status.name|default:'-' }}</td>
-          <td class="pl-14 pr-0 py-4 border-b text-left">{{ faculty.created_at|date:'M d, Y h:i A' }}</td>
+          <td class="pl-14 pr-0 py-4 border-b text-left">{{ faculty.created_at|date:'M d, Y' }}</td>
           <td class="px-5 py-4 border-b">
             <div class="flex flex-wrap items-center gap-3">
               <button
@@ -102,55 +102,69 @@
                 class="open-details text-[#800505] hover:underline font-medium"
                 data-name="{{ faculty.name|default:'-'|escape }}"
                 data-email="{{ faculty.account.email|escape }}"
-                data-first-name="{{ faculty.first_name|default:'-'|escape }}"
-                data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
-                data-last-name="{{ faculty.last_name|default:'-'|escape }}"
-                data-suffix="{{ faculty.suffix|default:'-'|escape }}"
-                data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+                data-first-name="{{ faculty.first_name|default:''|escape }}"
+                data-middle-name="{{ faculty.middle_name|default:''|escape }}"
+                data-last-name="{{ faculty.last_name|default:''|escape }}"
+                data-suffix="{{ faculty.suffix|default:''|escape }}"
+                data-faculty-code="{{ faculty.faculty_code|default:''|escape }}"
+                data-status-id="{{ faculty.status_id|default:''|escape }}"
                 data-status="{{ faculty.status.name|default:'-'|escape }}"
-                data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+                data-contact-number="{{ faculty.contact_number|default:''|escape }}"
+                data-birth-date-iso="{{ faculty.birth_date|date:'Y-m-d'|default:''|escape }}"
                 data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+                data-position="{{ faculty.position|default:''|escape }}"
+                data-designation="{{ faculty.designation|default:''|escape }}"
+                data-personal-email="{{ faculty.personal_email|default:''|escape }}"
                 data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+                data-approve-url="{% url 'adminhub:approve_faculty_account' faculty.uuid %}"
+                data-save-and-approve-url="{% url 'adminhub:save_and_approve_faculty_account' faculty.uuid %}"
+                data-reject-url="{% url 'adminhub:reject_faculty_account' faculty.uuid %}"
               >
                 View
               </button>
               <button
                 type="button"
-                class="open-action-modal text-green-700 hover:underline font-medium"
-                data-action="approve"
-                data-action-url="{% url 'adminhub:approve_faculty_account' faculty.uuid %}"
-                data-action-label="Approve"
+                class="open-details text-green-700 hover:underline font-medium"
                 data-name="{{ faculty.name|default:'-'|escape }}"
                 data-email="{{ faculty.account.email|escape }}"
-                data-first-name="{{ faculty.first_name|default:'-'|escape }}"
-                data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
-                data-last-name="{{ faculty.last_name|default:'-'|escape }}"
-                data-suffix="{{ faculty.suffix|default:'-'|escape }}"
-                data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+                data-first-name="{{ faculty.first_name|default:''|escape }}"
+                data-middle-name="{{ faculty.middle_name|default:''|escape }}"
+                data-last-name="{{ faculty.last_name|default:''|escape }}"
+                data-suffix="{{ faculty.suffix|default:''|escape }}"
+                data-faculty-code="{{ faculty.faculty_code|default:''|escape }}"
+                data-status-id="{{ faculty.status_id|default:''|escape }}"
                 data-status="{{ faculty.status.name|default:'-'|escape }}"
-                data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+                data-contact-number="{{ faculty.contact_number|default:''|escape }}"
+                data-birth-date-iso="{{ faculty.birth_date|date:'Y-m-d'|default:''|escape }}"
                 data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+                data-position="{{ faculty.position|default:''|escape }}"
+                data-designation="{{ faculty.designation|default:''|escape }}"
+                data-personal-email="{{ faculty.personal_email|default:''|escape }}"
                 data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+                data-approve-url="{% url 'adminhub:approve_faculty_account' faculty.uuid %}"
+                data-save-and-approve-url="{% url 'adminhub:save_and_approve_faculty_account' faculty.uuid %}"
+                data-reject-url="{% url 'adminhub:reject_faculty_account' faculty.uuid %}"
               >
                 Approve
               </button>
               <button
                 type="button"
-                class="open-action-modal text-red-700 hover:underline font-medium"
-                data-action="reject"
-                data-action-url="{% url 'adminhub:reject_faculty_account' faculty.uuid %}"
-                data-action-label="Reject"
+                class="open-reject text-red-700 hover:underline font-medium"
                 data-name="{{ faculty.name|default:'-'|escape }}"
                 data-email="{{ faculty.account.email|escape }}"
-                data-first-name="{{ faculty.first_name|default:'-'|escape }}"
-                data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
-                data-last-name="{{ faculty.last_name|default:'-'|escape }}"
-                data-suffix="{{ faculty.suffix|default:'-'|escape }}"
-                data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+                data-first-name="{{ faculty.first_name|default:''|escape }}"
+                data-middle-name="{{ faculty.middle_name|default:''|escape }}"
+                data-last-name="{{ faculty.last_name|default:''|escape }}"
+                data-suffix="{{ faculty.suffix|default:''|escape }}"
+                data-faculty-code="{{ faculty.faculty_code|default:''|escape }}"
                 data-status="{{ faculty.status.name|default:'-'|escape }}"
-                data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+                data-contact-number="{{ faculty.contact_number|default:''|escape }}"
                 data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+                data-position="{{ faculty.position|default:''|escape }}"
+                data-designation="{{ faculty.designation|default:''|escape }}"
+                data-personal-email="{{ faculty.personal_email|default:''|escape }}"
                 data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+                data-reject-url="{% url 'adminhub:reject_faculty_account' faculty.uuid %}"
               >
                 Reject
               </button>
@@ -168,10 +182,10 @@
     </table>
   </div>
 
-  <div class="responsive-mobile-md space-y-5">
+  <div class="responsive-mobile-md space-y-6">
     {% for faculty in page_obj %}
     <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      <div class="px-5 pt-5 pb-4 border-b border-gray-100">
+      <div class="px-6 pt-6 pb-5 border-b border-gray-100">
       <div class="flex justify-between items-start gap-3">
         <h3 class="text-base sm:text-lg font-semibold text-gray-900 break-words min-w-0 flex-1">{{ faculty.name|default:'-' }}</h3>
         <button
@@ -179,21 +193,29 @@
           class="open-details text-[#800505] hover:underline text-sm font-semibold whitespace-nowrap shrink-0"
           data-name="{{ faculty.name|default:'-'|escape }}"
           data-email="{{ faculty.account.email|escape }}"
-          data-first-name="{{ faculty.first_name|default:'-'|escape }}"
-          data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
-          data-last-name="{{ faculty.last_name|default:'-'|escape }}"
-          data-suffix="{{ faculty.suffix|default:'-'|escape }}"
-          data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+          data-first-name="{{ faculty.first_name|default:''|escape }}"
+          data-middle-name="{{ faculty.middle_name|default:''|escape }}"
+          data-last-name="{{ faculty.last_name|default:''|escape }}"
+          data-suffix="{{ faculty.suffix|default:''|escape }}"
+          data-faculty-code="{{ faculty.faculty_code|default:''|escape }}"
+          data-status-id="{{ faculty.status_id|default:''|escape }}"
           data-status="{{ faculty.status.name|default:'-'|escape }}"
-          data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+          data-contact-number="{{ faculty.contact_number|default:''|escape }}"
+          data-birth-date-iso="{{ faculty.birth_date|date:'Y-m-d'|default:''|escape }}"
           data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+          data-position="{{ faculty.position|default:''|escape }}"
+          data-designation="{{ faculty.designation|default:''|escape }}"
+          data-personal-email="{{ faculty.personal_email|default:''|escape }}"
           data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+          data-approve-url="{% url 'adminhub:approve_faculty_account' faculty.uuid %}"
+          data-save-and-approve-url="{% url 'adminhub:save_and_approve_faculty_account' faculty.uuid %}"
+          data-reject-url="{% url 'adminhub:reject_faculty_account' faculty.uuid %}"
         >
           View
         </button>
       </div>
       </div>
-      <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4 text-gray-700 text-sm">
+      <div class="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-4 text-gray-700 text-sm">
         <div>
           <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">PUP WebMail</p>
           <p class="break-words">{{ faculty.account.email }}</p>
@@ -211,44 +233,50 @@
           <p>{{ faculty.created_at|date:'M d, Y h:i A' }}</p>
         </div>
       </div>
-        <div class="px-5 pb-5 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div class="px-6 pb-6 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <button
           type="button"
-          class="open-action-modal w-full px-4 py-2.5 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 font-semibold text-sm transition"
-          data-action="approve"
-          data-action-url="{% url 'adminhub:approve_faculty_account' faculty.uuid %}"
-          data-action-label="Approve"
+          class="open-details w-full px-4 py-2.5 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 font-semibold text-sm transition"
           data-name="{{ faculty.name|default:'-'|escape }}"
           data-email="{{ faculty.account.email|escape }}"
-          data-first-name="{{ faculty.first_name|default:'-'|escape }}"
-          data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
-          data-last-name="{{ faculty.last_name|default:'-'|escape }}"
-          data-suffix="{{ faculty.suffix|default:'-'|escape }}"
-          data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+          data-first-name="{{ faculty.first_name|default:''|escape }}"
+          data-middle-name="{{ faculty.middle_name|default:''|escape }}"
+          data-last-name="{{ faculty.last_name|default:''|escape }}"
+          data-suffix="{{ faculty.suffix|default:''|escape }}"
+          data-faculty-code="{{ faculty.faculty_code|default:''|escape }}"
+          data-status-id="{{ faculty.status_id|default:''|escape }}"
           data-status="{{ faculty.status.name|default:'-'|escape }}"
-          data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+          data-contact-number="{{ faculty.contact_number|default:''|escape }}"
+          data-birth-date-iso="{{ faculty.birth_date|date:'Y-m-d'|default:''|escape }}"
           data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+          data-position="{{ faculty.position|default:''|escape }}"
+          data-designation="{{ faculty.designation|default:''|escape }}"
+          data-personal-email="{{ faculty.personal_email|default:''|escape }}"
           data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+          data-approve-url="{% url 'adminhub:approve_faculty_account' faculty.uuid %}"
+          data-save-and-approve-url="{% url 'adminhub:save_and_approve_faculty_account' faculty.uuid %}"
+          data-reject-url="{% url 'adminhub:reject_faculty_account' faculty.uuid %}"
         >
           Approve
         </button>
         <button
           type="button"
-          class="open-action-modal w-full px-4 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 font-semibold text-sm transition"
-          data-action="reject"
-          data-action-url="{% url 'adminhub:reject_faculty_account' faculty.uuid %}"
-          data-action-label="Reject"
+          class="open-reject w-full px-4 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 font-semibold text-sm transition"
           data-name="{{ faculty.name|default:'-'|escape }}"
           data-email="{{ faculty.account.email|escape }}"
-          data-first-name="{{ faculty.first_name|default:'-'|escape }}"
-          data-middle-name="{{ faculty.middle_name|default:'-'|escape }}"
-          data-last-name="{{ faculty.last_name|default:'-'|escape }}"
-          data-suffix="{{ faculty.suffix|default:'-'|escape }}"
-          data-faculty-code="{{ faculty.faculty_code|default:'-'|escape }}"
+          data-first-name="{{ faculty.first_name|default:''|escape }}"
+          data-middle-name="{{ faculty.middle_name|default:''|escape }}"
+          data-last-name="{{ faculty.last_name|default:''|escape }}"
+          data-suffix="{{ faculty.suffix|default:''|escape }}"
+          data-faculty-code="{{ faculty.faculty_code|default:''|escape }}"
           data-status="{{ faculty.status.name|default:'-'|escape }}"
-          data-contact-number="{{ faculty.contact_number|default:'-'|escape }}"
+          data-contact-number="{{ faculty.contact_number|default:''|escape }}"
           data-birth-date="{{ faculty.birth_date|date:'M d, Y'|default:'-'|escape }}"
+          data-position="{{ faculty.position|default:''|escape }}"
+          data-designation="{{ faculty.designation|default:''|escape }}"
+          data-personal-email="{{ faculty.personal_email|default:''|escape }}"
           data-requested-on="{{ faculty.created_at|date:'M d, Y h:i A'|escape }}"
+          data-reject-url="{% url 'adminhub:reject_faculty_account' faculty.uuid %}"
         >
           Reject
         </button>
@@ -307,65 +335,228 @@
 
 <div id="detailsModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-black/50 p-4 sm:p-6">
   <div class="w-full max-w-2xl rounded-t-2xl sm:rounded-xl bg-white shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
-    <div class="flex items-center justify-between border-b border-gray-200 bg-[#800505] px-5 py-3 ">
-      <h3 class="text-lg font-semibold text-white">Submitted Faculty Details</h3>
+    <div class="flex items-center justify-between border-b border-gray-200 bg-[#800505] px-5 py-3">
+      <h3 class="text-lg font-semibold text-white">Review Faculty Submission</h3>
       <button type="button" id="closeDetailsModal" class="rounded text-white p-1 hover:text-gray-300" aria-label="Close">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
         </svg>
       </button>
     </div>
-    <div class="max-h-[75vh] overflow-y-auto p-5">
+    <div class="max-h-[75vh] overflow-y-auto p-5 space-y-4">
+      <p class="text-xs text-gray-500">Fields are editable. If you make any changes, <strong>Approve</strong> becomes <strong>Save Changes and Approve</strong>.</p>
+
+      <!-- Read-only: PUP WebMail + Requested On -->
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Full Name</p><p id="d-name" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">PUP WebMail</p><p id="d-email" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">First Name</p><p id="d-first-name" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Middle Name</p><p id="d-middle-name" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Last Name</p><p id="d-last-name" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Suffix</p><p id="d-suffix" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Faculty Code</p><p id="d-faculty-code" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Employment Status</p><p id="d-status" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Birth Date</p><p id="d-birth-date" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Contact Number</p><p id="d-contact-number" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3 sm:col-span-2"><p class="text-xs text-gray-500">Requested On</p><p id="d-requested-on" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <p class="text-xs text-gray-500 mb-1">PUP WebMail (read-only)</p>
+          <p id="d-email" class="font-semibold text-gray-900 break-words">-</p>
+        </div>
+        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <p class="text-xs text-gray-500 mb-1">Requested On</p>
+          <p id="d-requested-on" class="font-semibold text-gray-900">-</p>
+        </div>
       </div>
-      <p class="mt-4 text-xs text-gray-500">Password is intentionally excluded from submitted details.</p>
+
+      <!-- Editable form -->
+      <form id="detailsEditForm" method="post" novalidate>
+        {% csrf_token %}
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">First Name <span class="text-red-500">*</span></label>
+            <input type="text" name="first_name" id="d-first-name"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+              placeholder="First Name" required>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Middle Name</label>
+            <input type="text" name="middle_name" id="d-middle-name"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+              placeholder="Middle Name (Optional)">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Last Name <span class="text-red-500">*</span></label>
+            <input type="text" name="last_name" id="d-last-name"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+              placeholder="Last Name" required>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Suffix</label>
+            <input type="text" name="suffix" id="d-suffix"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+              placeholder="Suffix (Optional)">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Faculty Code <span class="text-red-500">*</span></label>
+            <input type="text" name="faculty_code" id="d-faculty-code"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+              placeholder="e.g. FA0018SP2023" required>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Employment Status <span class="text-red-500">*</span></label>
+            <select name="status" id="d-status"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition" required>
+              <option value="">— Select Status —</option>
+              {% for es in employment_statuses %}
+              <option value="{{ es.pk }}">{{ es.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Birth Date <span class="text-red-500">*</span></label>
+            <input type="date" name="birth_date" id="d-birth-date"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+              required>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Contact Number</label>
+            <input type="text" name="contact_number" id="d-contact-number"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+              placeholder="e.g. 09171234567" inputmode="numeric" maxlength="14" autocomplete="off">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Position</label>
+            <input type="text" name="position" id="d-position"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+              placeholder="e.g. Instructor II, Assistant Professor I">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Designation</label>
+            <input type="text" name="designation" id="d-designation"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+              placeholder="e.g. Academic Head, Program Chair">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Personal Email</label>
+            <input type="email" name="personal_email" id="d-personal-email"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+              placeholder="Optional secondary email">
+          </div>
+        </div>
+
+        <p class="mt-3 text-xs text-gray-400">Password is intentionally excluded.</p>
+
+        <div class="flex flex-col sm:flex-row gap-3 pt-4">
+          <button type="button" id="detailsCancelBtn"
+            class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
+            Cancel
+          </button>
+          <button type="submit" id="detailsApproveBtn"
+            class="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition"
+            style="background-color:#15803d;">
+            Approve
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
 
-<div id="actionModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-black/50 p-4 sm:p-6">
+<div id="rejectModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-black/50 p-4 sm:p-6">
   <div class="w-full max-w-2xl rounded-t-2xl sm:rounded-xl bg-white shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
-    <div class="flex items-center justify-between border-b border-gray-200 bg-white px-5 py-3">
-      <h3 id="actionModalTitle" class="text-lg font-semibold text-gray-900">Confirm Action</h3>
-      <button type="button" id="closeActionModal" class="rounded p-1 text-gray-700 hover:bg-gray-100" aria-label="Close">
+    <div class="flex items-center justify-between border-b border-gray-200 bg-[#800505] px-5 py-3">
+      <h3 class="text-lg font-semibold text-white">Reject Faculty Submission</h3>
+      <button type="button" id="closeRejectModal" class="rounded text-white p-1 hover:text-gray-300" aria-label="Close">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
         </svg>
       </button>
     </div>
     <div class="max-h-[75vh] overflow-y-auto p-5 space-y-4">
-      <p id="actionModalMessage" class="text-sm text-gray-600"></p>
+      <p class="text-xs text-gray-500">Review the submission below. All fields are read-only. Rejecting permanently removes this faculty registration and cannot be undone.</p>
+
+      <!-- Read-only: PUP WebMail + Requested On -->
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Full Name</p><p id="a-name" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">PUP WebMail</p><p id="a-email" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Faculty Code</p><p id="a-faculty-code" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Employment Status</p><p id="a-status" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Requested On</p><p id="a-requested-on" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Contact Number</p><p id="a-contact-number" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">First Name</p><p id="a-first-name" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Middle Name</p><p id="a-middle-name" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Last Name</p><p id="a-last-name" class="font-semibold text-gray-900">-</p></div>
-        <div class="rounded-lg border border-gray-200 p-3"><p class="text-xs text-gray-500">Suffix</p><p id="a-suffix" class="font-semibold text-gray-900">-</p></div>
+        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <p class="text-xs text-gray-500 mb-1">PUP WebMail</p>
+          <p id="r-email" class="font-semibold text-gray-900 break-words">-</p>
+        </div>
+        <div class="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <p class="text-xs text-gray-500 mb-1">Requested On</p>
+          <p id="r-requested-on" class="font-semibold text-gray-900">-</p>
+        </div>
       </div>
-      <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
-        <p id="actionModalWarning" class="text-sm text-amber-800"></p>
+
+      <!-- Read-only fields (same layout as the detail modal, disabled) -->
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">First Name</label>
+          <input type="text" id="r-first-name" disabled
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Middle Name</label>
+          <input type="text" id="r-middle-name" disabled
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Last Name</label>
+          <input type="text" id="r-last-name" disabled
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Suffix</label>
+          <input type="text" id="r-suffix" disabled
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Faculty Code</label>
+          <input type="text" id="r-faculty-code" disabled
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Employment Status</label>
+          <input type="text" id="r-status" disabled
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Birth Date</label>
+          <input type="text" id="r-birth-date" disabled
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Contact Number</label>
+          <input type="text" id="r-contact-number" disabled
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-medium text-gray-600 mb-1">Position</label>
+          <input type="text" id="r-position" disabled
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-medium text-gray-600 mb-1">Designation</label>
+          <input type="text" id="r-designation" disabled
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-medium text-gray-600 mb-1">Personal Email</label>
+          <input type="text" id="r-personal-email" disabled
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+        </div>
       </div>
-      <p class="text-xs text-gray-500">Password is not included in this review.</p>
-      <form id="actionModalForm" method="post" class="flex flex-col sm:flex-row gap-3 pt-2">
+
+      <p class="text-xs text-gray-400">Password is intentionally excluded.</p>
+
+      <!-- Rejection controls -->
+      <form id="rejectForm" method="post">
         {% csrf_token %}
-        <button type="button" id="cancelActionModal" class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
-        <button type="submit" id="confirmActionModal" class="flex-1 rounded-lg bg-[#800505] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#a80707]">Confirm</button>
+        <div class="mb-3">
+          <label class="block text-xs font-medium text-gray-600 mb-1">Reason (optional) — included in the rejection email</label>
+          <textarea name="rejection_reason" id="rejectReason" rows="3"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
+            placeholder="e.g. Faculty code could not be verified."></textarea>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <button type="button" id="cancelRejectModal"
+            class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
+            Cancel
+          </button>
+          <button type="submit"
+            class="flex-1 rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800 transition">
+            Confirm Reject
+          </button>
+        </div>
       </form>
     </div>
   </div>
@@ -373,121 +564,152 @@
 
 <script>
   (function() {
+    // ── Shared modal helpers ────────────────────────────────────────────────
+    function openModal(m) {
+      m.classList.remove('hidden');
+      m.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeModalEl(m) {
+      m.classList.remove('flex');
+      m.classList.add('hidden');
+      document.body.style.overflow = 'auto';
+    }
+    function setInput(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.value = value || '';
+    }
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value && value.trim() ? value : '-';
+    }
+
+    // ── Details / Review modal (View + Approve, editable) ───────────────────
     const modal = document.getElementById('detailsModal');
     const closeBtn = document.getElementById('closeDetailsModal');
+    const cancelBtn = document.getElementById('detailsCancelBtn');
     const openButtons = document.querySelectorAll('.open-details');
-    const actionModal = document.getElementById('actionModal');
-    const closeActionBtn = document.getElementById('closeActionModal');
-    const cancelActionBtn = document.getElementById('cancelActionModal');
-    const actionForm = document.getElementById('actionModalForm');
-    const actionTitle = document.getElementById('actionModalTitle');
-    const actionMessage = document.getElementById('actionModalMessage');
-    const actionWarning = document.getElementById('actionModalWarning');
-    const confirmActionBtn = document.getElementById('confirmActionModal');
-    const actionButtons = document.querySelectorAll('.open-action-modal');
+    const editForm = document.getElementById('detailsEditForm');
+    const approveBtn = document.getElementById('detailsApproveBtn');
 
-    function setDetail(id, value) {
-      const el = document.getElementById(id);
-      if (el) {
-        el.textContent = value && value.trim() ? value : '-';
+    const editableIds = [
+      'd-first-name', 'd-middle-name', 'd-last-name', 'd-suffix',
+      'd-faculty-code', 'd-status', 'd-birth-date',
+      'd-contact-number', 'd-position', 'd-designation', 'd-personal-email',
+    ];
+
+    let originalValues = {};
+    let approveUrl = '';
+    let saveAndApproveUrl = '';
+
+    function captureOriginals() {
+      originalValues = {};
+      editableIds.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) originalValues[id] = el.value;
+      });
+    }
+
+    function hasChanges() {
+      return editableIds.some((id) => {
+        const el = document.getElementById(id);
+        return el && el.value !== (originalValues[id] || '');
+      });
+    }
+
+    function updateApproveButton() {
+      if (hasChanges()) {
+        approveBtn.textContent = 'Save Changes and Approve';
+        approveBtn.style.backgroundColor = '#1d4ed8';
+        editForm.action = saveAndApproveUrl;
+      } else {
+        approveBtn.textContent = 'Approve';
+        approveBtn.style.backgroundColor = '#15803d';
+        editForm.action = approveUrl;
       }
     }
 
     openButtons.forEach((btn) => {
-      btn.addEventListener('click', function() {
-        setDetail('d-name', this.dataset.name || '-');
-        setDetail('d-email', this.dataset.email || '-');
-        setDetail('d-first-name', this.dataset.firstName || '-');
-        setDetail('d-middle-name', this.dataset.middleName || '-');
-        setDetail('d-last-name', this.dataset.lastName || '-');
-        setDetail('d-suffix', this.dataset.suffix || '-');
-        setDetail('d-faculty-code', this.dataset.facultyCode || '-');
-        setDetail('d-status', this.dataset.status || '-');
-        setDetail('d-contact-number', this.dataset.contactNumber || '-');
-        setDetail('d-birth-date', this.dataset.birthDate || '-');
-        setDetail('d-requested-on', this.dataset.requestedOn || '-');
+      btn.addEventListener('click', function () {
+        const ds = this.dataset;
 
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        document.body.style.overflow = 'hidden';
+        setText('d-email', ds.email || '-');
+        setText('d-requested-on', ds.requestedOn || '-');
+
+        setInput('d-first-name', ds.firstName);
+        setInput('d-middle-name', ds.middleName);
+        setInput('d-last-name', ds.lastName);
+        setInput('d-suffix', ds.suffix);
+        setInput('d-faculty-code', ds.facultyCode);
+        setInput('d-status', ds.statusId);
+        setInput('d-birth-date', ds.birthDateIso);
+        setInput('d-contact-number', ds.contactNumber);
+        setInput('d-position', ds.position);
+        setInput('d-designation', ds.designation);
+        setInput('d-personal-email', ds.personalEmail);
+
+        approveUrl = ds.approveUrl || '#';
+        saveAndApproveUrl = ds.saveAndApproveUrl || '#';
+
+        captureOriginals();
+        updateApproveButton();
+        openModal(modal);
       });
     });
 
-    actionButtons.forEach((btn) => {
-      btn.addEventListener('click', function() {
-        const actionLabel = this.dataset.actionLabel || 'Confirm';
-        const isApprove = this.dataset.action === 'approve';
+    editableIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', updateApproveButton);
+        el.addEventListener('change', updateApproveButton);
+      }
+    });
 
-        setDetail('a-name', this.dataset.name || '-');
-        setDetail('a-email', this.dataset.email || '-');
-        setDetail('a-first-name', this.dataset.firstName || '-');
-        setDetail('a-middle-name', this.dataset.middleName || '-');
-        setDetail('a-last-name', this.dataset.lastName || '-');
-        setDetail('a-suffix', this.dataset.suffix || '-');
-        setDetail('a-faculty-code', this.dataset.facultyCode || '-');
-        setDetail('a-status', this.dataset.status || '-');
-        setDetail('a-contact-number', this.dataset.contactNumber || '-');
-        setDetail('a-requested-on', this.dataset.requestedOn || '-');
+    closeBtn.addEventListener('click', () => closeModalEl(modal));
+    cancelBtn.addEventListener('click', () => closeModalEl(modal));
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModalEl(modal); });
 
-        actionForm.action = this.dataset.actionUrl || '#';
-        actionTitle.textContent = `${actionLabel} Faculty Account`;
-        actionMessage.textContent = `You are about to ${actionLabel.toLowerCase()} this faculty registration. Please review the submitted details before continuing.`;
-        actionWarning.textContent = isApprove
-          ? 'Approving this account will activate login access and send an approval email to the faculty member.'
-          : 'Rejecting this account will permanently remove the faculty registration request and cannot be undone.';
-        confirmActionBtn.textContent = `${actionLabel}`;
-        // Use inline styles for production reliability (dynamic Tailwind classes may be purged).
-        confirmActionBtn.className = 'flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition';
-        confirmActionBtn.style.color = '#ffffff';
-        confirmActionBtn.style.backgroundColor = isApprove ? '#15803d' : '#b91c1c';
-        confirmActionBtn.onmouseenter = function() {
-          confirmActionBtn.style.backgroundColor = isApprove ? '#166534' : '#991b1b';
-        };
-        confirmActionBtn.onmouseleave = function() {
-          confirmActionBtn.style.backgroundColor = isApprove ? '#15803d' : '#b91c1c';
-        };
+    // ── Reject modal (read-only review + reject controls) ───────────────────
+    const rejectModal = document.getElementById('rejectModal');
+    const closeRejectBtn = document.getElementById('closeRejectModal');
+    const cancelRejectBtn = document.getElementById('cancelRejectModal');
+    const rejectForm = document.getElementById('rejectForm');
+    const rejectReason = document.getElementById('rejectReason');
+    const rejectButtons = document.querySelectorAll('.open-reject');
 
-        actionModal.classList.remove('hidden');
-        actionModal.classList.add('flex');
-        document.body.style.overflow = 'hidden';
+    rejectButtons.forEach((btn) => {
+      btn.addEventListener('click', function () {
+        const ds = this.dataset;
+
+        setText('r-email', ds.email || '-');
+        setText('r-requested-on', ds.requestedOn || '-');
+
+        setInput('r-first-name', ds.firstName);
+        setInput('r-middle-name', ds.middleName);
+        setInput('r-last-name', ds.lastName);
+        setInput('r-suffix', ds.suffix);
+        setInput('r-faculty-code', ds.facultyCode);
+        setInput('r-status', ds.status);
+        setInput('r-birth-date', ds.birthDate);
+        setInput('r-contact-number', ds.contactNumber);
+        setInput('r-position', ds.position);
+        setInput('r-designation', ds.designation);
+        setInput('r-personal-email', ds.personalEmail);
+
+        rejectForm.action = ds.rejectUrl || '#';
+        if (rejectReason) rejectReason.value = '';
+        openModal(rejectModal);
       });
     });
 
-    function closeModal() {
-      modal.classList.remove('flex');
-      modal.classList.add('hidden');
-      document.body.style.overflow = 'auto';
-    }
+    closeRejectBtn.addEventListener('click', () => closeModalEl(rejectModal));
+    cancelRejectBtn.addEventListener('click', () => closeModalEl(rejectModal));
+    rejectModal.addEventListener('click', (e) => { if (e.target === rejectModal) closeModalEl(rejectModal); });
 
-    function closeActionModal() {
-      actionModal.classList.remove('flex');
-      actionModal.classList.add('hidden');
-      document.body.style.overflow = 'auto';
-    }
-
-    closeBtn.addEventListener('click', closeModal);
-
-    closeActionBtn.addEventListener('click', closeActionModal);
-    cancelActionBtn.addEventListener('click', closeActionModal);
-
-    modal.addEventListener('click', function(event) {
-      if (event.target === modal) {
-        closeModal();
-      }
-    });
-
-    actionModal.addEventListener('click', function(event) {
-      if (event.target === actionModal) {
-        closeActionModal();
-      }
-    });
-
-    document.addEventListener('keydown', function(event) {
-      if (event.key === 'Escape' && modal.classList.contains('flex')) {
-        closeModal();
-      } else if (event.key === 'Escape' && actionModal.classList.contains('flex')) {
-        closeActionModal();
-      }
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      if (modal.classList.contains('flex')) closeModalEl(modal);
+      else if (rejectModal.classList.contains('flex')) closeModalEl(rejectModal);
     });
   })();
 </script>

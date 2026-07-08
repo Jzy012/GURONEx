@@ -32,6 +32,7 @@ urlpatterns = [
     path('admin/faculty/pending-approvals/', views.faculty_pending_approvals_view, name='faculty_pending_approvals'),
     path('admin/faculty/<uuid:faculty_uuid>/approve/', views.approve_faculty_account_view, name='approve_faculty_account'),
     path('admin/faculty/<uuid:faculty_uuid>/reject/', views.reject_faculty_account_view, name='reject_faculty_account'),
+    path('admin/faculty/<uuid:faculty_uuid>/save-and-approve/', views.save_and_approve_faculty_account_view, name='save_and_approve_faculty_account'),
     path('admin/faculty/<uuid:faculty_uuid>/', views.faculty_detail_view, name='faculty_detail'),
     path('admin/faculty/create/', views.create_faculty_view, name='create_faculty'),
     path('admin/faculty/<uuid:faculty_uuid>/edit/', views.edit_faculty_view, name='edit_faculty'),

@@ -182,6 +182,7 @@ def applicant_apply(request):
         "basic_form": basic_form,
         "forms": forms,
         "required_docs": required_docs,
+        "support_email": getattr(settings, "SUPPORT_EMAIL", ""),
     }
     return render(request, "applicants/applicant_apply.html", context)
 

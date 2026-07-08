@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.urls import reverse
-from base.utils.email_base import send_html_email  # Brevo helper
+from base.utils.email_base import send_html_email, build_recipient_list  # Brevo helper
 from applicant.models import Applicant
 from datetime import date
 from typing import Optional, List
@@ -347,11 +347,18 @@ def send_evaluation_step_email(applicant: Applicant, deadline=None) -> None:
 
 def send_evaluation_invite_email(evaluator_name: str, evaluator_email: str,
                                   applicant: Applicant, evaluation_url: str,
-                                  expires_at, submission_deadline=None) -> None:
-    """Send the tokenized evaluation link to a faculty evaluator."""
+                                  expires_at, submission_deadline=None,
+                                  personal_email: Optional[str] = None) -> None:
+    """
+    Send the tokenized evaluation link to an evaluator.
+
+    Delivers to the primary email and, when available, the evaluator's personal
+    email in the same message. Identical/empty addresses are de-duplicated so no
+    duplicate notification is sent.
+    """
     send_html_email(
         subject=f"[GURONEx] Evaluation Request: {applicant.full_name}",
-        to_emails=evaluator_email,
+        to_emails=build_recipient_list(evaluator_email, personal_email),
         template_name="emails/evaluation_invite.html",
         context={
             "evaluator_name": evaluator_name,

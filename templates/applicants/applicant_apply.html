@@ -113,6 +113,7 @@
               <div>
                 {{ basic_form.suffix.label_tag }}
                 {{ basic_form.suffix }}
+                <p class="text-xs text-gray-500 mt-1">Optional</p>
                 <p id="ajax-error-suffix"
                    class="text-red-600 text-xs mt-1 {% if not basic_form.suffix.errors %}hidden{% endif %}">{{ basic_form.suffix.errors.0 }}</p>
               </div>
@@ -130,7 +131,7 @@
             <div>
               {{ basic_form.facebook_link.label_tag }}
               {{ basic_form.facebook_link }}
-              <p class="text-xs text-gray-500 mt-1">Optional. Enter your Facebook profile URL (e.g. https://facebook.com/yourprofile).</p>
+              <p class="text-xs text-gray-500 mt-1"> Enter your Facebook profile URL (e.g. https://facebook.com/yourprofile).</p>
               <p id="ajax-error-facebook_link"
                  class="text-red-600 text-xs mt-1 {% if not basic_form.facebook_link.errors %}hidden{% endif %}">{{ basic_form.facebook_link.errors.0 }}</p>
             </div>
@@ -324,10 +325,25 @@
             ></span>
           </button>
         </div>
-        <p class="text-xs text-gray-500">
-            By submitting your application, you agree to our
-            <button type="button" onclick="openTermsModal()" class="text-[#800505] hover:text-[#a80707] font-medium underline focus:outline-none">Terms and Conditions</button>.
-          </p>
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <p class="text-xs text-gray-500">
+        By submitting your application, you agree to our
+        <button
+            type="button"
+            onclick="openTermsModal()"
+            class="text-[#800505] hover:text-[#a80707] hover:underline font-medium focus:outline-none">
+            Terms and Conditions
+        </button>.
+    </p>
+
+    <p class="text-xs text-gray-500 sm:text-right">
+        Need help? Please contact us at
+        <a href="mailto:{{ support_email }}"
+           class="text-[#800505] font-medium hover:underline">
+            {{ support_email }}
+        </a>.
+    </p>
+</div>
       </form>
     </div>
 

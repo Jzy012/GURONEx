@@ -10,6 +10,31 @@ from brevo_python.rest import ApiException
 logger = logging.getLogger(__name__)
 
 
+def build_recipient_list(primary_email, *extra_emails):
+    """
+    Return a de-duplicated list of recipients, preserving order.
+
+    - Skips empty / whitespace-only values.
+    - De-duplicates case-insensitively, keeping the first occurrence.
+
+    Use this so emails can consistently support multiple recipients (e.g. a
+    primary address plus a personal/secondary address) without sending
+    duplicate notifications when the addresses are identical.
+    """
+    recipients = []
+    seen = set()
+    for email in (primary_email, *extra_emails):
+        cleaned = (email or "").strip()
+        if not cleaned:
+            continue
+        key = cleaned.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        recipients.append(cleaned)
+    return recipients
+
+
 def send_html_email(
     subject: str,
     to_emails,
