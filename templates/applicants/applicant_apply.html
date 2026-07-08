@@ -244,34 +244,41 @@
           <p class="text-sm text-gray-500 mb-4">Upload all required documents. Ensure the files are clear and valid.</p>
 
           {% for form in forms %}
-          <div class="bg-white border rounded-lg p-4 mb-4 flex flex-col md:flex-row gap-4 items-start md:items-center">
+          <div class="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 mb-4 shadow-sm">
 
-            <div class="flex-1 min-w-0 flex flex-col md:flex-row md:items-center gap-4">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="inline-block font-semibold text-[#800505] text-lg bg-[#faecec] px-3 py-1 rounded">
-                  {{ form.fixed_document_category.name }}
-                </span>
-                {% if form.fixed_document_category.description %}
-                <div class="relative group" id="tooltip-wrapper-{{ forloop.counter0 }}">
-                  <button type="button"
-                          class="text-gray-400 hover:text-gray-600 focus:outline-none flex-shrink-0"
-                          aria-label="View document description"
-                          onclick="toggleTooltip({{ forloop.counter0 }})">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="12" cy="12" r="10" stroke-width="2"/>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16v-4M12 8h.01"/>
-                    </svg>
-                  </button>
-                  <div id="tooltip-{{ forloop.counter0 }}"
-                       class="absolute left-0 top-6 z-20 hidden group-hover:block w-64 max-w-xs bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl">
-                    {{ form.fixed_document_category.description }}
-                  </div>
-                </div>
-                {% endif %}
-              </div>
-              <input type="hidden" name="{{ form.prefix }}-document_category" value="{{ form.fixed_document_category.id }}">
+            <!-- Category name + Required/Optional indicator -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="inline-block font-semibold text-[#800505] text-base sm:text-lg bg-[#faecec] px-3 py-1 rounded-lg">
+                {{ form.fixed_document_category.name }}
+              </span>
+              {% if form.doc_is_required %}
+                <span class="text-xs font-semibold text-[#800505] bg-[#faecec] px-2.5 py-0.5 rounded-full">Required</span>
+              {% else %}
+                <span class="text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-full">Optional</span>
+              {% endif %}
+            </div>
 
-              <div class="flex flex-col mt-2 md:mt-0 md:ml-4 w-full max-w-xl">
+            <!-- Always-visible description -->
+            {% if form.fixed_document_category.description %}
+            <p class="text-sm text-gray-600 mt-2 whitespace-pre-line">{{ form.fixed_document_category.description }}</p>
+            {% endif %}
+
+            <!-- Supported file information -->
+            <div class="mt-3 flex flex-wrap items-center gap-1.5">
+              <span class="text-xs font-medium text-gray-500">Accepted:</span>
+              {% for ft in form.fixed_document_category.allowed_file_types.all %}
+              <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-medium uppercase">{{ ft.extension }}</span>
+              {% empty %}
+              <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">PDF, JPG, PNG</span>
+              {% endfor %}
+              <span class="text-xs text-gray-400">· Max 15 MB</span>
+            </div>
+
+            <input type="hidden" name="{{ form.prefix }}-document_category" value="{{ form.fixed_document_category.id }}">
+
+            <!-- Upload + expiry -->
+            <div class="mt-4 flex flex-col md:flex-row gap-4 md:items-start">
+              <div class="flex flex-col w-full md:max-w-xl">
                 <label for="file_input_{{ forloop.counter0 }}" class="block mb-2 text-sm font-medium text-gray-900">
                   Upload file
                 </label>
@@ -287,19 +294,19 @@
                   </span>
                   {{ form.file }}
                 </div>
+                <p id="ajax-error-doc{{ forloop.counter0 }}-file"
+                   class="text-xs text-red-600 mt-1 {% if not form.file.errors %}hidden{% endif %}">{{ form.file.errors.0 }}</p>
               </div>
-              <p id="ajax-error-doc{{ forloop.counter0 }}-file"
-                 class="text-xs text-red-600 mt-1 {% if not form.file.errors %}hidden{% endif %}">{{ form.file.errors.0 }}</p>
-            </div>
 
-            {% if form.fields.expiry_date and form.fixed_document_category.requires_expiry_date %}
-            <div class="flex-1 min-w-0 mt-2 md:mt-0">
-              <label class="block text-sm font-medium text-gray-700 mb-2">{{ form.expiry_date.label }}</label>
-              {{ form.expiry_date }}
-              <p id="ajax-error-doc{{ forloop.counter0 }}-expiry_date"
-                 class="text-xs text-red-600 mt-1 {% if not form.expiry_date.errors %}hidden{% endif %}">{{ form.expiry_date.errors.0 }}</p>
+              {% if form.fields.expiry_date and form.fixed_document_category.requires_expiry_date %}
+              <div class="flex-1 min-w-0">
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ form.expiry_date.label }}</label>
+                {{ form.expiry_date }}
+                <p id="ajax-error-doc{{ forloop.counter0 }}-expiry_date"
+                   class="text-xs text-red-600 mt-1 {% if not form.expiry_date.errors %}hidden{% endif %}">{{ form.expiry_date.errors.0 }}</p>
+              </div>
+              {% endif %}
             </div>
-            {% endif %}
           </div>
           {% endfor %}
         </div>
@@ -357,24 +364,6 @@
 
 {% block extra_scripts %}
 <script>
-  function toggleTooltip(idx) {
-    var tooltip = document.getElementById('tooltip-' + idx);
-    if (tooltip) {
-      tooltip.classList.toggle('hidden');
-    }
-  }
-
-  // Close tooltips when clicking outside
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('[id^="tooltip-wrapper-"]')) {
-      document.querySelectorAll('[id^="tooltip-"]').forEach(function(el) {
-        if (!el.id.startsWith('tooltip-wrapper-')) {
-          el.classList.add('hidden');
-        }
-      });
-    }
-  });
-
   function formatPhoneInput(input) {
     var digits = input.value.replace(/\D/g, '');
     if (digits.length > 11) digits = digits.slice(0, 11);

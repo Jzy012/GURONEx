@@ -55,13 +55,13 @@
             <div class="flex items-center gap-3">
             <button class="text-[#800505] hover:underline font-medium status-edit-btn" 
                     data-id="{{ status.id }}"
-                    data-name="{{ status.name|escapejs }}"
+                    data-name="{{ status.name }}"
                     data-is-active="{{ status.is_active|yesno:'true,false' }}">
               Edit
             </button>
             <button class="text-[#800505] hover:underline font-medium status-delete-btn" 
                     data-id="{{ status.id }}" 
-                    data-name="{{ status.name|escapejs }}">
+                    data-name="{{ status.name }}">
               Delete
             </button>
             </div>
@@ -94,13 +94,13 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button class="status-edit-btn w-full px-4 py-2.5 rounded-lg border border-[#800505]/30 bg-[#800505]/5 text-[#800505] font-semibold text-sm hover:bg-[#800505]/10 transition"
                   data-id="{{ status.id }}"
-                  data-name="{{ status.name|escapejs }}"
+                  data-name="{{ status.name }}"
                   data-is-active="{{ status.is_active|yesno:'true,false' }}">
             Edit
           </button>
           <button class="status-delete-btn w-full px-4 py-2.5 rounded-lg border border-red-200 bg-red-50 text-[#800505] font-semibold text-sm hover:bg-red-100 transition"
                   data-id="{{ status.id }}"
-                  data-name="{{ status.name|escapejs }}">
+                  data-name="{{ status.name }}">
             Delete
           </button>
         </div>

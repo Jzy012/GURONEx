@@ -51,8 +51,7 @@ def applicant_apply(request):
     if not RegistrationSettings.get_solo().is_registration_open:
         return render(request, 'applicants/applicant_registration_closed.html')
 
-    required_docs = ApplicantRequiredDocument.objects.all()
-    doc_categories = [doc.document_category for doc in required_docs]
+    required_docs = ApplicantRequiredDocument.objects.select_related('document_category').all()
 
     if request.method == "POST":
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -63,17 +62,19 @@ def applicant_apply(request):
                 request.POST,
                 request.FILES,
                 prefix=f"doc{idx}",
-                fixed_document_category=doc_cat,
+                fixed_document_category=rd.document_category,
                 index=idx,
+                is_required=rd.is_required,
             )
-            for idx, doc_cat in enumerate(doc_categories)
+            for idx, rd in enumerate(required_docs)
         ]
         valid = all(form.is_valid() for form in forms) and basic_form.is_valid()
         if valid:
             # Read file bytes before entering the transaction so InMemoryUploadedFile
             # objects are consumed while still in scope.
             docs_payload = []
-            for form, category in zip(forms, doc_categories):
+            for form in forms:
+                category = form.fixed_document_category
                 file = form.cleaned_data["file"]
                 if file:
                     docs_payload.append({
@@ -172,10 +173,11 @@ def applicant_apply(request):
         forms = [
             ApplicantDocumentUploadForm(
                 prefix=f"doc{idx}",
-                fixed_document_category=doc_cat,
+                fixed_document_category=rd.document_category,
                 index=idx,
+                is_required=rd.is_required,
             )
-            for idx, doc_cat in enumerate(doc_categories)
+            for idx, rd in enumerate(required_docs)
         ]
 
     context = {

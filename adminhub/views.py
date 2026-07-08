@@ -5349,6 +5349,20 @@ def document_category_list(request):
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
+    # Annotate each category on this page with its applicant-requirement state
+    # ('none' | 'optional' | 'required') for the requirement badge + edit pre-selection.
+    req_map = {
+        rd.document_category_id: rd.is_required
+        for rd in ApplicantRequiredDocument.objects.filter(
+            document_category__in=[c.id for c in page_obj]
+        )
+    }
+    for category in page_obj:
+        if category.id in req_map:
+            category.applicant_requirement = "required" if req_map[category.id] else "optional"
+        else:
+            category.applicant_requirement = "none"
+
     # Fetch all file types for the modal
     file_types = FileType.objects.all()
 
@@ -5379,18 +5393,35 @@ def document_category_create_or_edit(request, id=None):
     if request.method == "POST":
         form = DocumentCategoryForm(request.POST, instance=category)
         if form.is_valid():
+            # Applicant requirement is driven by the modal's 3-state radio.
+            requirement = request.POST.get("applicant_requirement", "none")
+            if requirement not in {"none", "optional", "required"}:
+                requirement = "none"
+
             with transaction.atomic():
                 saved_category = form.save()
 
-                if saved_category.is_required:
+                if requirement == "required":
                     ApplicantRequiredDocument.objects.update_or_create(
                         document_category=saved_category,
                         defaults={"is_required": True},
                     )
-                else:
+                elif requirement == "optional":
+                    ApplicantRequiredDocument.objects.update_or_create(
+                        document_category=saved_category,
+                        defaults={"is_required": False},
+                    )
+                else:  # 'none' — not an applicant document
                     ApplicantRequiredDocument.objects.filter(
                         document_category=saved_category
                     ).delete()
+
+                # Mirror onto DocumentCategory.is_required. Set explicitly because a
+                # QuerySet .delete() bypasses the model's delete() sync.
+                new_is_required = requirement == "required"
+                if saved_category.is_required != new_is_required:
+                    saved_category.is_required = new_is_required
+                    saved_category.save(update_fields=["is_required"])
 
             messages.success(request, success_message)
             return JsonResponse(

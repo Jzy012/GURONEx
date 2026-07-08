@@ -1325,10 +1325,13 @@ class ApplicantDocumentUploadForm(forms.ModelForm):
         model = ApplicantDocument
         fields = ["document_category", "file", "expiry_date", "remarks"]
 
-    def __init__(self, *args, required_doc_cats=None, fixed_document_category=None, index=None, **kwargs):
+    def __init__(self, *args, required_doc_cats=None, fixed_document_category=None, index=None, is_required=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fixed_document_category = fixed_document_category
         self._index = index  # store for potential debugging
+        # Effective requiredness comes from the ApplicantRequiredDocument row (source of
+        # truth), passed in by the view. When None, fall back to the category flag below.
+        self.doc_is_required = is_required
 
         # If a specific category is fixed for this form
         if self.fixed_document_category:
@@ -1364,8 +1367,13 @@ class ApplicantDocumentUploadForm(forms.ModelForm):
         f = self.cleaned_data.get("file")
         doc_cat = self.fixed_document_category or getattr(self.instance, "document_category", None)
 
-        # Required file check
-        if doc_cat and getattr(doc_cat, "is_required", False) and not f:
+        # Required file check — driven by the ApplicantRequiredDocument row's flag
+        # (self.doc_is_required). Fall back to the category flag only when the row flag
+        # wasn't supplied, preserving behavior for any other caller.
+        required = self.doc_is_required
+        if required is None:
+            required = getattr(doc_cat, "is_required", False)
+        if required and not f:
             raise forms.ValidationError("This document is required.")
 
         # If optional and not provided, that's fine
@@ -1409,6 +1417,9 @@ class ApplicantRequiredDocumentForm(forms.ModelForm):
             field.widget.attrs["placeholder"] = field.label
 
         self.fields["validity_days"].required = False
+        # Requirement comes from a Required/Optional radio ('true'/'false'); accept
+        # either value without treating an explicit 'false' as a missing field.
+        self.fields["is_required"].required = False
 
         # Optional: when creating a new record, only show categories that
         # don't already have ApplicantRequiredDocument
@@ -1794,10 +1805,13 @@ class DocumentCategoryForm(forms.ModelForm):
 
     class Meta:
         model = DocumentCategory
+        # NOTE: `is_required` is intentionally NOT a form field. The applicant
+        # requirement (none / optional / required) is driven by the modal's
+        # `applicant_requirement` radio and applied in the create/edit view, which
+        # manages the ApplicantRequiredDocument row and mirrors `is_required`.
         fields = [
             "name",
             "description",
-            "is_required",
             "requires_expiry_date",
             "allowed_file_types",
         ]

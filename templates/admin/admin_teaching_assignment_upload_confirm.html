@@ -171,7 +171,7 @@
           {% with has_row_errors=row.errors|length %}
           <div id="row-wrapper-{{ row.index }}"
                class="row-wrapper border rounded-lg p-5 {% if has_row_errors %}row-error-border row-error-bg{% else %}bg-gray-50 border-gray-200{% endif %} {% if row.removed %}row-removed{% endif %}"
-               data-row-index="{{ row.index }}" data-row-idx="{{ row.index|escapejs }}">
+               data-row-index="{{ row.index }}" data-row-idx="{{ row.index }}">
             <div class="space-y-4">
               <div class="flex items-center justify-end">
 
@@ -183,7 +183,7 @@
                   <button
                     type="button"
                     id="remove_btn_{{ row.index }}"
-                    data-row-idx="{{ row.index|escapejs }}"
+                    data-row-idx="{{ row.index }}"
                     onclick="toggleRowInclude(this.dataset.rowIdx)"
                     class="remove-btn bg-gray-300 text-gray-700 remove-btn-removed"
                     title="Restore row">
@@ -197,7 +197,7 @@
                   <button
                     type="button"
                     id="remove_btn_{{ row.index }}"
-                    data-row-idx="{{ row.index|escapejs }}"
+                    data-row-idx="{{ row.index }}"
                     onclick="toggleRowInclude(this.dataset.rowIdx)"
                     class="remove-btn bg-red-600 hover:bg-red-700 text-white border border-red-700"
                     title="Remove row">
@@ -217,8 +217,8 @@
 
                   <div x-data="facultySelect"
                        x-init="init()"
-                       data-row-index="{{ row.index|escapejs }}"
-                       data-initial-faculty="{{ row.faculty_uuid|default:row.faculty_choice|default:''|escapejs }}"
+                       data-row-index="{{ row.index }}"
+                       data-initial-faculty="{{ row.faculty_uuid|default:row.faculty_choice|default:'' }}"
                        data-initial-faculty-display="{{ row.faculty_display|default:''|escape }}"
                        class="relative w-full">
                     <input type="hidden" name="assign_{{ row.index }}" id="assign_{{ row.index }}" x-model="selected">
@@ -271,8 +271,8 @@
 
                   <div x-data="semesterSelect"
                        x-init="init()"
-                       data-row-index="{{ row.index|escapejs }}"
-                       data-initial-semester="{{ row.semester_id|default:row.semester_choice|default:''|escapejs }}"
+                       data-row-index="{{ row.index }}"
+                       data-initial-semester="{{ row.semester_id|default:row.semester_choice|default:'' }}"
                        class="relative w-full">
                     <input type="hidden" name="semester_{{ row.index }}" id="semester_{{ row.index }}" x-model="selected">
                     <button type="button"

@@ -236,7 +236,7 @@
                             {% if doc and doc.admin_remarks %}
                               <button type="button"
                                       class="text-xs text-[#800505] hover:underline font-semibold view-remarks-btn"
-                                      data-remarks="{{ doc.admin_remarks|escapejs }}"
+                                      data-remarks="{{ doc.admin_remarks }}"
                                       data-ta="{{ ta.subject_code }} – {{ ta.subject_description }} ({{ ta.year_section }})"
                                       data-deliverable="{{ d.document_category.name }}"
                                       data-status="{{ doc.status }}"

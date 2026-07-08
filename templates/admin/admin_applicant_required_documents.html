@@ -38,7 +38,7 @@
       <thead class="bg-gray-100">
         <tr class="text-left text-gray-700 font-semibold">
           <th class="px-4 py-3">Document Category</th>
-          <th class="px-4 py-3">Required</th>
+          <th class="px-4 py-3">Requirement</th>
           <th class="px-4 py-3">Validity Days</th>
     
           <th class="px-4 py-3">Actions</th>
@@ -49,7 +49,11 @@
         <tr class="hover:bg-gray-50 transition" data-row-id="{{ rd.id }}">
           <td class="px-4 py-2 border">{{ rd.document_category.name }}</td>
           <td class="px-4 py-2 border">
-            {{ rd.is_required|yesno:"Yes,No" }}
+            {% if rd.is_required %}
+            <span class="inline-block text-xs font-semibold text-[#800505] bg-[#faecec] px-2.5 py-0.5 rounded-full">Required</span>
+            {% else %}
+            <span class="inline-block text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-full">Optional</span>
+            {% endif %}
           </td>
           <td class="px-4 py-2 border">
             {{ rd.validity_days|default:"-" }}
@@ -59,14 +63,14 @@
             <button class="text-[#800505] hover:underline font-medium req-doc-edit-btn" 
                     data-id="{{ rd.id }}"
                     data-document-category-id="{{ rd.document_category.id }}"
-                    data-document-category-name="{{ rd.document_category.name|escapejs }}"
+                    data-document-category-name="{{ rd.document_category.name }}"
                     data-is-required="{{ rd.is_required|yesno:'true,false' }}"
                     data-validity-days="{{ rd.validity_days|default_if_none:'' }}">
               Edit
             </button>
             <button class="text-[#800505] hover:underline font-medium req-doc-delete-btn" 
                     data-id="{{ rd.id }}" 
-                    data-document-category-name="{{ rd.document_category.name|escapejs }}">
+                    data-document-category-name="{{ rd.document_category.name }}">
               Delete
             </button>
           </td>
@@ -89,47 +93,82 @@
 </div>
 
 <!-- Create/Edit Modal -->
-<div id="requiredDocModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-  <div class="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
-    <h2 id="requiredDocModalTitle" class="text-xl font-bold mb-6 text-gray-800">Add Required Document</h2>
-    <form id="requiredDocForm" method="post" class="space-y-5">
-      {% csrf_token %}
-      <!-- Document Category -->
+<div id="requiredDocModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+  <div class="w-full max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col" style="max-height: 90vh;">
+    <!-- Header -->
+    <div class="bg-[#800505] px-5 py-4 sm:px-6 sm:py-5 text-white flex items-start justify-between gap-4 shrink-0 rounded-t-2xl">
       <div>
-        <label class="block text-sm font-bold text-gray-700 mb-2">Document Category</label>
-        <select name="document_category"
-                id="requiredDocCategorySelect"
-                class="w-full p-2 border rounded-lg focus:ring focus:ring-[#800505]/50">
-          <option value="">-- Select category --</option>
-          {% for cat in all_document_categories %}
-          <option value="{{ cat.id }}">{{ cat.name }}</option>
-          {% endfor %}
-        </select>
-        <p class="text-xs text-red-600 mt-1 hidden" data-error-for="document_category"></p>
+        <p class="text-xs uppercase tracking-[0.2em] text-white/75 font-semibold">Applicant Required Document</p>
+        <h2 id="requiredDocModalTitle" class="text-xl sm:text-2xl font-bold mt-1">Add Required Document</h2>
       </div>
-      <!-- Checkbox + Validity -->
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label class="flex items-center space-x-3">
-          <input type="checkbox" id="id_is_required_reqdoc" name="is_required" 
-                 class="text-[#800505] focus:ring-[#800505]">
-          <span class="text-sm text-gray-700 font-medium">Is Required</span>
-        </label>
+      <button type="button" id="requiredDocClose" class="rounded-full p-2 hover:bg-white/10 transition" aria-label="Close modal">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <form id="requiredDocForm" method="post" class="flex flex-col flex-1 min-h-0">
+      {% csrf_token %}
+      <div class="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-5">
+        <!-- Document Category -->
+        <div>
+          <label class="block text-sm font-bold text-gray-700 mb-2">Document Category</label>
+          <select name="document_category"
+                  id="requiredDocCategorySelect"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#800505]/20 focus:border-[#800505] transition">
+            <option value="">-- Select category --</option>
+            {% for cat in all_document_categories %}
+            <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+          <p class="text-xs text-red-600 mt-1 hidden" data-error-for="document_category"></p>
+        </div>
+
+        <!-- Requirement (Required / Optional) -->
+        <div>
+          <p class="block text-sm font-bold text-gray-700 mb-2">Requirement</p>
+          <div class="grid grid-cols-1 gap-3">
+            <label class="flex items-start gap-3 rounded-xl border border-gray-200 p-4 hover:border-[#800505]/40 hover:bg-red-50/40 transition cursor-pointer">
+              <input type="radio" name="is_required" value="true"
+                     class="reqdoc-required-radio mt-1 text-[#800505] focus:ring-[#800505]">
+              <span>
+                <span class="block text-sm text-gray-900 font-semibold">Required for Applicants</span>
+                <span class="block text-xs text-gray-500 mt-1">Applicants must upload this before they can submit their registration.</span>
+              </span>
+            </label>
+            <label class="flex items-start gap-3 rounded-xl border border-gray-200 p-4 hover:border-[#800505]/40 hover:bg-red-50/40 transition cursor-pointer">
+              <input type="radio" name="is_required" value="false"
+                     class="reqdoc-required-radio mt-1 text-[#800505] focus:ring-[#800505]">
+              <span>
+                <span class="block text-sm text-gray-900 font-semibold">Optional for Applicants</span>
+                <span class="block text-xs text-gray-500 mt-1">Applicants may upload this if applicable, but it is not required to submit.</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Validity -->
         <div>
           <label class="block text-sm font-bold text-gray-700 mb-2">Validity (days)</label>
-          <input type="number" id="id_validity_days_reqdoc" name="validity_days" 
-                 class="w-full p-2 border rounded-lg focus:ring focus:ring-[#800505]/50">
+          <input type="number" id="id_validity_days_reqdoc" name="validity_days" min="0"
+                 placeholder="e.g. 365 — leave blank if it does not expire"
+                 class="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#800505]/20 focus:border-[#800505] transition">
+          <p class="text-xs text-gray-500 mt-1">Number of days the uploaded document stays valid. Leave blank for no expiry.</p>
           <p class="text-xs text-red-600 mt-1 hidden" data-error-for="validity_days"></p>
         </div>
+
+        <p class="text-xs text-red-600 mt-1 hidden" data-error-for="__all__"></p>
       </div>
-      <p class="text-xs text-red-600 mt-1 hidden" data-error-for="__all__"></p>
-      <!-- Buttons -->
-      <div class="flex items-center justify-end gap-4">
-        <button type="button" id="requiredDocCancel" 
-                class="px-4 py-2 bg-gray-200 text-gray-800 hover:bg-gray-300 rounded-lg">
+
+      <!-- Footer -->
+      <div class="shrink-0 border-t border-gray-100 bg-gray-50 px-5 py-4 sm:px-6 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 rounded-b-2xl">
+        <button type="button" id="requiredDocCancel"
+                class="px-4 py-3 bg-gray-100 text-gray-800 hover:bg-gray-200 rounded-xl font-semibold transition">
           Cancel
         </button>
-        <button type="submit" 
-                class="px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow">
+        <button type="submit"
+                class="px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-xl shadow-md font-semibold transition">
           Submit
         </button>
       </div>
@@ -180,6 +219,7 @@
     const form = document.getElementById("requiredDocForm");
     const openModalBtn = document.getElementById("openRequiredDocModal");
     const cancelBtn = document.getElementById("requiredDocCancel");
+    const closeBtn = document.getElementById("requiredDocClose");
 
     const deleteModal = document.getElementById("requiredDocDeleteModal");
     const deleteText = document.getElementById("requiredDocDeleteText");
@@ -187,8 +227,15 @@
     const deleteConfirm = document.getElementById("requiredDocDeleteConfirm");
 
     const categorySelect = document.getElementById("requiredDocCategorySelect");
-    const isRequiredInput = document.getElementById("id_is_required_reqdoc");
     const validityInput = document.getElementById("id_validity_days_reqdoc");
+
+    // Select the Required/Optional radio matching a boolean.
+    function setRequiredRadio(isRequired) {
+      const target = isRequired ? "true" : "false";
+      document.querySelectorAll(".reqdoc-required-radio").forEach((radio) => {
+        radio.checked = radio.value === target;
+      });
+    }
 
     let currentEditId = null;
     let deleteId = null;
@@ -204,6 +251,8 @@
       currentEditId = null;
       form.reset();
       clearErrors();
+      // New entries default to Required.
+      setRequiredRadio(true);
       modalTitle.textContent = "Add Required Document";
       modal.classList.remove("hidden");
     }
@@ -218,7 +267,7 @@
       const validity = btn.dataset.validityDays || "";
 
       categorySelect.value = catId;
-      isRequiredInput.checked = isRequired;
+      setRequiredRadio(isRequired);
       validityInput.value = validity;
 
       modalTitle.textContent = "Edit Required Document";
@@ -243,6 +292,7 @@
 
     openModalBtn.addEventListener("click", openCreateModal);
     cancelBtn.addEventListener("click", closeModal);
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
 
     document.querySelectorAll(".req-doc-edit-btn").forEach((btn) => {
       btn.addEventListener("click", () => openEditModal(btn));
