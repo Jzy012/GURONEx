@@ -14,6 +14,9 @@ from pathlib import Path
 import environ
 import os
 from celery.schedules import crontab
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -56,6 +59,13 @@ INSTALLED_APPS = [
     'applicant.apps.ApplicantConfig',
     'rfid.apps.RfidConfig',
     'notifications.apps.NotificationsConfig',
+    # django-unfold: modern admin theme. Must precede django.contrib.admin so
+    # its template/static overrides take effect. Themes only the Django contrib
+    # admin at /system-config/ (see UNFOLD dict below); the custom staff
+    # dashboard in templates/admin/admin_*.html is unaffected.
+    'unfold',
+    'unfold.contrib.filters',
+    'unfold.contrib.forms',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -269,5 +279,195 @@ CELERY_BEAT_SCHEDULE = {
     "notify-missing-deliverables-daily": {
         "task": "notifications.tasks.notify_missing_deliverables_task",
         "schedule": crontab(minute=30, hour=7),
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# django-unfold admin theme
+# ---------------------------------------------------------------------------
+# Themes the Django contrib admin at /system-config/ with PUP-GURONEx (FEMS)
+# branding. All branding lives here (not in forked templates) so it survives
+# Django/Unfold upgrades. The maroon scale below is anchored on the three brand
+# tokens used across the app: #a80707 (600), #800505 (700), #4a0101 (900).
+UNFOLD = {
+    "SITE_TITLE": "PUP-GURONEx System Config",
+    "SITE_HEADER": "PUP-GURONEx",
+    "SITE_SUBHEADER": _("System Configuration"),
+    "SITE_URL": "/",
+    "SITE_LOGO": lambda request: static("images/pup-logo.png"),
+    "SITE_ICON": lambda request: static("images/pup-logo.png"),
+    "SITE_FAVICONS": [
+        {
+            "rel": "icon",
+            "href": lambda request: static("images/pup-favicon.ico"),
+            "type": "image/x-icon",
+        },
+    ],
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": False,
+    "DASHBOARD_CALLBACK": "FEMS.admin_dashboard.dashboard_callback",
+    "COLORS": {
+        "primary": {
+            "50": "253 242 242",
+            "100": "251 224 224",
+            "200": "245 194 194",
+            "300": "236 154 154",
+            "400": "221 95 95",
+            "500": "197 48 48",
+            "600": "168 7 7",    # #a80707 — brand gradient mid
+            "700": "128 5 5",    # #800505 — brand primary maroon
+            "800": "106 4 4",
+            "900": "74 1 1",     # #4a0101 — brand dark
+            "950": "46 0 0",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": _("Overview"),
+                "separator": False,
+                "items": [
+                    {
+                        "title": _("Dashboard"),
+                        "icon": "dashboard",
+                        "link": reverse_lazy("admin:index"),
+                    },
+                ],
+            },
+            {
+                "title": _("Accounts & Access"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Accounts"),
+                        "icon": "group",
+                        "link": reverse_lazy("admin:base_account_changelist"),
+                    },
+                    {
+                        "title": _("Google Storage"),
+                        "icon": "cloud",
+                        "link": reverse_lazy("admin:base_googlestorageaccount_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Faculty"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Faculty Profiles"),
+                        "icon": "school",
+                        "link": reverse_lazy("admin:faculty_facultyprofile_changelist"),
+                    },
+                    {
+                        "title": _("Documents"),
+                        "icon": "description",
+                        "link": reverse_lazy("admin:faculty_facultydocument_changelist"),
+                    },
+                    {
+                        "title": _("Requests"),
+                        "icon": "assignment",
+                        "link": reverse_lazy("admin:faculty_facultyrequest_changelist"),
+                    },
+                    {
+                        "title": _("Clearance Requests"),
+                        "icon": "verified",
+                        "link": reverse_lazy("admin:faculty_facultyclearancerequest_changelist"),
+                    },
+                    {
+                        "title": _("Deliverables"),
+                        "icon": "task",
+                        "link": reverse_lazy("admin:faculty_deliverable_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Applicants"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Applicants"),
+                        "icon": "how_to_reg",
+                        "link": reverse_lazy("admin:applicant_applicant_changelist"),
+                    },
+                    {
+                        "title": _("Evaluation Criteria"),
+                        "icon": "checklist",
+                        "link": reverse_lazy("admin:applicant_evaluationcriteria_changelist"),
+                    },
+                    {
+                        "title": _("Areas of Specialization"),
+                        "icon": "category",
+                        "link": reverse_lazy("admin:applicant_areaofspecialization_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Attendance & RFID"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("RFID Tags"),
+                        "icon": "nfc",
+                        "link": reverse_lazy("admin:rfid_rfidtag_changelist"),
+                    },
+                    {
+                        "title": _("Attendance Logs"),
+                        "icon": "schedule",
+                        "link": reverse_lazy("admin:rfid_attendancelog_changelist"),
+                    },
+                    {
+                        "title": _("ESP32 Devices"),
+                        "icon": "sensors",
+                        "link": reverse_lazy("admin:rfid_esp32wifi_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Announcements & Content"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Announcements"),
+                        "icon": "campaign",
+                        "link": reverse_lazy("admin:adminhub_announcement_changelist"),
+                    },
+                    {
+                        "title": _("Document Templates"),
+                        "icon": "file_copy",
+                        "link": reverse_lazy("admin:adminhub_documenttemplate_changelist"),
+                    },
+                    {
+                        "title": _("PUP Sites"),
+                        "icon": "apartment",
+                        "link": reverse_lazy("admin:adminhub_pupsite_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("System & Logs"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Notifications"),
+                        "icon": "notifications",
+                        "link": reverse_lazy("admin:notifications_notification_changelist"),
+                    },
+                    {
+                        "title": _("Activity Log"),
+                        "icon": "history",
+                        "link": reverse_lazy("admin:notifications_activitylog_changelist"),
+                    },
+                    {
+                        "title": _("Created Account Log"),
+                        "icon": "manage_accounts",
+                        "link": reverse_lazy("admin:adminhub_createdaccountlog_changelist"),
+                    },
+                ],
+            },
+        ],
     },
 }

@@ -1,10 +1,11 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin
 
 from .models import ActivityLog, Notification
 
 
 @admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
+class NotificationAdmin(ModelAdmin):
 	list_display = (
 		"id",
 		"recipient",
@@ -21,7 +22,7 @@ class NotificationAdmin(admin.ModelAdmin):
 
 
 @admin.register(ActivityLog)
-class ActivityLogAdmin(admin.ModelAdmin):
+class ActivityLogAdmin(ModelAdmin):
 	list_display = ("id", "actor", "action", "target_type", "target_id", "created_at")
 	list_filter = ("action", "created_at")
 	search_fields = ("actor__email", "action", "target_type", "target_id")

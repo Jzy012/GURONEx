@@ -3,17 +3,21 @@ from django.contrib import admin
 # Register your models here.
 
 
-from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django import forms
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.utils.translation import gettext_lazy as _
+
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
+from unfold.widgets import UnfoldAdminPasswordWidget
+
 from .models import Account  # your custom user model
 
 
 class AccountCreationForm(forms.ModelForm):
     """Form for creating new users (in admin add user page)"""
-    password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
-    password2 = forms.CharField(label='Password confirmation', widget=forms.PasswordInput)
+    password1 = forms.CharField(label='Password', widget=UnfoldAdminPasswordWidget)
+    password2 = forms.CharField(label='Password confirmation', widget=UnfoldAdminPasswordWidget)
     two_factor_authentication = forms.BooleanField(required=False, initial=False)
 
 
@@ -50,7 +54,7 @@ class AccountCreationForm(forms.ModelForm):
 
 class AccountChangeForm(forms.ModelForm):
     """Form for updating existing users in admin"""
-    password = forms.CharField(label='Password', widget=forms.PasswordInput, required=False)
+    password = forms.CharField(label='Password', widget=UnfoldAdminPasswordWidget, required=False)
 
     class Meta:
         model = Account
@@ -64,7 +68,7 @@ class AccountChangeForm(forms.ModelForm):
             user.save()
         return user
 
-class AccountAdmin(UserAdmin):
+class AccountAdmin(BaseUserAdmin, UnfoldModelAdmin):
     """Custom admin class to control admin UI for Accounts"""
     add_form = AccountCreationForm
     form = AccountChangeForm
@@ -94,7 +98,7 @@ admin.site.register(Account, AccountAdmin)
 from .models import GoogleStorageAccount
 
 @admin.register(GoogleStorageAccount)
-class GoogleStorageAccountAdmin(admin.ModelAdmin):
+class GoogleStorageAccountAdmin(UnfoldModelAdmin):
     list_display = ("label", "email", "is_active", "token_expiry", "created_at")
     readonly_fields = ("created_at",)
     list_filter = ("is_active",)
