@@ -1,1 +1,1 @@
-web: python manage.py migrate --noinput; daphne -b 0.0.0.0 -p $PORT FEMS.asgi:application
+web: python manage.py collectstatic --noinput; python manage.py migrate --noinput; daphne -b 0.0.0.0 -p $PORT FEMS.asgi:application

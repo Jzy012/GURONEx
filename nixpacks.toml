@@ -18,4 +18,4 @@ cmds = [
 ]
 
 [start]
-cmd = "python manage.py migrate --noinput; daphne -b 0.0.0.0 -p $PORT FEMS.asgi:application"
+cmd = "python manage.py collectstatic --noinput; python manage.py migrate --noinput; daphne -b 0.0.0.0 -p $PORT FEMS.asgi:application"

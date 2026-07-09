@@ -167,7 +167,15 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Non-manifest WhiteNoise storage: compression without hashed filenames or a
+# staticfiles.json manifest. Uses the modern STORAGES setting (Django 4.2+),
+# which works on both the deploy (5.2) and local (6.0). collectstatic runs on
+# every deploy (see Procfile / nixpacks start cmd), so the served staticfiles/
+# is always freshly built — it is no longer committed to git.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+}
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
