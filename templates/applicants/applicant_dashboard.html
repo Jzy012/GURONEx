@@ -92,7 +92,7 @@
               bg-gray-50 text-gray-700 ring-1 ring-gray-200
             {% endif %}
           ">
-            {{ applicant.get_status_display }}
+            {% if applicant.status == 'psych_test' %}Psych Test Payment &amp; Permit to Teach{% else %}{{ applicant.get_status_display }}{% endif %}
           </span>
             </div>
 
@@ -147,7 +147,7 @@
         </div>
         <div>
           <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Status</dt>
-          <dd class="mt-1 text-gray-800">{{ applicant.get_status_display }}</dd>
+          <dd class="mt-1 text-gray-800">{% if applicant.status == 'psych_test' %}Psych Test Payment &amp; Permit to Teach{% else %}{{ applicant.get_status_display }}{% endif %}</dd>
         </div>
       </dl>
 
@@ -680,6 +680,9 @@
               Please pay the <span class="font-semibold">&#8369;1,500 Psychological Test fee</span> at the
               <span class="font-semibold">Collecting and Disbursing Office</span>. After payment, kindly upload a
               soft copy of your official receipt for verification.
+            </p>
+            <p class="text-xs text-purple-800">
+              <span class="font-semibold">Additional Note:</span> Original receipt must be submitted to the Office of Head of Academic Programs.
             </p>
             <ul class="list-disc pl-4 space-y-1 text-xs text-purple-800">
               <li>Upload a soft copy (scan or clear photo) of your official receipt.</li>

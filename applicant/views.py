@@ -256,7 +256,7 @@ def applicant_dashboard(request):
         ("pending", "Initial Review"),
         ("demo_scheduled", "Demo & Interview"),
         ("evaluation", "Evaluation"),
-        ("psych_test", "Psych Test"),
+        ("psych_test", "Psych Test Payment & Permit to Teach"),
         ("contract_of_service", "Contract of Service"),
         ("first_salary_requirements", "First Salary Requirements"),
         ("hired", "Hired"),

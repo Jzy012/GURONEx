@@ -67,7 +67,7 @@
             {% elif applicant.status == 'rejected' %}
               <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-200">Rejected</span>
             {% else %}
-              <span class="text-xs text-gray-500">{{ applicant.get_status_display }}</span>
+              <span class="text-xs text-gray-500">{% if applicant.status == 'psych_test' %}Psych Test Payment &amp; Permit to Teach{% else %}{{ applicant.get_status_display }}{% endif %}</span>
             {% endif %}
           </td>
           <td class="px-5 py-4 border-b text-gray-600">
@@ -126,7 +126,7 @@
           {% elif applicant.status == 'rejected' %}
             <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-200">Rejected</span>
           {% else %}
-            <span class="text-xs text-gray-500">{{ applicant.get_status_display }}</span>
+            <span class="text-xs text-gray-500">{% if applicant.status == 'psych_test' %}Psych Test Payment &amp; Permit to Teach{% else %}{{ applicant.get_status_display }}{% endif %}</span>
           {% endif %}
         </div>
         {% if applicant.archived_at %}

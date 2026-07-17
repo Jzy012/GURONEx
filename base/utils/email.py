@@ -209,7 +209,7 @@ def send_psych_test_step_email(
     ctx["deadline"] = deadline
     ctx["instructions"] = instructions
     send_html_email(
-        subject="[GURONEx] Action Required: Psych Test Document Upload",
+        subject="[GURONEx] Action Required: Psych Test Payment & Permit to Teach",
         to_emails=applicant.email,
         template_name="emails/applicant_psych_test.html",
         context=ctx,

@@ -2283,9 +2283,13 @@ def applicant_list_view(request):
     # 5. For status filter dropdown.
     # Demo & Interview is one stage: drop the legacy 'for_interview' option and
     # relabel 'demo_scheduled' as the combined "Demo & Interview" filter.
+    # Also relabel 'psych_test' to its full display name (display-only).
+    _filter_label_overrides = {
+        'demo_scheduled': 'Demo & Interview',
+        'psych_test': 'Psych Test Payment & Permit to Teach',
+    }
     status_choices = [
-        ('demo_scheduled' if value == 'demo_scheduled' else value,
-         'Demo & Interview' if value == 'demo_scheduled' else label)
+        (value, _filter_label_overrides.get(value, label))
         for value, label in Applicant._meta.get_field('status').choices
         if value != 'for_interview'
     ]
@@ -2355,7 +2359,7 @@ STEPPER_STATUSES = [
     ('pending', "Initial Review"),
     ('demo_scheduled', "Demo & Interview"),
     ('evaluation', "Evaluation"),
-    ('psych_test', "Psych Test"),
+    ('psych_test', "Psych Test Payment & Permit to Teach"),
     ('contract_of_service', "Contract of Service"),
     ('first_salary_requirements', "First Salary Requirements"),
     ('hired', "Hired"),
@@ -2660,7 +2664,7 @@ def applicant_detail_view(request, uuid):
         ('pending', "Initial Review"),
         ('demo_scheduled', "Demo & Interview"),
         ('evaluation', "Evaluation"),
-        ('psych_test', "Psych Test"),
+        ('psych_test', "Psych Test Payment & Permit to Teach"),
         ('contract_of_service', "Contract of Service"),
         ('first_salary_requirements', "First Salary Requirements"),
         ('hired', "Hired"),
