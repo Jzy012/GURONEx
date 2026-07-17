@@ -587,6 +587,11 @@ def _get_dashboard_step_context(applicant: Applicant) -> dict:
         )
         ctx['psych_doc'] = psych_doc
         ctx['psych_test_deadline'] = applicant.psych_test_deadline
+        ctx['permit_doc'] = (
+            applicant.step_documents
+            .filter(step_type=ApplicantStepDocument.STEP_PERMIT_TO_TEACH)
+            .first()
+        )
 
     # Contract of Service – show admin contract + signed contract
     if status == 'contract_of_service':
@@ -826,6 +831,98 @@ def applicant_upload_psych_test(request):
         pass
 
     messages.success(request, "Psych test document uploaded successfully. Please wait for admin review.")
+    return redirect('applicants:dashboard')
+
+
+@applicant_login_required
+def applicant_upload_permit_to_teach(request):
+    """Optional/conditional Permit to Teach upload during the Psych Test stage.
+
+    Never blocks the applicant: the permit is only *required* (enforced at admin
+    advancement) when the applicant is currently employed elsewhere.
+    """
+    if request.method != 'POST':
+        return redirect('applicants:dashboard')
+
+    applicant = get_object_or_404(Applicant, pk=request.session['applicant_pk'])
+
+    if applicant.status != 'psych_test':
+        messages.error(request, "Permit to Teach upload is not available at your current step.")
+        return redirect('applicants:dashboard')
+
+    existing = applicant.step_documents.filter(
+        step_type=ApplicantStepDocument.STEP_PERMIT_TO_TEACH,
+    ).order_by('-uploaded_at').first()
+
+    if existing and existing.status == ApplicantStepDocument.STATUS_APPROVED:
+        messages.error(request, "Your Permit to Teach has already been approved and cannot be replaced.")
+        return redirect('applicants:dashboard')
+
+    file = request.FILES.get('permit_to_teach_file')
+    if not file:
+        messages.error(request, "Please select a file to upload.")
+        return redirect('applicants:dashboard')
+
+    max_size = 15 * 1024 * 1024
+    if file.size > max_size:
+        messages.error(request, "File size must not exceed 15 MB.")
+        return redirect('applicants:dashboard')
+
+    allowed_types = {'application/pdf', 'image/jpeg', 'image/png'}
+    if file.content_type not in allowed_types:
+        messages.error(request, "Only PDF, JPG, or PNG files are allowed.")
+        return redirect('applicants:dashboard')
+
+    try:
+        service = CentralGoogleDriveService()
+        media = MediaIoBaseUpload(io.BytesIO(file.read()), mimetype=file.content_type, resumable=False)
+        upload = service.service.files().create(
+            body={'name': file.name, 'parents': [applicant.google_drive_folder_id]},
+            media_body=media,
+            fields='id,webViewLink',
+        ).execute()
+
+        if existing and existing.status == ApplicantStepDocument.STATUS_PENDING:
+            try:
+                service.service.files().delete(fileId=existing.google_drive_id).execute()
+            except Exception:
+                pass
+            existing.file_path = upload['webViewLink']
+            existing.google_drive_id = upload['id']
+            existing.file_size = file.size
+            existing.status = ApplicantStepDocument.STATUS_PENDING
+            existing.save()
+        else:
+            ApplicantStepDocument.objects.create(
+                applicant=applicant,
+                step_type=ApplicantStepDocument.STEP_PERMIT_TO_TEACH,
+                file_path=upload['webViewLink'],
+                google_drive_id=upload['id'],
+                file_size=file.size,
+            )
+        ApplicantTimeline.objects.create(
+            applicant=applicant,
+            action="Uploaded Permit to Teach",
+        )
+    except Exception:
+        messages.error(request, "Upload failed. Please try again.")
+        return redirect('applicants:dashboard')
+
+    try:
+        notify_role(
+            roles=ROLE_ADMIN_GROUP,
+            notification_type='applicant_step_document_uploaded',
+            title='Permit to Teach uploaded',
+            message=f"{applicant.first_name} {applicant.last_name} uploaded their Permit to Teach.",
+            url=reverse('adminhub:applicant_detail', kwargs={'uuid': applicant.uuid}),
+            related_type='Applicant',
+            related_id=str(applicant.uuid),
+            aggregate_key=f"applicant_permit_upload:{applicant.uuid}",
+        )
+    except Exception:
+        pass
+
+    messages.success(request, "Permit to Teach uploaded successfully. Please wait for admin review.")
     return redirect('applicants:dashboard')
 
 

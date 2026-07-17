@@ -10,7 +10,9 @@
   </p>
 
   <p>
-    You are now required to submit your <strong>Psychological Test result document</strong> through your applicant dashboard.
+    Please pay the <strong>&#8369;1,500 Psychological Test fee</strong> at the
+    <strong>Collecting and Disbursing Office</strong>. After payment, kindly upload a soft copy of your
+    official receipt through your applicant dashboard for verification.
   </p>
 
   {% if deadline %}
@@ -31,25 +33,26 @@
   {% if instructions %}
     <div class="divider"></div>
     <p><strong>Instructions from Admin:</strong></p>
-    <p>{{ instructions }}</p>
+    <p>{{ instructions|linebreaksbr }}</p>
     <div class="divider"></div>
   {% endif %}
 
   <p><strong>What to upload:</strong></p>
   <ul>
-    <li>The official result document issued to you by the testing center or institution that administered your psychological examination.</li>
+    <li>A soft copy (scan or clear photo) of your official receipt for the &#8369;1,500 Psychological Test fee.</li>
+    <li>Your receipt will undergo verification by the admin.</li>
     <li>Accepted file formats: PDF, JPG, or PNG (max 15 MB).</li>
   </ul>
 
   <p><strong>How to submit:</strong></p>
   <ul>
     <li>Log in to your applicant dashboard using the button below.</li>
-    <li>Find the <em>Psych Test Document</em> section.</li>
-    <li>Upload your document and wait for admin review and approval.</li>
+    <li>Find the <em>Psychological Test Fee Receipt</em> section.</li>
+    <li>Upload your receipt and wait for admin review and approval.</li>
   </ul>
 
   <p>
-    <a href="{{ status_url }}" class="btn">Upload Psych Test Document</a>
+    <a href="{{ status_url }}" class="btn">Upload Psych Test Receipt</a>
   </p>
 
   <div class="divider"></div>

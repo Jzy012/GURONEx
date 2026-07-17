@@ -2260,7 +2260,12 @@ def applicant_list_view(request):
             Q(email__icontains=search)
         )
     if status:
-        applicant_qs = applicant_qs.filter(status=status)
+        # Demo & Interview is one combined stage: the single "Demo" filter also
+        # surfaces any legacy 'for_interview' records.
+        if status == 'demo_scheduled':
+            applicant_qs = applicant_qs.filter(status__in=['demo_scheduled', 'for_interview'])
+        else:
+            applicant_qs = applicant_qs.filter(status=status)
 
     # 2. Stats scoped to active applicants
     active_qs = Applicant.objects.filter(is_archived=False)
@@ -2275,8 +2280,15 @@ def applicant_list_view(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # 5. For status filter dropdown
-    status_choices = Applicant._meta.get_field('status').choices
+    # 5. For status filter dropdown.
+    # Demo & Interview is one stage: drop the legacy 'for_interview' option and
+    # relabel 'demo_scheduled' as the combined "Demo & Interview" filter.
+    status_choices = [
+        ('demo_scheduled' if value == 'demo_scheduled' else value,
+         'Demo & Interview' if value == 'demo_scheduled' else label)
+        for value, label in Applicant._meta.get_field('status').choices
+        if value != 'for_interview'
+    ]
 
     # 6. Preserve filters for pagination links
     get_params = request.GET.copy()
@@ -2535,8 +2547,16 @@ def applicant_detail_view(request, uuid):
                         status=ApplicantStepDocument.STATUS_APPROVED,
                     ).exists():
                         _step_doc_block_msg = (
-                            "The applicant's psych test document has not been approved yet. "
+                            "The applicant's psych test receipt has not been approved yet. "
                             "Please review and approve it before advancing."
+                        )
+                    elif applicant.is_currently_employed and not applicant.step_documents.filter(
+                        step_type=ApplicantStepDocument.STEP_PERMIT_TO_TEACH,
+                        status=ApplicantStepDocument.STATUS_APPROVED,
+                    ).exists():
+                        _step_doc_block_msg = (
+                            "This applicant is currently employed elsewhere, so a Permit to Teach is required. "
+                            "Please review and approve their Permit to Teach before advancing."
                         )
                 elif applicant.status == 'contract_of_service':
                     if not applicant.step_documents.filter(
@@ -2702,9 +2722,14 @@ def applicant_detail_view(request, uuid):
         )
 
     psych_docs = []
+    permit_docs = []
     if applicant.status == 'psych_test':
         psych_docs = list(
             applicant.step_documents.filter(step_type=ApplicantStepDocument.STEP_PSYCH_TEST)
+            .order_by('-uploaded_at')
+        )
+        permit_docs = list(
+            applicant.step_documents.filter(step_type=ApplicantStepDocument.STEP_PERMIT_TO_TEACH)
             .order_by('-uploaded_at')
         )
 
@@ -2833,6 +2858,7 @@ def applicant_detail_view(request, uuid):
         # Step-specific
         'pending_reschedule_requests': pending_reschedule_requests,
         'psych_docs': psych_docs,
+        'permit_docs': permit_docs,
         'admin_contract': admin_contract,
         'signed_contracts': signed_contracts,
         'salary_configs': salary_configs,

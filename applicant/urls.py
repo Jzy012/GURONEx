@@ -20,6 +20,7 @@ urlpatterns = [
     # Step-specific applicant actions
     path("applicant/dashboard/reschedule-request/", views.applicant_request_reschedule, name="request_reschedule"),
     path("applicant/dashboard/psych-test/upload/", views.applicant_upload_psych_test, name="upload_psych_test"),
+    path("applicant/dashboard/permit-to-teach/upload/", views.applicant_upload_permit_to_teach, name="upload_permit_to_teach"),
     path("applicant/dashboard/contract/upload-signed/", views.applicant_upload_signed_contract, name="upload_signed_contract"),
     path("applicant/step-document/<int:pk>/download/", views.applicant_download_step_document, name="download_step_document"),
     path("applicant/dashboard/salary-requirements/upload/", views.applicant_upload_salary_requirement, name="upload_salary_requirement"),

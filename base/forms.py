@@ -1291,6 +1291,7 @@ class ApplicantEducationForm(forms.ModelForm):
             'college_degree', 'college_institution',
             'masters_degree', 'masters_institution',
             'doctorate_degree', 'doctorate_institution',
+            'eligibility', 'current_employment', 'is_currently_employed',
         ]
         labels = {
             'college_degree': 'College Degree',
@@ -1299,6 +1300,9 @@ class ApplicantEducationForm(forms.ModelForm):
             'masters_institution': "Master's Institution",
             'doctorate_degree': 'Doctorate Degree',
             'doctorate_institution': 'Doctorate Institution',
+            'eligibility': 'Eligibility',
+            'current_employment': 'Current Employment',
+            'is_currently_employed': 'Currently employed by another institution',
         }
 
     def __init__(self, *args, **kwargs):
@@ -1307,9 +1311,16 @@ class ApplicantEducationForm(forms.ModelForm):
             "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm "
             "focus:outline-none focus:ring-2 focus:ring-[#800505] transition"
         )
-        for field in self.fields.values():
+        checkbox_class = (
+            "h-4 w-4 rounded border-gray-300 text-[#800505] "
+            "focus:ring-[#800505]"
+        )
+        for name, field in self.fields.items():
             field.required = False
-            field.widget.attrs['class'] = field_class
+            if name == 'is_currently_employed':
+                field.widget.attrs['class'] = checkbox_class
+            else:
+                field.widget.attrs['class'] = field_class
 
 
 MAX_FILE_SIZE = 15 * 1024 * 1024

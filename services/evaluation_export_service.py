@@ -6,13 +6,19 @@ from io import BytesIO
 from django.http import HttpResponse
 from django.utils import timezone
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import cm
+from reportlab.lib.units import cm, inch
 from reportlab.platypus import (
     HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
 from reportlab.platypus.flowables import Flowable
+
+# Philippine "long bond" / Folio paper (8.5in x 13in). The evaluation form is
+# printed on this size; generating the PDF at the true sheet size means it can be
+# printed at 100% (Actual size) with no scaling, so the reserved header/footer
+# letterhead space stays at its intended physical dimensions instead of being
+# inflated when A4 content is stretched onto longer paper.
+LONG_BOND = (8.5 * inch, 13 * inch)
 
 
 def _evaluator_position(ea) -> str:
@@ -41,13 +47,13 @@ def build_evaluation_pdf_response(applicant):
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=A4,
+        pagesize=LONG_BOND,
         leftMargin=2.0 * cm,
         rightMargin=2.0 * cm,
         topMargin=1.8 * cm,
         bottomMargin=2.0 * cm,
     )
-    avail = A4[0] - doc.leftMargin - doc.rightMargin
+    avail = LONG_BOND[0] - doc.leftMargin - doc.rightMargin
 
     styles = getSampleStyleSheet()
 
@@ -151,8 +157,8 @@ def build_evaluation_pdf_response(applicant):
         _qual_row('Educational Institution', applicant.masters_institution),
         _qual_row("Doctorate's Degree", applicant.doctorate_degree),
         _qual_row('Educational Institution', applicant.doctorate_institution),
-        _qual_row('Eligibility', ''),
-        _qual_row('Current Employment', ''),
+        _qual_row('Eligibility', applicant.eligibility),
+        _qual_row('Current Employment', applicant.current_employment),
     ]
     lw = avail * 0.32
     qual_table = Table(qual_data, colWidths=[lw, avail - lw])

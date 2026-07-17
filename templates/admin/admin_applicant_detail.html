@@ -230,7 +230,17 @@
 
     <!-- Availability confirmation info (demo/interview step) -->
     {% if applicant.status == 'demo_scheduled' or applicant.status == 'for_interview' %}
-      {% if confirmed_by_applicant %}
+      {% if pending_reschedule_requests %}
+        <div class="pt-4 border-t border-gray-100">
+          <div class="flex items-center gap-2 text-sm text-amber-700">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+            <span class="font-semibold">Applicant requested a reschedule</span>
+            <span class="text-xs text-amber-600">— {{ pending_reschedule_requests.0.requested_at|date:"F j, Y H:i" }}</span>
+          </div>
+        </div>
+      {% elif confirmed_by_applicant %}
         <div class="pt-4 border-t border-gray-100">
           <div class="flex items-center gap-2 text-sm text-green-700">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -486,6 +496,28 @@
 
       <!-- Collapsible body (expanded by default) -->
       <div id="eval-section-body" class="space-y-5 mt-5">
+
+        <!-- Qualifications (Eligibility / Current Employment) — used in the Evaluation export -->
+        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <div class="flex items-start justify-between gap-3">
+            <div class="space-y-1 text-sm">
+              <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Qualifications</p>
+              <p><span class="font-semibold text-gray-900">Eligibility:</span>
+                {% if applicant.eligibility %}{{ applicant.eligibility }}{% else %}<span class="text-gray-400">Not provided</span>{% endif %}</p>
+              <p><span class="font-semibold text-gray-900">Current Employment:</span>
+                {% if applicant.current_employment %}{{ applicant.current_employment }}{% else %}<span class="text-gray-400">Not provided</span>{% endif %}</p>
+              <p><span class="font-semibold text-gray-900">Employed elsewhere:</span>
+                {% if applicant.is_currently_employed %}<span class="text-amber-700 font-medium">Yes — Permit to Teach required at Psych Test</span>{% else %}No{% endif %}</p>
+            </div>
+            <button type="button" onclick="openEditEducationModal()"
+                    class="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-[#800505]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+              </svg>
+              Edit
+            </button>
+          </div>
+        </div>
 
         <!-- Submission summary bar -->
         {% if eval_total %}
@@ -814,7 +846,7 @@
   <!-- Psych Test – Review Uploaded Documents -->
   {% if applicant.status == 'psych_test' and psych_docs %}
     <section class="bg-white rounded-xl border border-purple-100 shadow-sm p-4 sm:p-6 space-y-3">
-      <h3 class="text-sm font-semibold text-gray-900">Psych Test Documents</h3>
+      <h3 class="text-sm font-semibold text-gray-900">Psych Test Fee Receipt</h3>
       {% for doc in psych_docs %}
         <div class="rounded-lg border p-4 space-y-2
           {% if doc.status == 'Approved' %}border-green-200 bg-green-50
@@ -844,6 +876,60 @@
           {% endif %}
         </div>
       {% endfor %}
+    </section>
+  {% endif %}
+
+  <!-- Psych Test – Permit to Teach (conditional) -->
+  {% if applicant.status == 'psych_test' %}
+    <section class="bg-white rounded-xl border border-purple-100 shadow-sm p-4 sm:p-6 space-y-3">
+      <div class="flex items-center gap-2 flex-wrap">
+        <h3 class="text-sm font-semibold text-gray-900">Permit to Teach</h3>
+        {% if applicant.is_currently_employed %}
+          <span class="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2.5 py-0.5">Required</span>
+        {% else %}
+          <span class="text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-2.5 py-0.5">Optional</span>
+        {% endif %}
+      </div>
+      <p class="text-xs text-gray-500">
+        {% if applicant.is_currently_employed %}
+          This applicant is currently employed elsewhere, so an approved Permit to Teach is required before advancing to the next stage.
+        {% else %}
+          This applicant is not currently employed elsewhere, so a Permit to Teach is optional and does not block advancement.
+        {% endif %}
+      </p>
+      {% if permit_docs %}
+        {% for doc in permit_docs %}
+          <div class="rounded-lg border p-4 space-y-2
+            {% if doc.status == 'Approved' %}border-green-200 bg-green-50
+            {% elif doc.status == 'Rejected' %}border-red-200 bg-red-50
+            {% else %}border-gray-200{% endif %}">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold text-gray-800">{{ doc.status }}</p>
+                <p class="text-xs text-gray-500">Uploaded {{ doc.uploaded_at|date:"F j, Y H:i" }}</p>
+                {% if doc.admin_remarks %}<p class="text-xs mt-1 text-gray-600"><span class="font-semibold">Remarks:</span> {{ doc.admin_remarks }}</p>{% endif %}
+              </div>
+              <a href="{% url 'adminhub:download_applicant_step_document' doc.pk %}?inline=1" target="_blank"
+                 class="text-xs font-semibold text-[#800505] underline shrink-0">View</a>
+            </div>
+            {% if doc.status == 'Pending' %}
+              <form method="post" action="{% url 'adminhub:admin_review_step_document' doc.pk %}" class="border-t border-gray-200 pt-3 space-y-2">
+                {% csrf_token %}
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input type="text" name="remarks" placeholder="Remarks (optional)"
+                         class="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+                  <button name="status" value="Approved" type="submit"
+                          class="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100">Approve</button>
+                  <button name="status" value="Rejected" type="submit"
+                          class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100">Reject</button>
+                </div>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-sm text-gray-500">No Permit to Teach has been uploaded yet.</p>
+      {% endif %}
     </section>
   {% endif %}
 
@@ -1751,7 +1837,7 @@
 <div id="editEducationModal" class="hidden fixed inset-0 z-[65] bg-gray-950/70 backdrop-blur-sm items-center justify-center px-4 py-6">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
     <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-      <h3 class="text-base font-semibold text-gray-900">Edit Educational Background</h3>
+      <h3 class="text-base font-semibold text-gray-900">Edit Educational Background &amp; Qualifications</h3>
       <button type="button" onclick="closeEditEducationModal()"
               class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -1815,6 +1901,32 @@
                      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition" />
             </div>
           </div>
+        </div>
+        <!-- Qualifications (used in the Evaluation form export) -->
+        <div class="space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-100 pb-1">Qualifications</p>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Eligibility</label>
+              <input type="text" name="eligibility" value="{{ applicant.eligibility }}"
+                     placeholder="e.g. LET / PBET / CSC Professional"
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Current Employment</label>
+              <input type="text" name="current_employment" value="{{ applicant.current_employment }}"
+                     placeholder="e.g. Faculty, ABC University"
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#800505] transition" />
+            </div>
+          </div>
+          <label class="flex items-center gap-2 pt-1 text-sm text-gray-700">
+            <input type="checkbox" name="is_currently_employed" value="true"
+                   {% if applicant.is_currently_employed %}checked{% endif %}
+                   class="h-4 w-4 rounded border-gray-300 text-[#800505] focus:ring-[#800505]" />
+            <span>Currently employed by another institution
+              <span class="block text-xs text-gray-500">Determines whether a Permit to Teach is required at the Psych Test stage.</span>
+            </span>
+          </label>
         </div>
       </div>
       <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">

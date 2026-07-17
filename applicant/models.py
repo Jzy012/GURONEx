@@ -79,6 +79,11 @@ class Applicant(models.Model):
     doctorate_degree = models.CharField(max_length=200, blank=True)
     doctorate_institution = models.CharField(max_length=200, blank=True)
 
+    # Qualifications captured during the Evaluation stage (admin-set)
+    eligibility = models.CharField(max_length=255, blank=True)
+    current_employment = models.CharField(max_length=255, blank=True)
+    is_currently_employed = models.BooleanField(default=False)
+
     status = models.CharField(
         max_length=30,
         choices=[
@@ -364,11 +369,13 @@ class ApplicantRescheduleRequest(models.Model):
 
 class ApplicantStepDocument(models.Model):
     STEP_PSYCH_TEST = 'psych_test'
+    STEP_PERMIT_TO_TEACH = 'permit_to_teach'
     STEP_CONTRACT_ADMIN = 'contract_admin'
     STEP_CONTRACT_SIGNED = 'contract_signed'
     STEP_SALARY_REQUIREMENT = 'salary_requirement'
     STEP_TYPE_CHOICES = [
         (STEP_PSYCH_TEST, 'Psych Test'),
+        (STEP_PERMIT_TO_TEACH, 'Permit to Teach'),
         (STEP_CONTRACT_ADMIN, 'Contract (Admin Uploaded)'),
         (STEP_CONTRACT_SIGNED, 'Signed Contract (Applicant)'),
         (STEP_SALARY_REQUIREMENT, 'First Salary Requirement'),
