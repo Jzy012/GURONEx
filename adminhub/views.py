@@ -3197,6 +3197,100 @@ def admin_assign_evaluators(request, uuid):
     return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
 
 
+@admin_required
+@require_POST
+def admin_reschedule_evaluation(request, uuid, assignment_id):
+    """Reschedule an EXPIRED, unsubmitted evaluation: issue a new token/deadline
+    and re-send the evaluator's invite email. Updates the existing assignment in
+    place so the old link stops working and the unique (applicant, evaluator)
+    constraint is preserved. Rescheduling is unlimited and audited via timeline.
+    """
+    applicant = get_object_or_404(Applicant, uuid=uuid)
+    assignment = get_object_or_404(
+        EvaluationAssignment, pk=assignment_id, applicant=applicant,
+    )
+
+    if applicant.status != 'evaluation':
+        messages.error(request, "Evaluations can only be rescheduled during the Evaluation step.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    if assignment.is_submitted:
+        messages.error(request, "This evaluation has already been submitted and cannot be rescheduled.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    if not assignment.is_expired:
+        messages.error(request, "This evaluation has not expired yet, so it does not need rescheduling.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    deadline_raw = (request.POST.get('submission_deadline') or '').strip()
+    if not deadline_raw:
+        messages.error(request, "A new submission deadline is required to reschedule.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    try:
+        from django.utils.dateparse import parse_datetime
+        submission_deadline = parse_datetime(deadline_raw)
+        if submission_deadline is None:
+            raise ValueError("unparseable")
+        if timezone.is_naive(submission_deadline):
+            submission_deadline = timezone.make_aware(submission_deadline)
+    except (ValueError, TypeError):
+        messages.error(request, "Invalid deadline format. Please use the date-time picker.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    if submission_deadline <= timezone.now():
+        messages.error(request, "Submission deadline must be in the future.")
+        return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+    old_deadline = assignment.submission_deadline
+    base_url = getattr(settings, 'SITE_BASE_URL', '').rstrip('/')
+
+    with transaction.atomic():
+        # New token; keep the 14-day link floor but ensure the link stays valid
+        # through the (possibly later) new deadline.
+        new_token = get_random_string(64)
+        token_expires_at = max(
+            timezone.now() + timedelta(days=EVALUATION_TOKEN_VALIDITY_DAYS),
+            submission_deadline,
+        )
+        assignment.token = new_token
+        assignment.token_expires_at = token_expires_at
+        assignment.submission_deadline = submission_deadline
+        assignment.save(update_fields=['token', 'token_expires_at', 'submission_deadline'])
+
+        old_label = old_deadline.strftime('%b %d, %Y %I:%M %p') if old_deadline else '—'
+        ApplicantTimeline.objects.create(
+            applicant=applicant,
+            action=(
+                f"Evaluation rescheduled for {assignment.evaluator_display_name}: "
+                f"{old_label} → {submission_deadline.strftime('%b %d, %Y %I:%M %p')}"
+            ),
+            admin=request.user,
+        )
+
+        eval_path = reverse('applicants:evaluate_form', kwargs={'token': new_token})
+        eval_url = f"{base_url}{eval_path}" if base_url else request.build_absolute_uri(eval_path)
+
+        evaluator = assignment.evaluator
+        evaluator_profile = getattr(evaluator, 'faculty_profile', None)
+        evaluator_personal_email = evaluator_profile.personal_email if evaluator_profile else None
+        try:
+            send_evaluation_invite_email(
+                assignment.evaluator_display_name, evaluator.email, applicant, eval_url,
+                token_expires_at, submission_deadline=submission_deadline,
+                personal_email=evaluator_personal_email,
+                is_reschedule=True,
+            )
+        except Exception:
+            logger.exception("Failed to send rescheduled evaluation email to %s", evaluator.email)
+
+    messages.success(
+        request,
+        f"Evaluation for {assignment.evaluator_display_name} rescheduled and a new link was emailed.",
+    )
+    return redirect('adminhub:applicant_detail', uuid=applicant.uuid)
+
+
 # ---------------------------------------------------------------------------
 # Admin: Archive Applicant
 # ---------------------------------------------------------------------------

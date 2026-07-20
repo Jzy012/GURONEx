@@ -5,10 +5,20 @@
 {% block content %}
   <p>Hi {{ evaluator_name }},</p>
 
-  <p>
-    You have been assigned to evaluate a faculty applicant for <strong>GURONEx</strong>.
-    Please review the applicant's qualifications and complete the evaluation form using the secure link below.
-  </p>
+  {% if is_reschedule %}
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin:16px 0;">
+      <p style="margin:0 0 4px;font-weight:600;color:#1e3a8a;">Evaluation Deadline Updated</p>
+      <p style="margin:0;color:#1e40af;">
+        Your evaluation deadline has been updated and a <strong>new secure link</strong> has been issued.
+        Any previous evaluation link is no longer valid &mdash; please use the updated link below.
+      </p>
+    </div>
+  {% else %}
+    <p>
+      You have been assigned to evaluate a faculty applicant for <strong>GURONEx</strong>.
+      Please review the applicant's qualifications and complete the evaluation form using the secure link below.
+    </p>
+  {% endif %}
 
   <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0;">
     <p style="margin:0 0 4px;font-weight:600;color:#111827;">Applicant Information</p>

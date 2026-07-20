@@ -579,6 +579,25 @@
                   {% endif %}
                 </div>
 
+                <!-- Reschedule expired, unsubmitted evaluation -->
+                {% if ea.is_expired and not ea.is_submitted %}
+                  <div class="border-t border-red-200 pt-2 space-y-1.5">
+                    <p class="text-xs text-gray-600">
+                      This evaluation link has expired. Set a new deadline to reissue a fresh link and email the evaluator.
+                    </p>
+                    <form method="post" action="{% url 'adminhub:admin_reschedule_evaluation' applicant.uuid ea.pk %}"
+                          class="flex flex-col sm:flex-row gap-2">
+                      {% csrf_token %}
+                      <input type="datetime-local" name="submission_deadline" required
+                             class="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+                      <button type="submit"
+                              class="rounded-lg bg-[#800505] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#a80707] whitespace-nowrap">
+                        Reschedule Evaluation
+                      </button>
+                    </form>
+                  </div>
+                {% endif %}
+
                 <!-- Full evaluation details if submitted -->
                 {% if ea.is_submitted and ea.submission %}
                   <div class="border-t border-gray-200 pt-3 space-y-3">

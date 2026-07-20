@@ -348,16 +348,24 @@ def send_evaluation_step_email(applicant: Applicant, deadline=None) -> None:
 def send_evaluation_invite_email(evaluator_name: str, evaluator_email: str,
                                   applicant: Applicant, evaluation_url: str,
                                   expires_at, submission_deadline=None,
-                                  personal_email: Optional[str] = None) -> None:
+                                  personal_email: Optional[str] = None,
+                                  is_reschedule: bool = False) -> None:
     """
     Send the tokenized evaluation link to an evaluator.
 
     Delivers to the primary email and, when available, the evaluator's personal
     email in the same message. Identical/empty addresses are de-duplicated so no
     duplicate notification is sent.
+
+    When ``is_reschedule`` is True, the message is framed as an updated deadline /
+    newly issued link (the previous link is no longer valid).
     """
+    if is_reschedule:
+        subject = f"[GURONEx] Updated Evaluation Deadline: {applicant.full_name}"
+    else:
+        subject = f"[GURONEx] Evaluation Request: {applicant.full_name}"
     send_html_email(
-        subject=f"[GURONEx] Evaluation Request: {applicant.full_name}",
+        subject=subject,
         to_emails=build_recipient_list(evaluator_email, personal_email),
         template_name="emails/evaluation_invite.html",
         context={
@@ -367,6 +375,7 @@ def send_evaluation_invite_email(evaluator_name: str, evaluator_email: str,
             "evaluation_url": evaluation_url,
             "expires_at": expires_at,
             "submission_deadline": submission_deadline,
+            "is_reschedule": is_reschedule,
         },
     )
 

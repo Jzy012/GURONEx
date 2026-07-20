@@ -89,6 +89,7 @@ urlpatterns = [
     path('admin/applicants/step-document/<int:pk>/review/', views.admin_review_step_document, name='admin_review_step_document'),
     path('admin/applicants/<uuid:uuid>/salary-requirements/', views.admin_configure_salary_requirements, name='admin_configure_salary_requirements'),
     path('admin/applicants/<uuid:uuid>/assign-evaluators/', views.admin_assign_evaluators, name='admin_assign_evaluators'),
+    path('admin/applicants/<uuid:uuid>/evaluations/<int:assignment_id>/reschedule/', views.admin_reschedule_evaluation, name='admin_reschedule_evaluation'),
     path('admin/applicants/<uuid:uuid>/archive/', views.admin_archive_applicant, name='admin_archive_applicant'),
     path('admin/applicants/<uuid:uuid>/restore/', views.admin_restore_applicant, name='admin_restore_applicant'),
     path('admin/applicants/<uuid:uuid>/evaluation-export/', views.admin_export_evaluation, name='admin_export_evaluation'),
