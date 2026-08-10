@@ -188,6 +188,13 @@ class GoogleStorageAccount(models.Model):
 from django.db import models
 
 
+# Cache key for the rendered landing appearance data (see
+# base/templatetags/appearance_tags.py). Kept here so save()-time invalidation
+# and the read path share one source of truth.
+LANDING_CACHE_KEY = "landing_appearance_v1"
+LANDING_CACHE_TTL = 300
+
+
 class LandingAppearance(models.Model):
     """
     Stores options for the landing/background behavior.
@@ -225,3 +232,10 @@ class LandingAppearance(models.Model):
     def get_solo(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Bust the cached landing data so admin edits show up immediately
+        # instead of after the TTL.
+        from django.core.cache import cache
+        cache.delete(LANDING_CACHE_KEY)

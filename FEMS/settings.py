@@ -123,6 +123,29 @@ DATABASES = {
         'PASSWORD': env('DB_PASSWORD'),
         'HOST': env('DB_HOST'),
         'PORT': env('DB_PORT'),
+        # Reuse connections instead of opening a fresh one per request. Under
+        # Daphne/ASGI this is per-thread; combined with CONN_HEALTH_CHECKS it
+        # stays safe with cloud Postgres dropping idle connections.
+        'CONN_MAX_AGE': env.int('DB_CONN_MAX_AGE', default=60),
+        'CONN_HEALTH_CHECKS': True,
+        'OPTIONS': {
+            # Bound the socket connect so a slow/unreachable DB fails fast
+            # instead of hanging up to the gateway timeout.
+            'connect_timeout': env.int('DB_CONNECT_TIMEOUT', default=5),
+        },
+    }
+}
+
+
+# Cache
+# LocMemCache (per-process, no network) is used deliberately so the anonymous
+# homepage cache lookups never depend on the remote Redis hop. If cross-process
+# sharing is ever needed, switch to django.core.cache.backends.redis.RedisCache
+# with socket timeouts + a DB fallback so Redis can't become a new stall source.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "fems-default",
     }
 }
 
