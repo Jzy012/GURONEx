@@ -194,12 +194,13 @@ class AcademicYear(models.Model):
             if year.start_date <= ref_date <= year.end_date:
                 active_ids.append(year.id)
 
-        # Reset all to False
-        cls.objects.update(is_active=False)
+        # One transaction so an interruption between the reset and the set can
+        # never leave every academic year inactive.
+        with transaction.atomic():
+            cls.objects.exclude(id__in=active_ids).filter(is_active=True).update(is_active=False)
 
-        # Mark found ones as active (normally just 1)
-        if active_ids:
-            cls.objects.filter(id__in=active_ids).update(is_active=True)
+            if active_ids:
+                cls.objects.filter(id__in=active_ids).update(is_active=True)
 
 
 class Semester(models.Model):
@@ -226,6 +227,95 @@ class Semester(models.Model):
     def __str__(self):
         return f"{self.get_semester_type_display()} {self.academic_year}"
 
+    @property
+    def label(self):
+        """
+        Canonical display form for the academic calendar, e.g. "2025–2026 • 1st Semester".
+
+        Use this everywhere the academic year/semester is shown to a user so the
+        faculty dashboard reads consistently across tabs.
+        """
+        return f"{self.academic_year} • {self.get_semester_type_display()}"
+
+    @classmethod
+    def resolve_for_date(cls, ref_date=None):
+        """
+        Which semester is current on ref_date, derived from the dates alone.
+
+        This is the single rule the whole academic calendar is built on. It is
+        pure: it reads no is_active flag and writes nothing, so it is always
+        correct the moment a date passes, whether or not the nightly sync ran.
+
+        1. A semester whose range contains ref_date. Both boundaries are
+           inclusive, so start_date == today and end_date == today both count as
+           in-semester (matching services/dtr_service.py).
+        2. Otherwise the most recently started semester. This keeps the previous
+           semester current through a semestral break, which is what the
+           dashboard, deliverables and clearance flows expect.
+        3. Otherwise None - nothing has started yet.
+        """
+        if ref_date is None:
+            ref_date = timezone.localdate()
+
+        qs = cls.objects.select_related("academic_year")
+
+        current = (
+            qs.filter(start_date__lte=ref_date, end_date__gte=ref_date)
+            .order_by("-start_date", "-id")
+            .first()
+        )
+        if current is not None:
+            return current
+
+        # Gap between semesters: stay on the one that most recently started.
+        return (
+            qs.filter(start_date__lte=ref_date)
+            .order_by("-start_date", "-id")
+            .first()
+        )
+
+    @classmethod
+    def get_active(cls):
+        """
+        Single source of truth for "the current semester".
+
+        Delegates to resolve_for_date() rather than trusting the stored
+        is_active flag, so a missed sync can never leave the UI on a stale
+        semester. The flag is still maintained for the admin pages and
+        background tasks that query it directly; when it disagrees with the
+        derived answer we opportunistically repair it, at most once per process
+        per day.
+        """
+        semester = cls.resolve_for_date()
+
+        if semester is not None and not semester.is_active:
+            cls._heal_active_flag(semester)
+
+        return semester
+
+    @classmethod
+    def _heal_active_flag(cls, expected):
+        """
+        Converge the stored is_active flag on the derived semester.
+
+        Guarded by the cache so a busy page does not re-run the sync on every
+        request. Failures are swallowed on purpose: this is a best-effort
+        repair on a read path and must never break the page it was called from.
+        """
+        from django.core.cache import cache
+
+        cache_key = f"academic_calendar:healed:{timezone.localdate().isoformat()}"
+        if cache.get(cache_key):
+            return
+
+        cache.set(cache_key, True, 60 * 60 * 24)
+        try:
+            cls.update_active_semesters()
+            AcademicYear.update_active_years()
+            expected.refresh_from_db(fields=["is_active"])
+        except Exception:
+            logger.exception("Failed to heal active semester flag for semester %s", expected.pk)
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
 
@@ -250,40 +340,31 @@ class Semester(models.Model):
     @classmethod
     def update_active_semesters(cls, ref_date=None):
         """
-        For each academic year, mark the most recent semester whose start date
-        has been reached as active, and all others inactive.
+        Mark exactly one semester active - the one resolve_for_date() returns.
 
-        This keeps the current semester active through any gap until the next
-        semester's start date is reached.
+        Previously this activated the latest started semester in *each* academic
+        year, so a finished academic year kept a semester flagged active forever
+        and several rows were active at once. Consumers that query
+        is_active=True directly then resolved to whichever row the database
+        happened to return first.
+
+        The reset and the set run in one transaction so an interruption can
+        never leave every semester inactive.
         """
         if ref_date is None:
             ref_date = timezone.localdate()
 
-        semesters = list(
-            cls.objects
-            .select_related("academic_year")
-            .order_by("academic_year__year_start", "start_date")
-        )
+        active_semester = cls.resolve_for_date(ref_date=ref_date)
 
-        # Group by academic year id
-        by_year = {}
-        for sem in semesters:
-            by_year.setdefault(sem.academic_year_id, []).append(sem)
-
-        # Reset all to False
-        cls.objects.update(is_active=False)
-
-        # Activate the latest semester that has already started in each academic year
-        for year_id, sems in by_year.items():
-            active_semester = None
-            for sem in sems:
-                if sem.start_date <= ref_date:
-                    active_semester = sem
-                else:
-                    break
+        with transaction.atomic():
+            cls.objects.exclude(
+                pk=active_semester.pk if active_semester else None
+            ).filter(is_active=True).update(is_active=False)
 
             if active_semester is not None:
                 cls.objects.filter(pk=active_semester.pk).update(is_active=True)
+
+        return active_semester
 
 
 

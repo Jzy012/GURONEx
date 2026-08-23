@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 from celery import shared_task
 from django.db import DatabaseError
@@ -15,6 +16,8 @@ from services.deliverable_assignment_service import (
 )
 
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_ANNOUNCEMENT_ROLES = ["admin", "faculty"]
 
 
@@ -25,42 +28,57 @@ def _sync_active_academic_calendar(ref_date=None):
         ref_date = timezone.localdate()
 
     AcademicYear.update_active_years(ref_date=ref_date)
-    Semester.update_active_semesters(ref_date=ref_date)
+    active_semester = Semester.update_active_semesters(ref_date=ref_date)
 
     return {
         "ref_date": str(ref_date),
+        "active_semester_id": active_semester.pk if active_semester else None,
+        "active_semester": str(active_semester) if active_semester else None,
     }
 
 
 def _get_announcement_recipient_emails(visible_roles):
+    from base.utils.email_base import build_recipient_list
+
     roles = set(visible_roles or DEFAULT_ANNOUNCEMENT_ROLES)
-    recipients = set()
+    collected = []
 
     if "admin" in roles:
-        admin_emails = Account.objects.filter(
-            role__in=["admin", "system_admin"],
-            is_active=True,
-        ).exclude(email="").values_list("email", flat=True)
-        recipients.update(email.strip() for email in admin_emails if email)
+        collected.extend(
+            Account.objects.filter(
+                role__in=["admin", "system_admin"],
+                is_active=True,
+            ).exclude(email="").values_list("email", flat=True)
+        )
 
     if "faculty" in roles:
-        faculty_emails = Account.objects.filter(
-            role="faculty",
-            is_active=True,
-        ).exclude(email="").values_list("email", flat=True)
-        recipients.update(email.strip() for email in faculty_emails if email)
+        collected.extend(
+            Account.objects.filter(
+                role="faculty",
+                is_active=True,
+            ).exclude(email="").values_list("email", flat=True)
+        )
 
+        # Faculty are also notified on their personal/secondary address.
         from faculty.models import FacultyProfile
-        personal_emails = FacultyProfile.objects.filter(
-            account__is_active=True,
-        ).exclude(personal_email="").exclude(personal_email__isnull=True).values_list("personal_email", flat=True)
-        recipients.update(e.strip() for e in personal_emails if e)
+        collected.extend(
+            FacultyProfile.objects.filter(
+                account__is_active=True,
+            ).exclude(personal_email="").exclude(personal_email__isnull=True)
+            .values_list("personal_email", flat=True)
+        )
 
     if "applicant" in roles:
-        applicant_emails = Applicant.objects.exclude(email="").values_list("email", flat=True)
-        recipients.update(email.strip() for email in applicant_emails if email)
+        collected.extend(
+            Applicant.objects.exclude(email="").values_list("email", flat=True)
+        )
 
-    return sorted(recipients)
+    if not collected:
+        return []
+
+    # build_recipient_list de-duplicates case-insensitively; a plain set() would
+    # treat "A@x.com" and "a@x.com" as distinct and mail the same inbox twice.
+    return sorted(build_recipient_list(*collected), key=str.lower)
 
 
 def _update_announcement_email_state(announcement_id, **fields):
@@ -83,8 +101,25 @@ def sync_active_academic_calendar_task(self, ref_date=None):
             ref_date = datetime.date.fromisoformat(ref_date)
         except (TypeError, ValueError):
             ref_date = timezone.localdate()
-    payload = _sync_active_academic_calendar(ref_date=ref_date)
-    payload["auto_assign"] = ensure_auto_assign_for_active_semesters(ref_date=ref_date)
+
+    try:
+        payload = _sync_active_academic_calendar(ref_date=ref_date)
+    except DatabaseError as exc:
+        # The retry config above was previously declared but never used, so a
+        # transient DB error silently left the calendar stale until the next
+        # nightly tick.
+        logger.exception("Academic calendar sync failed; retrying")
+        raise self.retry(exc=exc)
+
+    # Deliverable auto-assignment is a separate concern. A failure here must not
+    # make the calendar sync itself look like it failed - the calendar is
+    # already committed at this point.
+    try:
+        payload["auto_assign"] = ensure_auto_assign_for_active_semesters(ref_date=ref_date)
+    except Exception:
+        logger.exception("Deliverable auto-assign failed during calendar sync")
+        payload["auto_assign"] = {"error": "auto_assign_failed"}
+
     return payload
 
 

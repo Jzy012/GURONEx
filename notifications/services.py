@@ -322,7 +322,7 @@ def get_faculty_pending_deliverables_count(faculty) -> int:
     if not faculty:
         return 0
 
-    semester = Semester.objects.filter(is_active=True).first()
+    semester = Semester.get_active()
     if not semester:
         return 0
 

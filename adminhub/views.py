@@ -88,7 +88,7 @@ from base.forms import (
 )
 from base.models import Account, GoogleStorageAccount, LandingAppearance
 from base.utils.admin_data import get_admin_data, get_all_faculty_data
-from base.utils.dtr_workinghours import calculate_total_working_hours
+from base.utils.dtr_workinghours import calculate_official_work_hours
 from base.utils.email import (
     send_applicant_status_email,
     send_applicant_status_rescheduled_email,
@@ -823,14 +823,22 @@ def faculty_pending_approvals_view(request):
     })
 
 
-def _build_recipients(primary_email, personal_email=None):
-    """Return a list of unique recipients: primary + personal when different.
+def _build_recipients(primary_email, *extra_emails):
+    """Return a list of unique recipients: primary + any secondary addresses.
 
     Thin wrapper over the shared build_recipient_list helper so faculty and
     evaluation emails use one source of truth for recipient de-duplication.
+    Variadic like the underlying helper, so additional secondary addresses can
+    be passed without changing this signature.
+
+    Callers that hold an Account should prefer
+    base.utils.email_base.get_faculty_notification_recipients(account); this
+    wrapper exists for the paths that only have raw email strings (e.g. the
+    rejection email, whose addresses are snapshotted before the account row is
+    deleted).
     """
     from base.utils.email_base import build_recipient_list
-    return build_recipient_list(primary_email, personal_email)
+    return build_recipient_list(primary_email, *extra_emails)
 
 
 def _send_faculty_approval_email(faculty_profile: 'FacultyProfile'):
@@ -4934,7 +4942,9 @@ def admin_dtr_export_preview(request, faculty_uuid):
             'pm_out': pm_out,
         })
 
-    total_working_hours = calculate_total_working_hours(rows)
+    # Computed from the DTR assignments, not from the AM/PM display strings -
+    # those four slots cannot express a shift spanning noon.
+    total_working_hours = calculate_official_work_hours(dtr)
 
     context = {
         'faculty': faculty,
@@ -4982,9 +4992,9 @@ def admin_dtr_export_view(request, faculty_uuid):
                     pm_out = t_out.strftime('%I:%M %p').lstrip('0')
         rows.append([str(day_num), am_in, am_out, pm_in, pm_out])
 
-    rows_dicts = [{'am_in': am_in, 'am_out': am_out, 'pm_in': pm_in, 'pm_out': pm_out}
-                  for (_, am_in, am_out, pm_in, pm_out) in rows]
-    total_working_hours = calculate_total_working_hours(rows_dicts)
+    # Computed from the DTR assignments, not from the AM/PM display strings -
+    # those four slots cannot express a shift spanning noon.
+    total_working_hours = calculate_official_work_hours(dtr)
     status_label = faculty.status.name.upper() if getattr(faculty, "status", None) and getattr(faculty.status, "name", None) else "---"
 
     buffer = BytesIO()

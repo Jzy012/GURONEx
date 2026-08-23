@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
 from django.forms import BaseFormSet, formset_factory
 from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
@@ -38,8 +38,10 @@ from base.forms import (
     FacultyPublicSignupForm,
     IndexedFormSet as BaseIndexedFormSet,
     TwoFactorToggleForm,
+    get_current_week_range,
 )
-from base.utils.dtr_workinghours import calculate_total_working_hours
+from base.utils.academic_calendar import resolve_faculty_semester
+from base.utils.dtr_workinghours import calculate_official_work_hours
 from base.utils.faculty_data import get_faculty_data
 from faculty.models import (
     Deliverable,
@@ -54,6 +56,10 @@ from faculty.models import (
 from notifications.services import ROLE_ADMIN_GROUP, log_activity, notify_role
 from rfid.models import AttendanceLog
 from rfid.views import format_log
+from services.attendance_documentation_service import (
+    AttendanceDocumentationError,
+    upload_attendance_documentation,
+)
 from services.dtr_service import DTRCalculator
 from services.faculty_clearance_service import (
     build_clearance_number,
@@ -168,11 +174,9 @@ def home(request):
         status__in=["Pending", "Open"] 
     ).count()
 
-    semester = Semester.objects.filter(
-        is_active=True,
-        start_date__lte=today,
-        end_date__gte=today
-    ).first()
+    # Shared source of truth so Home, Teaching Assignment/DTR and Classroom
+    # Management never disagree about which semester is current.
+    semester = Semester.get_active()
 
     pending_deliverables = 0
     if semester:
@@ -219,11 +223,16 @@ def home(request):
 
     faculty_profile = faculty
 
-    teaching_assignments_qs = TeachingAssignment.objects.filter(
-        faculty=faculty
-    )
+    # Without an active semester there is no "current" schedule to show. Falling
+    # through unfiltered here would render every historical assignment the
+    # faculty has ever had under a "no active semester" header.
     if semester:
-        teaching_assignments_qs = teaching_assignments_qs.filter(semester=semester)
+        teaching_assignments_qs = TeachingAssignment.objects.filter(
+            faculty=faculty,
+            semester=semester,
+        )
+    else:
+        teaching_assignments_qs = TeachingAssignment.objects.none()
 
     teaching_assignments = teaching_assignments_qs.order_by(
         'day_of_week',
@@ -588,41 +597,105 @@ def faculty_manual_attendance_log_view(request):
 
     faculty = request.user.faculty_profile
     today = timezone.localdate()
+    week_start, week_end = get_current_week_range(today)
     message = ""
     message_class = ""
+    documentation_error = ""
     initial = {
         'date': today,
         'time_in': '',
         'time_out': '',
         'selected_assignments': [],
+        'selected_reason': '',
+        'reason_details': '',
+    }
+
+    form_kwargs = {
+        'faculty': faculty,
+        # Faculty may only log within the current week, up to today.
+        'restrict_to_current_week': True,
     }
 
     if request.method == "POST":
         mutable_post = request.POST.copy()
+        # The faculty is always taken from the session, never from the payload.
         mutable_post["faculty"] = str(faculty.pk)
         initial.update({
             'date': request.POST.get('date', today),
             'time_in': request.POST.get('time_in', ''),
             'time_out': request.POST.get('time_out', ''),
             'selected_assignments': [str(v) for v in request.POST.getlist('teaching_assignments')],
+            'selected_reason': request.POST.get('manual_reason', ''),
+            'reason_details': request.POST.get('manual_reason_details', ''),
         })
 
-        form = ManualAttendanceLogForm(mutable_post, faculty=faculty)
+        form = ManualAttendanceLogForm(mutable_post, request.FILES, **form_kwargs)
         if form.is_valid():
             cleaned = form.cleaned_data
-            if cleaned['date'] != today:
-                form.add_error('date', "Faculty manual attendance can only be logged for today.")
-            else:
-                attendance = form.save(commit=False)
-                attendance.faculty = faculty
-                attendance.time_in = datetime.datetime.combine(cleaned['date'], cleaned['time_in'], tzinfo=timezone.get_current_timezone())
-                attendance.time_out = datetime.datetime.combine(cleaned['date'], cleaned['time_out'], tzinfo=timezone.get_current_timezone())
-                attendance.uid = request.POST.get('uid', '')
-                attendance.is_manual = True
-                attendance.save()
-                form.save_m2m()
-                messages.success(request, "Manual attendance logged successfully.")
-                return redirect('faculty:faculty_attendance_logs')
+            photo = cleaned.get('documentation')
+            documentation_url = ""
+            documentation_drive_id = ""
+
+            # Upload before opening the transaction: a required photo that fails
+            # to store must reject the submission rather than leave an
+            # attendance record without its evidence.
+            if photo:
+                try:
+                    documentation_url, documentation_drive_id = upload_attendance_documentation(
+                        faculty, cleaned['date'], photo
+                    )
+                except AttendanceDocumentationError as exc:
+                    form.add_error('documentation', str(exc))
+
+            if not form.errors:
+                tz = timezone.get_current_timezone()
+                try:
+                    with transaction.atomic():
+                        # Re-check inside the transaction: the form-level check
+                        # alone leaves a race between validation and save.
+                        if AttendanceLog.objects.select_for_update().filter(
+                            faculty=faculty, date=cleaned['date']
+                        ).exists():
+                            raise IntegrityError("duplicate attendance log")
+
+                        attendance = form.save(commit=False)
+                        attendance.faculty = faculty
+                        attendance.time_in = datetime.datetime.combine(cleaned['date'], cleaned['time_in'], tzinfo=tz)
+                        attendance.time_out = datetime.datetime.combine(cleaned['date'], cleaned['time_out'], tzinfo=tz)
+                        attendance.uid = request.POST.get('uid', '')
+                        attendance.is_manual = True
+                        attendance.documentation_url = documentation_url
+                        attendance.documentation_drive_id = documentation_drive_id
+                        attendance.save()
+                        form.save_m2m()
+
+                        log_activity(
+                            actor=request.user,
+                            action='faculty_manual_attendance_logged',
+                            target_type='AttendanceLog',
+                            target_id=str(attendance.pk),
+                            details={
+                                'target_name': faculty.name or request.user.email,
+                                'attendance_date': cleaned['date'].isoformat(),
+                                'time_in': cleaned['time_in'].strftime('%I:%M %p'),
+                                'time_out': cleaned['time_out'].strftime('%I:%M %p'),
+                                'reason': attendance.get_manual_reason_display() or '',
+                                'reason_details': attendance.manual_reason_details or '',
+                                'documentation_submitted': bool(documentation_url),
+                                'documentation_url': documentation_url,
+                                'teaching_assignments': [
+                                    f"{ta.subject_code} ({ta.year_section})"
+                                    for ta in cleaned.get('teaching_assignments') or []
+                                ],
+                                'logged_for_today': cleaned['date'] == today,
+                                'result': 'success',
+                            },
+                        )
+                except IntegrityError:
+                    form.add_error('date', "An attendance log for this date already exists.")
+                else:
+                    messages.success(request, "Manual attendance logged successfully.")
+                    return redirect('faculty:faculty_attendance_logs')
 
         if form.errors:
             error_msgs = []
@@ -633,10 +706,16 @@ def faculty_manual_attendance_log_view(request):
                     error_msgs.append(f"{field.label}: {error}")
             message = "<br>".join(error_msgs)
             message_class = "bg-red-100 text-red-800"
+            # Surfaced inline next to the upload field as well, since a browser
+            # cannot restore a file input after a failed POST.
+            documentation_error = " ".join(form.errors.get('documentation', []))
     else:
-        form = ManualAttendanceLogForm(initial={'faculty': faculty.pk, 'date': today}, faculty=faculty)
+        form = ManualAttendanceLogForm(
+            initial={'faculty': faculty.pk, 'date': today},
+            **form_kwargs,
+        )
 
-    active_sem = Semester.objects.filter(is_active=True).first()
+    active_sem = Semester.get_active()
     teaching_assignments = []
     assignments_qs = TeachingAssignment.objects.filter(faculty=faculty)
     if active_sem:
@@ -664,7 +743,18 @@ def faculty_manual_attendance_log_view(request):
 
     return render(request, 'faculty/faculty_manual_attendance_log.html', {
         'today': today,
+        'week_start': week_start,
+        'week_end': week_end,
         'teaching_assignments': teaching_assignments,
+        'reason_choices': AttendanceLog.MANUAL_REASON_CHOICES,
+        # Plain lists: the template serializes these with the json_script filter.
+        # Do NOT pre-serialize with json.dumps and interpolate into an HTML
+        # attribute - the double quotes terminate the attribute and break Alpine.
+        'reasons_requiring_documentation': sorted(AttendanceLog.REASONS_REQUIRING_DOCUMENTATION),
+        'reasons_requiring_details': sorted(AttendanceLog.REASONS_REQUIRING_DETAILS),
+        'reason_labels': dict(AttendanceLog.MANUAL_REASON_CHOICES),
+        'documentation_error': documentation_error,
+        'documentation_has_error': bool(documentation_error),
         'message': message,
         'message_class': message_class,
         **initial,
@@ -680,13 +770,24 @@ def faculty_teaching_assignment_dtr_view(request):
     month = int(request.GET.get('month', today.month))
     day_of_week = request.GET.get('day', '')  
 
-    assignments = (
-        TeachingAssignment.objects
-        .filter(faculty=faculty)
-        .select_related('semester')
-        .order_by('semester', 'day_of_week', 'start_time')
+    # Teaching assignments default to the active semester; ?semester= switches to
+    # a historical one. resolve_faculty_semester validates the parameter against
+    # this faculty's own semesters, so it cannot be used to probe others.
+    selected_semester, selectable_semesters, is_active_semester_view = resolve_faculty_semester(
+        request, faculty
     )
 
+    assignments = (
+        TeachingAssignment.objects
+        .filter(faculty=faculty, semester=selected_semester)
+        .select_related('semester__academic_year')
+        .order_by('day_of_week', 'start_time')
+        if selected_semester
+        else TeachingAssignment.objects.none()
+    )
+
+    # The DTR stays month-driven (?year=&month=&day=) and is independent of the
+    # semester picker.
     dtr = DTRCalculator.get_dtr_for_month(faculty, year, month)
 
     days_in_month = calendar.monthrange(year, month)[1]
@@ -751,6 +852,9 @@ def faculty_teaching_assignment_dtr_view(request):
         'months': months,
         'day_of_week': day_of_week,
         'day_choices': day_choices,
+        'selected_semester': selected_semester,
+        'selectable_semesters': selectable_semesters,
+        'is_active_semester_view': is_active_semester_view,
     }
     return render(request, 'faculty/faculty_teaching_assignment_dtr.html', context)
 
@@ -812,7 +916,9 @@ def faculty_dtr_export_preview(request):
             }
         )
 
-    total_working_hours = calculate_total_working_hours(rows)
+    # Computed from the DTR assignments, not from the AM/PM display strings -
+    # those four slots cannot express a shift spanning noon.
+    total_working_hours = calculate_official_work_hours(dtr)
     status_label = (
         faculty.status.name.upper()
         if getattr(faculty, "status", None) and getattr(faculty.status, "name", None)
@@ -869,11 +975,9 @@ def faculty_dtr_export_view(request):
 
         rows.append([str(day_num), am_in, am_out, pm_in, pm_out])
 
-    rows_dicts = [
-        {"am_in": am_in, "am_out": am_out, "pm_in": pm_in, "pm_out": pm_out}
-        for (_, am_in, am_out, pm_in, pm_out) in rows
-    ]
-    total_working_hours = calculate_total_working_hours(rows_dicts)
+    # Computed from the DTR assignments, not from the AM/PM display strings -
+    # those four slots cannot express a shift spanning noon.
+    total_working_hours = calculate_official_work_hours(dtr)
     status_label = (
         faculty.status.name.upper()
         if getattr(faculty, "status", None) and getattr(faculty.status, "name", None)
@@ -1197,20 +1301,19 @@ def faculty_deliverables_view(request):
     faculty = request.user.faculty_profile
     today = timezone.localdate()
 
-    active_semester = (
-        Semester.objects.filter(is_active=True)
-        .select_related("academic_year")
-        .order_by("-start_date")
-        .first()
+    # Defaults to the active semester; ?semester= switches to a historical one.
+    # The parameter is validated server-side against this faculty's own semesters.
+    semester, selectable_semesters, is_active_semester_view = resolve_faculty_semester(
+        request, faculty
     )
-
-    semester = active_semester
 
     if not semester:
         data.update({
             'semester': None,
             'academic_year_str': '',
             'semester_str': '',
+            'selectable_semesters': selectable_semesters,
+            'is_active_semester_view': False,
             'assignment_rows': [],
             'total_pending_deliverables': 0,
             'can_request_clearance': False,
@@ -1294,17 +1397,24 @@ def faculty_deliverables_view(request):
         'semester': semester,
         'academic_year_str': academic_year_str,
         'semester_str': semester_str,
+        'selectable_semesters': selectable_semesters,
+        'is_active_semester_view': is_active_semester_view,
         'assignment_rows': assignment_rows,
         'total_pending_deliverables': total_pending_deliverables,
         'can_request_clearance': (
-            all_assignments_complete
+            # Clearance can only be requested for the active semester. Viewing a
+            # historical semester is read-only.
+            is_active_semester_view
+            and all_assignments_complete
             and assignments.exists()
             and deliverables.exists()
             and clearance_eligibility['is_eligible']
         ),
         'clearance_request': clearance_request,
         'clearance_eligibility': clearance_eligibility,
-        'upload_blocked_due_deadline': pending_slots > 0 and pending_slots == overdue_slots,
+        'upload_blocked_due_deadline': (
+            is_active_semester_view and pending_slots > 0 and pending_slots == overdue_slots
+        ),
     })
 
     return render(request, 'faculty/faculty_deliverables.html', data)
@@ -1321,12 +1431,10 @@ def faculty_deliverables_view(request):
 @require_POST
 def faculty_request_clearance_view(request):
     faculty = request.user.faculty_profile
-    semester = (
-        Semester.objects.filter(is_active=True)
-        .select_related("academic_year")
-        .order_by("-start_date")
-        .first()
-    )
+    # Clearance is always requested against the active semester. The ?semester=
+    # picker on the deliverables page must never be able to open a request for a
+    # historical semester.
+    semester = Semester.get_active()
 
     if not semester:
         messages.error(request, "No active semester is available for clearance request.")
@@ -1406,7 +1514,7 @@ def faculty_deliverable_upload(request):
 
     allowed_deliverables_map = {}
     deliverables_catalog = {}  # id -> display label
-    active_semester = Semester.objects.filter(is_active=True).first()
+    active_semester = Semester.get_active()
     today = timezone.localdate()
     pending_slots = 0
     overdue_slots = 0

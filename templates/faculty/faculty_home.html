@@ -142,8 +142,8 @@
         <div>
           <h3 class="text-lg font-semibold text-gray-900">Weekly Schedule</h3>
           {% if active_semester %}
-            <p class="text-xs text-gray-500 mt-1">
-              {{ active_semester.get_semester_type_display }} • {{ active_semester.academic_year }}
+            <p class="text-xs font-semibold text-[#800505] mt-1 break-words">
+              {{ active_semester.label }}
             </p>
           {% else %}
             <p class="text-xs text-gray-500 mt-1">
@@ -294,8 +294,8 @@
     <div class="lg:col-span-2 lg:col-start-4">
       <div class="bg-white shadow rounded-lg p-6 h-full flex flex-col">
         <h3 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
-        <!-- Stack buttons vertically on all breakpoints -->
-        <div class="grid grid-cols-2 gap-4">
+        <!-- Stack vertically on mobile; two-up from sm so long labels don't wrap -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <a href="{% url 'faculty:upload_documents' %}" class="flex items-center justify-center px-4 py-3 bg-[#800505] hover:bg-[#a80707] text-white rounded-lg shadow text-sm font-semibold transition">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 text-white">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>

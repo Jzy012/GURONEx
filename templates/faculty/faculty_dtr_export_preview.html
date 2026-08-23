@@ -8,18 +8,18 @@
       Export My Daily Time Record
     </h2>
 
-    <div class="flex flex-row gap-3">
+    <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto sm:flex-shrink-0">
       <a href="{% url 'faculty:faculty_dtr_export' %}?month={{ month }}&year={{ year }}"
          target="_blank"
-         class="inline-flex items-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white font-semibold rounded-lg shadow transition">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+         class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white font-semibold rounded-lg shadow transition whitespace-nowrap w-full sm:w-auto">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5v-9m0 9 3-3m-3 3-3-3M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
         Download PDF
       </a>
       <a href="{% url 'faculty:faculty_teaching_assignment' %}?month={{month}}&year={{year}}"
-         class="inline-flex items-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white font-semibold rounded-lg shadow transition whitespace-nowrap">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+         class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#800505] hover:bg-[#a80707] text-white font-semibold rounded-lg shadow transition whitespace-nowrap w-full sm:w-auto">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
         </svg>
         Back to DTR

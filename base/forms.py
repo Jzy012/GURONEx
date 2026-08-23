@@ -977,7 +977,7 @@ class FacultyDeliverableUploadForm(forms.Form):
             self.fields["teaching_assignment"].queryset = TeachingAssignment.objects.none()
             return
 
-        active_semester = Semester.objects.filter(is_active=True).first()
+        active_semester = Semester.get_active()
         self.active_semester = active_semester  # stash for clean()
 
         if not active_semester:
@@ -1551,6 +1551,34 @@ class TeachingAssignmentBulkUploadForm(forms.Form):
 
 
 
+# Photo documentation limits for manual attendance. Images only, and much
+# smaller than the 15MB applicant document cap since these are phone photos.
+MAX_ATTENDANCE_DOCUMENTATION_SIZE = 5 * 1024 * 1024  # 5MB
+ALLOWED_ATTENDANCE_DOCUMENTATION_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
+
+# Widening the date window from "today" to "the current week" raises the ceiling
+# on manual logs from 1 to 6 per week. Cap it well below that: manual entry is an
+# exception path, so routine use should go through an admin instead.
+MAX_MANUAL_LOGS_PER_WEEK = 3
+
+
+def get_current_week_range(today=None):
+    """
+    The selectable date range for a faculty manual attendance log.
+
+    Monday of the current week through today. The upper bound is clamped to
+    today on purpose: allowing the rest of the week would let faculty log
+    attendance for a class that has not happened yet.
+
+    Uses timezone.localdate() so the week is evaluated in the project timezone
+    (Asia/Manila), the same clock the rest of the attendance system uses.
+    """
+    if today is None:
+        today = timezone.localdate()
+    week_start = today - datetime.timedelta(days=today.weekday())  # Monday
+    return week_start, today
+
+
 class ManualAttendanceLogForm(forms.ModelForm):
     faculty = forms.ModelChoiceField(queryset=FacultyProfile.objects.all(), widget=forms.HiddenInput())
     date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-input'}))
@@ -1562,18 +1590,68 @@ class ManualAttendanceLogForm(forms.ModelForm):
     )
     time_in = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time', 'class': 'form-input'}))
     time_out = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time', 'class': 'form-input'}))
+    documentation = forms.ImageField(
+        required=False,
+        label="Photo Documentation",
+        help_text="Required when the reason is Online Class. JPG, PNG or WEBP, max 5MB.",
+    )
 
     class Meta:
         model = AttendanceLog
-        fields = ['faculty', 'date', 'teaching_assignments']  # DO NOT include time_in/time_out
+        # DO NOT include time_in/time_out - they are TimeFields here but
+        # DateTimeFields on the model, and are combined with `date` in the view.
+        fields = ['faculty', 'date', 'teaching_assignments', 'manual_reason', 'manual_reason_details']
 
     def __init__(self, *args, **kwargs):
         faculty = kwargs.pop('faculty', None)
+        # Faculty are restricted to the current week; the admin manual-log view
+        # keeps its unrestricted date range and passes False here.
+        self.restrict_to_current_week = kwargs.pop('restrict_to_current_week', False)
+        self.require_reason = kwargs.pop('require_reason', self.restrict_to_current_week)
         super().__init__(*args, **kwargs)
+
         if faculty:
             self.fields['teaching_assignments'].queryset = TeachingAssignment.objects.filter(faculty=faculty)
         else:
             self.fields['teaching_assignments'].queryset = TeachingAssignment.objects.none()
+
+        self.fields['manual_reason'].required = self.require_reason
+        self.fields['manual_reason_details'].required = False
+
+        if self.restrict_to_current_week:
+            week_start, week_end = get_current_week_range()
+            self.fields['date'].widget.attrs.update({
+                'min': week_start.isoformat(),
+                'max': week_end.isoformat(),
+            })
+
+    def clean_date(self):
+        date = self.cleaned_data.get('date')
+        if date and self.restrict_to_current_week:
+            week_start, week_end = get_current_week_range()
+            if date < week_start:
+                raise forms.ValidationError(
+                    "Manual attendance can only be logged for the current week "
+                    f"(from {week_start.strftime('%b %d, %Y')})."
+                )
+            if date > week_end:
+                raise forms.ValidationError("Manual attendance cannot be logged for a future date.")
+        return date
+
+    def clean_documentation(self):
+        photo = self.cleaned_data.get('documentation')
+        if not photo:
+            return photo
+
+        if photo.size > MAX_ATTENDANCE_DOCUMENTATION_SIZE:
+            raise forms.ValidationError("Photo documentation must be 5MB or less.")
+
+        ext = os.path.splitext(photo.name)[1].lower().lstrip('.')
+        if ext not in ALLOWED_ATTENDANCE_DOCUMENTATION_EXTENSIONS:
+            allowed = ", ".join(sorted(ALLOWED_ATTENDANCE_DOCUMENTATION_EXTENSIONS))
+            raise forms.ValidationError(f"File type '.{ext}' is not allowed. Use: {allowed}.")
+
+        return photo
 
     def clean(self):
         cleaned_data = super().clean()
@@ -1582,13 +1660,51 @@ class ManualAttendanceLogForm(forms.ModelForm):
         teaching_assignments = cleaned_data.get("teaching_assignments")
         time_in = cleaned_data.get("time_in")
         time_out = cleaned_data.get("time_out")
+        reason = cleaned_data.get("manual_reason")
+        reason_details = (cleaned_data.get("manual_reason_details") or "").strip()
+        documentation = cleaned_data.get("documentation")
 
-        # Only one log per faculty per date allowed
+        # Only one log per faculty per date allowed. This is re-checked inside a
+        # transaction in the view, since this check alone is subject to a race.
         exists = AttendanceLog.objects.filter(faculty=faculty, date=date)
         if self.instance.pk:
             exists = exists.exclude(pk=self.instance.pk)
         if exists.exists():
             raise forms.ValidationError("An attendance log for this faculty and date already exists.")
+
+        # Rate limit manual entries per week (faculty path only; admins are not
+        # capped). Counts existing manual logs in the same week as the target
+        # date, excluding the row being edited.
+        if self.restrict_to_current_week and faculty and date:
+            week_start, _ = get_current_week_range(date)
+            weekly_qs = AttendanceLog.objects.filter(
+                faculty=faculty,
+                is_manual=True,
+                date__gte=week_start,
+                date__lte=week_start + datetime.timedelta(days=6),
+            )
+            if self.instance.pk:
+                weekly_qs = weekly_qs.exclude(pk=self.instance.pk)
+            if weekly_qs.count() >= MAX_MANUAL_LOGS_PER_WEEK:
+                raise forms.ValidationError(
+                    f"You have reached the limit of {MAX_MANUAL_LOGS_PER_WEEK} manual "
+                    "attendance logs for this week. Please contact an administrator."
+                )
+
+        # Reason-driven requirements. Enforced here, not only in the UI, so a
+        # hand-crafted POST cannot skip the documentation.
+        if reason:
+            if reason in AttendanceLog.REASONS_REQUIRING_DOCUMENTATION and not documentation:
+                label = dict(AttendanceLog.MANUAL_REASON_CHOICES).get(reason, reason)
+                self.add_error(
+                    "documentation",
+                    f"Photo documentation is required when the reason is {label}.",
+                )
+            if reason in AttendanceLog.REASONS_REQUIRING_DETAILS and not reason_details:
+                self.add_error(
+                    "manual_reason_details",
+                    "Please explain the reason for this manual attendance log.",
+                )
 
         if teaching_assignments and len(teaching_assignments) > 0:
             start_times = [ta.start_time for ta in teaching_assignments]

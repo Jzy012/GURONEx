@@ -35,6 +35,30 @@ def build_recipient_list(primary_email, *extra_emails):
     return recipients
 
 
+def get_faculty_notification_recipients(account):
+    """
+    Recipients for a faculty notification: institutional email + personal email.
+
+    FacultyProfile.personal_email is the secondary address faculty are notified
+    on. Blank, missing, and identical-to-primary values are handled by
+    build_recipient_list, so callers never send duplicates.
+
+    Accounts without a faculty profile (admins) simply resolve to their own
+    email, which keeps behaviour unchanged for other roles.
+
+    Note: this is deliberately NOT used for OTP, 2FA, or password-reset codes.
+    Those stay on the institutional email only, so control of a secondary inbox
+    is never enough to take over an account.
+    """
+    if account is None:
+        return []
+
+    profile = getattr(account, "faculty_profile", None)
+    personal_email = getattr(profile, "personal_email", None) if profile else None
+
+    return build_recipient_list(getattr(account, "email", None), personal_email)
+
+
 def send_html_email(
     subject: str,
     to_emails,
